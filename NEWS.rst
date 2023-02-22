@@ -1,3 +1,12 @@
+Pythonprojectstructure 0.0.1b2 (2023-02-22)
+===========================================
+
+Misc
+----
+
+- test-python-versions-race
+
+
 Pythonprojectstructure 0.0.1b1 (2023-02-22)
 ===========================================
 
