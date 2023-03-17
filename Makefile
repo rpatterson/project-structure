@@ -25,7 +25,9 @@ GITHUB_REPOSITORY_OWNER=$(GITLAB_REPOSITORY_OWNER)
 
 # Values derived from the environment
 USER_NAME:=$(shell id -u -n)
-USER_FULL_NAME:=$(shell getent passwd "$(USER_NAME)" | cut -d ":" -f 5 | cut -d "," -f 1)
+USER_FULL_NAME:=$(shell \
+    getent passwd "$(USER_NAME)" | cut -d ":" -f 5 | cut -d "," -f 1 \
+)
 ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
@@ -42,7 +44,9 @@ export TZ=$(shell \
 endif
 # Use the same Python version tox would as a default:
 # https://tox.wiki/en/latest/config.html#base_python
-PYTHON_HOST_MINOR:=$(shell pip --version | sed -nE 's|.* \(python ([0-9]+.[0-9]+)\)$$|\1|p')
+PYTHON_HOST_MINOR:=$(shell \
+    pip --version | sed -nE 's|.* \(python ([0-9]+.[0-9]+)\)$$|\1|p' \
+)
 export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
 # Determine the latest installed Python version of the supported versions
 PYTHON_BASENAMES=$(PYTHON_SUPPORTED_MINORS:%=python%)
@@ -183,10 +187,10 @@ build: ./.git/hooks/pre-commit build-docker
 ### Set up for development in Docker containers
 build-docker: ./.env $(HOME)/.local/var/log/python-project-structure-host-install.log
 ifeq ($(RELEASE_PUBLISH),true)
-	if [ -e "./build/next-version.txt" ]
+	if [ -e "./dist/.next-version.txt" ]
 	then
 # Ensure the build is made from the version bump commit if it was done elsewhere:
-	    git pull --ff-only "origin" "v$$(cat "./build/next-version.txt")"
+	    git pull --ff-only "origin" "v$$(cat "./dist/.next-version.txt")"
 	fi
 endif
 # Avoid parallel tox recreations stomping on each other
@@ -290,7 +294,13 @@ build-bump: \
 	    git_fetch_args+=" --unshallow"
 	fi
 	git fetch $${git_fetch_args} origin "$(TOWNCRIER_COMPARE_BRANCH)"
-# Collect the versions involved in this release according to conventional commits
+# Check if the conventional commits since the last release require new release and thus
+# a version bump:
+	if ! $(TOX_EXEC_BUILD_ARGS) python ./bin/cz-check-bump
+	then
+	    exit
+	fi
+# Collect the versions involved in this release according to conventional commits:
 	cz_bump_args="--check-consistency --no-verify"
 ifneq ($(VCS_BRANCH),master)
 	cz_bump_args+=" --prerelease beta"
@@ -300,28 +310,13 @@ ifeq ($(RELEASE_PUBLISH),true)
 # Import the private signing key from CI secrets
 	$(MAKE) -e ./var/log/gpg-import.log
 endif
-# Run first in case any input is needed from the developer
-	exit_code=0
-	$(TOX_EXEC_BUILD_ARGS) cz bump $${cz_bump_args} --dry-run || exit_code=$$?
-# Check if a release and thus a version bump is needed for the commits since the last
-# release:
 	next_version=$$(
 	    $(TOX_EXEC_BUILD_ARGS) cz bump $${cz_bump_args} --yes --dry-run |
 	    sed -nE 's|.* ([^ ]+) *→ *([^ ]+).*|\2|p'
 	) || true
-	rm -fv "./build/next-version.txt"
-	if (( $$exit_code == 3 || $$exit_code == 21 ))
-	then
-# No release necessary for the commits since the last release, don't publish a release
-	    exit
-	elif (( $$exit_code == 0 ))
-	then
-	    mkdir -pv "./build/"
-	    echo "$${next_version}" >"./build/next-version.txt"
-	else
-# Commitizen returned an unexpected exit status code, fail
-	    exit $$exit_code
-	fi
+	mkdir -pv "./dist/"
+	rm -fv "./dist/.next-version.txt"
+	echo "$${next_version}" >"./dist/.next-version.txt"
 # Update the release notes/changelog
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) python-project-structure-devel \
 	    $(TOX_EXEC_ARGS) \
@@ -378,9 +373,12 @@ run: build-docker-$(PYTHON_MINOR) ./.env
 .PHONY: check-push
 ### Perform any checks that should only be run before pushing
 check-push: build-docker-$(PYTHON_MINOR) ./.env
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) python-project-structure-devel \
-	    $(TOX_EXEC_ARGS) \
-	    towncrier check --compare-with "origin/$(TOWNCRIER_COMPARE_BRANCH)"
+	if $(TOX_EXEC_BUILD_ARGS) python ./bin/cz-check-bump
+	then
+	    docker compose run $(DOCKER_COMPOSE_RUN_ARGS) \
+	        python-project-structure-devel $(TOX_EXEC_ARGS) \
+	        towncrier check --compare-with "origin/$(TOWNCRIER_COMPARE_BRANCH)"
+	fi
 .PHONY: check-clean
 ### Confirm that the checkout is free of uncommitted VCS changes
 check-clean: $(HOME)/.local/var/log/python-project-structure-host-install.log
@@ -408,10 +406,10 @@ ifeq ($(GITLAB_CI),true)
 	    --file "./build/$(PYTHON_ENV)/coverage.xml"
 endif
 ifeq ($(RELEASE_PUBLISH),true)
-	if [ -e "./build/next-version.txt" ]
+	if [ -e "./dist/next-version.txt" ]
 	then
 # Ensure the release is made from the version bump commit if it was done elsewhere:
-	    git pull --ff-only "origin" "v$$(cat "./build/next-version.txt")"
+	    git pull --ff-only "origin" "v$$(cat "./dist/.next-version.txt")"
 	fi
 # Import the private signing key from CI secrets
 	$(MAKE) -e ./var/log/gpg-import.log
@@ -428,7 +426,7 @@ endif
 # https://twine.readthedocs.io/en/latest/#using-twine
 	$(TOX_EXEC_BUILD_ARGS) twine check ./dist/python?project?structure-*
 	$(MAKE) "check-clean"
-	if [ ! -e "./build/next-version.txt" ]
+	if [ ! -e "./dist/.next-version.txt" ]
 	then
 	    exit
 	fi
@@ -567,7 +565,8 @@ test-debug: ./var/log/tox/$(PYTHON_ENV)/editable.log
 .PHONY: upgrade
 ### Update all fixed/pinned dependencies to their latest available versions
 upgrade: ./.env $(DOCKER_VOLUMES)
-	touch "./setup.cfg" "./requirements/build.txt.in" "./build-host/requirements.txt.in"
+	touch "./setup.cfg" "./requirements/build.txt.in" \
+	    "./build-host/requirements.txt.in"
 ifeq ($(CI),true)
 # Pull separately to reduce noisy interactive TTY output where it shouldn't be:
 	docker compose pull --quiet python-project-structure-devel
@@ -583,7 +582,11 @@ endif
 ### Reset an upgrade branch, commit upgraded dependencies on it, and push for review
 upgrade-branch: ~/.gitconfig ./var/log/git-remotes.log
 	git fetch "origin" "$(VCS_BRANCH)"
-	git fetch "origin" "$(VCS_BRANCH)-upgrade"
+	remote_branch_exists=false
+	if git fetch "origin" "$(VCS_BRANCH)-upgrade"
+	then
+	    remote_branch_exists=true
+	fi
 	if git show-ref -q --heads "$(VCS_BRANCH)-upgrade"
 	then
 # Reset an existing local branch to the latest upstream before upgrading
@@ -601,22 +604,25 @@ upgrade-branch: ~/.gitconfig ./var/log/git-remotes.log
 	fi
 # Commit the upgrade changes
 	echo "Upgrade all requirements and dependencies to the latest versions." \
-	    >"./src/pythonprojectstructure/newsfragments/upgrade-requirements.misc.rst"
-	git add --update \
-	    './build-host/requirements-*.txt' './requirements/*/build.txt' \
+	    >"./src/pythonprojectstructure/newsfragments/upgrade-requirements.bugfix.rst"
+	git add --update './build-host/requirements-*.txt' './requirements/*/*.txt' \
 	    "./.pre-commit-config.yaml"
 	git add \
-	    "./src/pythonprojectstructure/newsfragments/upgrade-requirements.misc.rst"
+	    "./src/pythonprojectstructure/newsfragments/upgrade-requirements.bugfix.rst"
 	git commit --all --signoff -m \
-	    "build(deps): Upgrade requirements latest versions"
+	    "fix(deps): Upgrade requirements latest versions"
 # Fail if upgrading left untracked files in VCS
 	$(MAKE) "check-clean"
 # Push any upgrades to the remote for review.  Specify both the ref and the expected ref
 # for `--force-with-lease=...` to support pushing to multiple mirrors/remotes via
 # multiple `pushUrl`:
-	git push \
-	    --force-with-lease="$(VCS_BRANCH)-upgrade:origin/$(VCS_BRANCH)-upgrade" \
-	    --no-verify "origin" "HEAD:$(VCS_BRANCH)-upgrade"
+	git_push_args="--no-verify"
+	if [ "$${remote_branch_exists=true}" == "true" ]
+	then
+	    git_push_args+=" \
+	        --force-with-lease=$(VCS_BRANCH)-upgrade:origin/$(VCS_BRANCH)-upgrade"
+	fi
+	git push $${git_push_args} "origin" "HEAD:$(VCS_BRANCH)-upgrade"
 
 # TEMPLATE: Run this once for your project.  See the `./var/log/docker-login*.log`
 # targets for the authentication environment variables that need to be set or just login
@@ -664,19 +670,6 @@ endif
 	fi
 	envsubst <"$(template)" >"$(target)"
 
-
-## Debug targets
-
-.PHONY: debug-github-checkout
-## Reproduce the GitHub Actions shallow git checkout
-debug-github-checkout:
-	git init "$(CHECKOUT_DIR)"
-	cd "$(CHECKOUT_DIR)"
-	git remote add origin \
-	    "https://github.com/$(GITHUB_REPOSITORY_OWNER)/python-project-structure"
-	git -c protocol.version=2 fetch --no-tags --prune --progress \
-	    --no-recurse-submodules --depth=1 "origin" "$(VCS_BRANCH)"
-	git checkout --progress --force -B "$(VCS_BRANCH)" "origin/$(VCS_BRANCH)"
 
 ## Real targets
 
