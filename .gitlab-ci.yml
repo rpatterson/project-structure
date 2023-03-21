@@ -1,13 +1,5 @@
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Docker.gitlab-ci.yml
 
-workflow:
-  rules:
-    # Run only for branches, not tags:
-    # https://stackoverflow.com/a/68130421/624787
-    - if: "$CI_COMMIT_TAG"
-      when: "never"
-    - when: "always"
-
 default:
   image:
     name: "${CI_REGISTRY_IMAGE}:build-host"
@@ -52,50 +44,22 @@ cache:
   paths:
     - "./.cache/pip"
     - "./dist/.current.whl"
-    - "./dist/.next-version.txt"
 
 # Delegate to the `./Makefile` as much as possible to keep as much portable between CI
 # platforms
 
 stages:
-  - "build-host"
-  - "bump"
   - "build-test"
+  - "bump"
   - "release"
   - "scheduled"
 
-# Ensure the image used for the rest of this run is up to date
-build-host:
-  stage: "build-host"
-  script:
-    - "entrypoint make -e ./var/log/docker-login-GITLAB.log"
-    - "entrypoint make -C ./build-host/ -e release"
-
-bump:
-  stage: "bump"
-  needs: ["build-host"]
-  rules:
-    - if: >-
-        $CI_PIPELINE_SOURCE != "schedule"
-  script:
-    # Hand off the rest to `$ make` as the unprivileged user
-    - >-
-      entrypoint make -e BUILD_REQUIREMENTS=false build-bump build-wheel check-clean
-  artifacts:
-    # Upload build artifacts:
-    # https://docs.gitlab.com/ee/ci/pipelines/job_artifacts.html
-    paths:
-      # TODO: GitLab CI/CD issues a warning when not on `develop` or `master` because it
-      # isn't actually used, IOW this is an expected condition on feature branches:
-      #     WARNING: ./NEWS-release.rst: no matching files. Ensure that the artifact path is relative to the working directory
-      # Is there a way to make paths conditional?
-      - "./NEWS-release.rst"
-      - "./dist/python?project?structure-*"
-
 build-test:
   stage: "build-test"
-  needs: ["build-host", "bump"]
   rules:
+    - if: >-
+        $CI_COMMIT_TAG
+      when: "never"
     - if: >-
         $CI_PIPELINE_SOURCE != "schedule"
   parallel:
@@ -128,12 +92,38 @@ build-test:
         coverage_format: "cobertura"
         path: "./build/py*/coverage.xml"
 
-release:
-  stage: "release"
-  needs: ["build-host", "build-test"]
+bump:
+  stage: "bump"
+  needs: ["build-test"]
   rules:
     - if: >-
+        $CI_COMMIT_TAG
+      when: "never"
+    - if: >-
+        $CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "master"
+      when: "never"
+    - if: >-
         $CI_PIPELINE_SOURCE != "schedule"
+  script:
+    # Hand off the rest to `$ make` as the unprivileged user
+    - >-
+      entrypoint make -e BUILD_REQUIREMENTS=false build-bump check-clean
+  artifacts:
+    # Upload build artifacts:
+    # https://docs.gitlab.com/ee/ci/pipelines/job_artifacts.html
+    paths:
+      # TODO: GitLab CI/CD issues a warning when not on `develop` or `master` because it
+      # isn't actually used, IOW this is an expected condition on feature branches:
+      #     WARNING: ./NEWS-release.rst: no matching files. Ensure that the artifact path is relative to the working directory
+      # Is there a way to make paths conditional?
+      - "./NEWS-release.rst"
+      - "./dist/python?project?structure-*"
+
+release:
+  stage: "release"
+  rules:
+    - if: >-
+        $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9]/
   script:
     - >-
       entrypoint make -e BUILD_REQUIREMENTS=false release-python check-clean
@@ -143,7 +133,6 @@ release:
 
 scheduled:
   stage: "scheduled"
-  needs: ["build-host"]
   rules:
     - if: >-
         $CI_PIPELINE_SOURCE == "schedule"
