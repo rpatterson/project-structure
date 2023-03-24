@@ -1,3 +1,13 @@
+Pythonprojectstructure 0.1.0b2 (2023-03-24)
+===========================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+- Upgrade all requirements to the latest versions as of Fri Mar 24 03:43:37 AM UTC 2023. (upgrade-requirements)
+
+
 Pythonprojectstructure 0.1.0b1 (2023-03-21)
 ===========================================
 
