@@ -1,3 +1,12 @@
+Pythonprojectstructure 0.1.0b5 (2023-03-24)
+===========================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
 Pythonprojectstructure 0.1.0b4 (2023-03-24)
 ===========================================
 
