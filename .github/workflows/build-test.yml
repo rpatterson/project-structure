@@ -1,8 +1,7 @@
 name: "Build and Test"
 
 on:
-  # Only run when branches are pushed, and not when tags are pushed, to allow manual
-  # creation of tags to manually control bumped versions:
+  # Only run on branches, not tags:
   # https://github.com/orgs/community/discussions/25615#discussioncomment-3397691
   push:
     branches:
@@ -20,9 +19,13 @@ jobs:
         PUID: "1001"
         PGID: "123"
         CHECKOUT_DIR: "${{ github.workspace }}"
+        # Requires the secrets to be added to GitHub either through the web UI or the
+        # GitHub CLI tool:
+        # https://docs.github.com/en/actions/security-guides/encrypted-secrets#creating-encrypted-secrets-for-a-repository
         GPG_PASSPHRASE: "${{ secrets.GPG_PASSPHRASE }}"
         GPG_SIGNING_PRIVATE_KEY: "${{ secrets.GPG_SIGNING_PRIVATE_KEY }}"
         DOCKER_PASS: "${{ secrets.DOCKER_PASS }}"
+        # Enable the GitHub CLI
         PROJECT_GITHUB_PAT: "${{ secrets.PROJECT_GITHUB_PAT }}"
     permissions:
       packages: "write"
@@ -38,22 +41,20 @@ jobs:
     name: "build-test (python${{ matrix.PYTHON_MINORS }})"
     steps:
 
-      # Shared/common set up
+      # Shared/common set up:
       - name: "Checkout source from VCS"
         uses: "actions/checkout@master"
-      - name: "Cache build resources"
+      - name: "Cache tox virtual environments"
         if: "github.ref != 'refs/heads/master'"
         uses: "actions/cache@master"
-        env:
-          cache-name: "v1"
         with:
           path: |
-            ~/.local
-            ./dist
+            ./.tox
+            ./var/docker/*/.tox
           key: >-
-            ${{ env.cache-name }}-${{ runner.os }}-${{ matrix.PYTHON_MINORS }}-${{ hashFiles('pyproject.*') }}-${{ hashFiles('setup.*') }}-${{ hashFiles('tox.ini') }}-${{ github.sha }}
+            tox-${{ runner.os }}-${{ matrix.PYTHON_MINORS }}-${{ github.ref }}-v1
           restore-keys: >-
-            ${{ env.cache-name }}-${{ runner.os }}-${{ matrix.PYTHON_MINORS }}-${{ hashFiles('pyproject.*') }}-${{ hashFiles('setup.*') }}-${{ hashFiles('requirements*.txt') }}-${{ hashFiles('tox.ini') }}-
+            tox-${{ runner.os }}-${{ matrix.PYTHON_MINORS }}-${{ github.ref }}-v1
       - name: "Change checkout owner"
         # https://stackoverflow.com/a/58474340/624787
         run: >-
@@ -61,9 +62,7 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
 
-      # Delegate the rest to the `./Makefile` to keep as much portable between CI
-      # platforms
-
+      # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
       - name: "Build the container image in which to run the tests"
         run: >-
           entrypoint make -e PYTHON_MINORS=${{ matrix.PYTHON_MINORS }}
@@ -73,7 +72,7 @@ jobs:
           entrypoint make -e PYTHON_MINORS=${{ matrix.PYTHON_MINORS }}
           test-docker-${{ matrix.PYTHON_MINORS }} check-clean
 
-      # Upload build artifacts
+      # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage
       - name: "Archive test suite reports"
         uses: "actions/upload-artifact@master"
@@ -123,36 +122,30 @@ jobs:
         GPG_SIGNING_PRIVATE_KEY: "${{ secrets.GPG_SIGNING_PRIVATE_KEY }}"
         DOCKER_PASS: "${{ secrets.DOCKER_PASS }}"
         PROJECT_GITHUB_PAT: "${{ secrets.PROJECT_GITHUB_PAT }}"
+        XDG_CACHE_HOME: "${{ github.workspace }}/.cache"
     permissions:
       packages: "write"
     steps:
 
-      # Shared/common set up
+      # Shared/common set up:
       - name: "Checkout source from VCS"
         uses: "actions/checkout@master"
-
-      # Cache build artifacts to speed up CI runs
-      - name: "Cache build resources"
+      - name: "Cache tox virtual environments"
         if: "github.ref != 'refs/heads/master'"
         uses: "actions/cache@master"
-        env:
-          # Increment to force clearing the cache
-          cache-name: "v1"
         with:
           path: |
-            ~/.local
-            ./dist
-          # Never get a cache hit to force always caching any upgraded dependencies
-          # Use hashFiles to force venv recreation when dependencies change
+            ./.tox
+            ./var/docker/*/.tox
           key: >-
-            ${{ env.cache-name }}-${{ runner.os }}-3.10-${{ hashFiles('pyproject.*') }}-${{ hashFiles('setup.*') }}-${{ hashFiles('tox.ini') }}-${{ github.sha }}
-          # Always re-use the cache and then upgrade
+            tox-${{ runner.os }}-${{ matrix.PYTHON_MINORS }}-${{ github.ref }}-v1
           restore-keys: >-
-            ${{ env.cache-name }}-${{ runner.os }}-3.10-${{ hashFiles('pyproject.*') }}-${{ hashFiles('setup.*') }}-${{ hashFiles('requirements*.txt') }}-${{ hashFiles('tox.ini') }}-
+            tox-${{ runner.os }}-${{ matrix.PYTHON_MINORS }}-${{ github.ref }}-v1
       - name: "Change checkout owner"
         run: >-
           chown -R ${PUID}:${PGID} ./
 
+      # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
       - name: "Bump the version if publishing a release"
         run: >-
           entrypoint make -e BUILD_REQUIREMENTS=false build-bump check-clean
