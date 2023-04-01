@@ -16,6 +16,8 @@ variables:
   PUID: "1001"
   PGID: "1001"
   DOCKER_IMAGE: "$CI_REGISTRY_IMAGE"
+  # Different variable name needed by the GitHub CLI:
+  GH_TOKEN: "$PROJECT_GITHUB_PAT"
   # Uncomment to get more debugging output:
   # DEBUG: "true"
 
@@ -31,11 +33,8 @@ build-test:
         $CI_COMMIT_TAG
       when: "never"
     - if: >-
-        (
-          $CI_COMMIT_BRANCH !~ "^(develop|master)" || $CI_COMMIT_TITLE !~
-          /^build\(release\): Version [0-9]\.[0-9]\.[0-9][a-z0-9-.]* → [0-9]\.[0-9]\.[0-9][a-z0-9-.]*$/
-        )
-        && $CI_PIPELINE_SOURCE != "schedule"
+        $CI_PIPELINE_SOURCE != "schedule"
+  interruptible: true
   parallel:
     matrix:
       - PYTHON_MINORS:
