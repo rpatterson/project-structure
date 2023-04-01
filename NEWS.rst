@@ -1,3 +1,12 @@
+python-project-structure 0.1.0b8 (2023-04-01)
+=============================================
+
+Bugfixes
+--------
+
+- Upgrade all requirements to the latest versions as of Wed Mar 29 09:48:41 PM UTC 2023. (upgrade-requirements)
+
+
 python-project-structure 0.1.0b7 (2023-03-24)
 =============================================
 
