@@ -982,6 +982,18 @@ endif
 	docker buildx build --pull $${docker_build_args} $${docker_build_devel_tags} \
 	    $${docker_build_caches} --file "./Dockerfile.devel" "./"
 # Ensure any subsequent builds have optimal caches
+	true CI_UPSTREAM_NAMESPACE=$(CI_UPSTREAM_NAMESPACE)
+	true CI_PROJECT_NAMESPACE=$(CI_PROJECT_NAMESPACE)
+	true CI_PROJECT_NAME=$(CI_PROJECT_NAME)
+	true GITHUB_REPOSITORY_OWNER=$(GITHUB_REPOSITORY_OWNER)
+	true CI_IS_FORK=$(CI_IS_FORK)
+	true VCS_PUSH_REMOTE=$(VCS_PUSH_REMOTE)
+	true VCS_BRANCH=$(VCS_BRANCH)
+	true VCS_UPSTREAM_REMOTE=$(VCS_UPSTREAM_REMOTE)
+	true VCS_COMPARE_BRANCH=$(VCS_COMPARE_BRANCH)
+	true VCS_FETCH_TARGETS=$(VCS_FETCH_TARGETS)
+	true GITHUB_REPOSITORY_OWNER=$(GITHUB_REPOSITORY_OWNER)
+	true DOCKER_IMAGE_GITHUB=$(DOCKER_IMAGE_GITHUB)
 ifeq ($(GITLAB_CI),true)
 	docker push \
 	    "$(DOCKER_IMAGE_GITLAB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
