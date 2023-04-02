@@ -52,6 +52,28 @@ jobs:
           - "3.7"
     name: "build-test (python${{ matrix.PYTHON_MINORS }})"
     steps:
+      - name: Dump GitHub Actions contexts
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+          JOB_CONTEXT: ${{ toJson(job) }}
+          STEPS_CONTEXT: ${{ toJson(steps) }}
+          RUNNER_CONTEXT: ${{ toJson(runner) }}
+          STRATEGY_CONTEXT: ${{ toJson(strategy) }}
+          MATRIX_CONTEXT: ${{ toJson(matrix) }}
+        run: >-
+          mkdir -pv ./build/contexts/ &&
+          printenv "GITHUB_CONTEXT" >./build/contexts/github.json &&
+          printenv "JOB_CONTEXT" >./build/contexts/job.json &&
+          printenv "STEPS_CONTEXT" >./build/contexts/steps.json &&
+          printenv "RUNNER_CONTEXT" >./build/contexts/runner.json &&
+          printenv "STRATEGY_CONTEXT" >./build/contexts/strategy.json &&
+          printenv "MATRIX_CONTEXT" >./build/contexts/matrix.json
+      - name: "Archive GitHub Actions contexts"
+        uses: "actions/upload-artifact@master"
+        with:
+          name: "contexts"
+          path: |
+            ./build/contexts/*.json
 
       # Shared/common set up:
       - name: "Checkout source from VCS"
