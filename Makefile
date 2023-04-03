@@ -63,17 +63,21 @@ export DOCKER_GID=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values derived from VCS/git:
 # Determine which branch is checked out depending on the environment
+VCS_BRANCH:=$(shell git branch --show-current)
 GITLAB_CI=false
 GITHUB_ACTIONS=false
 ifeq ($(GITLAB_CI),true)
-export VCS_BRANCH=$(CI_COMMIT_REF_NAME)
+ifneq ($(CI_COMMIT_REF_NAME),)
+VCS_BRANCH=$(CI_COMMIT_REF_NAME)
+endif
 USER_EMAIL=$(USER_NAME)@runners-manager.gitlab.com
 else ifeq ($(GITHUB_ACTIONS),true)
-export VCS_BRANCH=$(GITHUB_REF_NAME)
-USER_EMAIL=$(USER_NAME)@actions.github.com
-else
-export VCS_BRANCH:=$(shell git branch --show-current)
+ifneq ($(GITHUB_REF_NAME),)
+VCS_BRANCH=$(GITHUB_REF_NAME)
 endif
+USER_EMAIL=$(USER_NAME)@actions.github.com
+endif
+export VCS_BRANCH
 VCS_PUSH_REMOTE:=$(shell git config "branch.$(VCS_BRANCH).remote")
 ifeq ($(VCS_PUSH_REMOTE),)
 VCS_PUSH_REMOTE:=$(shell git config "remote.pushDefault")
@@ -162,7 +166,7 @@ DOCKER_REGISTRIES=DOCKER GITLAB GITHUB
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(CI_PROJECT_NAME)
 DOCKER_IMAGE_GITLAB=$(CI_REGISTRY_IMAGE)
-DOCKER_IMAGE_GITHUB=ghcr.io/$(GITHUB_REPOSITORY_OWNER)/$(CI_PROJECT_NAME)
+DOCKER_IMAGE_GITHUB=ghcr.io/$(CI_PROJECT_NAMESPACE)/$(CI_PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 DOCKER_IMAGES=
 ifeq ($(GITLAB_CI),true)
@@ -177,14 +181,22 @@ DOCKER_VARIANT_PREFIX=
 ifneq ($(DOCKER_VARIANT),)
 DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
 endif
+DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_VOLUMES=\
 ./var/ ./var/docker/$(PYTHON_ENV)/ \
 ./src/python_project_structure.egg-info/ \
 ./var/docker/$(PYTHON_ENV)/python_project_structure.egg-info/ \
 ./.tox/ ./var/docker/$(PYTHON_ENV)/.tox/
+
+# Values derived from CI environments:
 CI_PROJECT_NAMESPACE=$(CI_UPSTREAM_NAMESPACE)
-GITHUB_UPSTREAM_OWNER=$(CI_UPSTREAM_NAMESPACE)
-GITHUB_REPOSITORY_OWNER=$(GITHUB_UPSTREAM_OWNER)
+ifneq ($(CI_REPO_FULL_NAME),)
+CI_PROJECT_NAMESPACE:=$(shell \
+    CI_REPO_FULL_NAME="$(CI_REPO_FULL_NAME)" && echo "$${CI_REPO_FULL_NAME%/*}")
+else
+CI_REPO_FULL_NAME=$(CI_UPSTREAM_NAMESPACE)/$(CI_PROJECT_NAME)
+endif
+GITHUB_REPOSITORY_OWNER=$(CI_UPSTREAM_NAMESPACE)
 # Determine if this checkout is a fork of the upstream project:
 CI_IS_FORK=false
 ifeq ($(GITLAB_CI),true)
@@ -194,12 +206,24 @@ DOCKER_REGISTRIES=GITLAB
 DOCKER_IMAGES+=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_UPSTREAM_NAMESPACE)/$(CI_PROJECT_NAME)
 endif
 else ifeq ($(GITHUB_ACTIONS),true)
-ifneq ($(GITHUB_REPOSITORY_OWNER),$(GITHUB_UPSTREAM_OWNER))
+ifneq ($(CI_PROJECT_NAMESPACE),$(GITHUB_REPOSITORY_OWNER))
 CI_IS_FORK=true
 DOCKER_REGISTRIES=GITHUB
-DOCKER_IMAGES+=ghcr.io/$(GITHUB_UPSTREAM_OWNER)/$(CI_PROJECT_NAME)
+DOCKER_IMAGES+=ghcr.io/$(GITHUB_REPOSITORY_OWNER)/$(CI_PROJECT_NAME)
 endif
 endif
+# Take GitHub auth from env under GitHub actions but from secrets on other hosts:
+GITHUB_TOKEN=
+PROJECT_GITHUB_PAT=
+ifeq ($(GITHUB_TOKEN),)
+GITHUB_TOKEN=$(PROJECT_GITHUB_PAT)
+else ifeq ($(PROJECT_GITHUB_PAT),)
+PROJECT_GITHUB_PAT=$(GITHUB_TOKEN)
+endif
+GH_TOKEN=$(GITHUB_TOKEN)
+export GH_TOKEN
+export GITHUB_TOKEN
+export PROJECT_GITHUB_PAT
 
 # Safe defaults for testing the release process without publishing to the final/official
 # hosts/indexes/registries:
@@ -235,9 +259,21 @@ CI_REGISTRY_USER=$(CI_PROJECT_NAMESPACE)
 CI_REGISTRY=registry.gitlab.com/$(CI_PROJECT_NAMESPACE)
 CI_REGISTRY_IMAGE=$(CI_REGISTRY)/$(CI_PROJECT_NAME)
 # Address undefined variables warnings when running under local development
+PYPI_PASSWORD=
+export PYPI_PASSWORD
+TEST_PYPI_PASSWORD=
+export TEST_PYPI_PASSWORD
 VCS_REMOTE_PUSH_URL=
 CODECOV_TOKEN=
-PROJECT_GITHUB_PAT=
+DOCKER_PASS=
+export DOCKER_PASS
+CI_PROJECT_ID=
+export CI_PROJECT_ID
+CI_JOB_TOKEN=
+export CI_JOB_TOKEN
+CI_REGISTRY_PASSWORD=
+export CI_REGISTRY_PASSWORD
+GH_TOKEN=
 
 # Makefile functions
 current_pkg = $(shell ls -t ./dist/*$(1) | head -n 1)
@@ -286,7 +322,7 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): \
 	minor_version=$$(
 	    echo $${VERSION} | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
 	)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$(VCS_BRANCH)
+	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)
 ifeq ($(VCS_BRANCH),master)
 # Only update tags end users may depend on to be stable from the `master` branch
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$${minor_version}
@@ -295,7 +331,7 @@ ifeq ($(VCS_BRANCH),master)
 endif
 # This variant is the default used for tags such as `latest`
 ifeq ($(PYTHON_ENV),$(PYTHON_LATEST_ENV))
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(VCS_BRANCH)
+	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
 ifeq ($(VCS_BRANCH),master)
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$${minor_version}
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$${major_version}
@@ -874,23 +910,27 @@ endif
 	done
 	docker_build_caches=""
 ifeq ($(GITLAB_CI),true)
-	$(MAKE) -e "./var/log/docker-login-GITLAB.log"
 # Don't cache when building final releases on `master`
 ifneq ($(VCS_BRANCH),master)
-	if $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
+	if (
+	    $(MAKE) -e "./var/log/docker-login-GITLAB.log" &&
+	    $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
+	)
 	then
 	    docker_build_caches+=" --cache-from \
-	$(DOCKER_IMAGE_GITLAB):devel-$(PYTHON_ENV)-$(VCS_BRANCH)"
+	$(DOCKER_IMAGE_GITLAB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 	fi
 endif
 endif
 ifeq ($(GITHUB_ACTIONS),true)
-	$(MAKE) -e "./var/log/docker-login-GITHUB.log"
 ifneq ($(VCS_BRANCH),master)
-	if $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
+	if (
+	    $(MAKE) -e "./var/log/docker-login-GITHUB.log" &&
+	    $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
+	)
 	then
 	    docker_build_caches+=" --cache-from \
-	$(DOCKER_IMAGE_GITHUB):devel-$(PYTHON_ENV)-$(VCS_BRANCH)"
+	$(DOCKER_IMAGE_GITHUB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 	fi
 endif
 endif
@@ -898,11 +938,13 @@ endif
 	    $${docker_build_caches} --file "./Dockerfile.devel" "./"
 # Ensure any subsequent builds have optimal caches
 ifeq ($(GITLAB_CI),true)
-	docker push "$(DOCKER_IMAGE_GITLAB):devel-$(PYTHON_ENV)-$(VCS_BRANCH)"
+	docker push \
+	    "$(DOCKER_IMAGE_GITLAB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 endif
 ifeq ($(GITHUB_ACTIONS),true)
 ifneq ($(CI_IS_FORK),true)
-	docker push "$(DOCKER_IMAGE_GITHUB):devel-$(PYTHON_ENV)-$(VCS_BRANCH)"
+	docker push \
+	    "$(DOCKER_IMAGE_GITHUB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 endif
 endif
 	date >>"$(@)"
@@ -945,7 +987,7 @@ ifneq ($(VCS_BRANCH),master)
 	if $(MAKE) -e pull-docker
 	then
 	    docker_build_caches+=" \
-	--cache-from $(DOCKER_IMAGE_GITLAB):$(PYTHON_ENV)-$(VCS_BRANCH)"
+	--cache-from $(DOCKER_IMAGE_GITLAB):$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 	fi
 endif
 endif
@@ -954,7 +996,7 @@ ifneq ($(VCS_BRANCH),master)
 	if $(MAKE) -e pull-docker
 	then
 	    docker_build_caches+=" \
-	--cache-from $(DOCKER_IMAGE_GITHUB):$(PYTHON_ENV)-$(VCS_BRANCH)"
+	--cache-from $(DOCKER_IMAGE_GITHUB):$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 	fi
 endif
 endif
@@ -962,11 +1004,11 @@ endif
 	    --build-arg PYTHON_WHEEL="$${PYTHON_WHEEL}" $${docker_build_caches} "./"
 # Ensure any subsequent builds have optimal caches
 ifeq ($(GITLAB_CI),true)
-	docker push "$(DOCKER_IMAGE_GITLAB):$(PYTHON_ENV)-$(VCS_BRANCH)"
+	docker push "$(DOCKER_IMAGE_GITLAB):$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 endif
 ifeq ($(GITHUB_ACTIONS),true)
 ifneq ($(CI_IS_FORK),true)
-	docker push "$(DOCKER_IMAGE_GITHUB):$(PYTHON_ENV)-$(VCS_BRANCH)"
+	docker push "$(DOCKER_IMAGE_GITHUB):$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
 endif
 endif
 	date >>"$(@)"
@@ -1078,10 +1120,12 @@ $(VCS_FETCH_TARGETS):
 	then
 	    git_fetch_args+=" --unshallow"
 	fi
+	branch_path="$(@:var/git/refs/remotes/%=%)"
 	mkdir -pv "$(dir $(@))"
-	(git fetch $${git_fetch_args} \
-	    "$(notdir $(patsubst %/,%,$(dir $(@))))" "$(notdir $(@))" || true) |&
-	    tee -a "$(@)"
+	(
+	    git fetch $${git_fetch_args} "$${branch_path%%/*}" "$${branch_path#*/}" ||
+	    true
+	) |& tee -a "$(@)"
 ./.git/hooks/pre-commit:
 	$(MAKE) "./var/log/tox/build/build.log"
 	$(TOX_EXEC_BUILD_ARGS) pre-commit install \
