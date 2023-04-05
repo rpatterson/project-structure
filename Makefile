@@ -724,6 +724,8 @@ release-bump: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
 ifneq ($(VCS_BRANCH),master)
 	cz_bump_args+=" --prerelease beta"
 endif
+	true VCS_BRANCH=$(VCS_BRANCH)
+	true RELEASE_PUBLISH=$(RELEASE_PUBLISH)
 	cz_bump_args+=" --gpg-sign"
 # Import the private signing key from CI secrets
 	$(MAKE) -e ./var/log/gpg-import.log
