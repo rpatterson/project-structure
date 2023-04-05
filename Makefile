@@ -623,6 +623,11 @@ endif
 	$(MAKE) "test-clean"
 # Only release from the `master` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
+# The VCS remote should reflect the release before the release is published to ensure
+# that a published release is never *not* reflected in VCS.  Also ensure the tag is in
+# place on any mirrors, using multiple `pushurl` remotes, for those project hosts as
+# well:
+	git push --no-verify --tags "$(VCS_REMOTE)" "HEAD:$(VCS_BRANCH)"
 	./.tox/build/bin/twine upload -s -r "$(PYPI_REPO)" \
 	    "$(call current_pkg,.whl)" "$(call current_pkg,.tar.gz)"
 	export VERSION=$$(./.tox/build/bin/cz version --project)
@@ -719,12 +724,9 @@ release-bump: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
 ifneq ($(VCS_BRANCH),master)
 	cz_bump_args+=" --prerelease beta"
 endif
-ifeq ($(RELEASE_PUBLISH),true)
 	cz_bump_args+=" --gpg-sign"
 # Import the private signing key from CI secrets
 	$(MAKE) -e ./var/log/gpg-import.log
-endif
-ifeq ($(RELEASE_PUBLISH),true)
 # Capture the release notes for *just this* release for creating the GitHub release.
 # Have to run before the real `$ towncrier build` run without the `--draft` option
 # because after that the `newsfragments` will have been deleted.
@@ -750,12 +752,6 @@ ifneq ($(CI),true)
 # If running under CI/CD then the image will be updated in the next pipeline stage.
 # For testing locally, however, ensure the image is up-to-date for subsequent recipes.
 	$(MAKE) -e "./var/docker/$(PYTHON_ENV)/log/build-user.log"
-endif
-# The VCS remote should reflect the release before the release is published to ensure
-# that a published release is never *not* reflected in VCS.  Also ensure the tag is in
-# place on any mirrors, using multiple `pushurl` remotes, for those project hosts as
-# well:
-	git push --no-verify --tags "$(VCS_REMOTE)" "HEAD:$(VCS_BRANCH)"
 endif
 
 
