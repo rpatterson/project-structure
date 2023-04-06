@@ -240,7 +240,6 @@ RELEASE_PUBLISH=false
 PYPI_REPO=testpypi
 PYPI_HOSTNAME=test.pypi.org
 # Only publish releases from the `master` or `develop` branches:
-DOCKER_PUSH=false
 ifeq ($(CI),true)
 # Compile requirements on CI/CD as a check to make sure all changes to dependencies have
 # been reflected in the frozen/pinned versions, but don't upgrade packages so that
@@ -256,7 +255,6 @@ ifeq ($(VCS_BRANCH),master)
 RELEASE_PUBLISH=true
 PYPI_REPO=pypi
 PYPI_HOSTNAME=pypi.org
-DOCKER_PUSH=true
 GITHUB_RELEASE_ARGS=
 else ifeq ($(VCS_BRANCH),develop)
 # Publish pre-releases from the `develop` branch:
@@ -438,25 +436,6 @@ $(PYTHON_MINORS:%=build-docker-requirements-%): ./.env
 	    build-requirements-py$(subst .,,$(@:build-docker-requirements-%=%))
 
 
-.PHONY: pull-docker
-### Pull an existing image best to use as a cache for building new images
-pull-docker:
-	for vcs_branch in $(VCS_BRANCHES)
-	do
-	    docker_tag="$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$${vcs_branch}"
-	    for docker_image in $(DOCKER_IMAGES)
-	    do
-	        if docker pull "$${docker_image}:$${docker_tag}"
-	        then
-	            docker tag "$${docker_image}:$${docker_tag}" \
-	                "$(DOCKER_IMAGE_DOCKER):$${docker_tag}"
-	            exit
-	        fi
-	    done
-	done
-	set +x
-	echo "ERROR: Could not pull any existing docker image"
-	false
 .PHONY: build-docker-pull
 ### Pull the development image and simulate as if it had been built here.
 build-docker-pull: ./.env ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
@@ -799,7 +778,7 @@ devel-upgrade-branch: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BR
 	then
 # Reset an existing local branch to the latest upstream before upgrading
 	    git checkout "$(VCS_BRANCH)-upgrade"
-	    git reset --hard "$(VCS_BRANCH)"
+	    git reset --hard "$(VCS_BRANCH)" --
 	else
 # Create a new local branch from the latest upstream before upgrading
 	    git checkout -b "$(VCS_BRANCH)-upgrade" "$(VCS_BRANCH)"
@@ -954,11 +933,9 @@ endif
 	docker_build_caches=""
 ifeq ($(GITLAB_CI),true)
 # Don't cache when building final releases on `master`
+	$(MAKE) -e "./var/log/docker-login-GITLAB.log" || true
 ifneq ($(VCS_BRANCH),master)
-	if (
-	    $(MAKE) -e "./var/log/docker-login-GITLAB.log" &&
-	    $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
-	)
+	if $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
 	then
 	    docker_build_caches+=" --cache-from \
 	$(DOCKER_IMAGE_GITLAB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
@@ -966,11 +943,9 @@ ifneq ($(VCS_BRANCH),master)
 endif
 endif
 ifeq ($(GITHUB_ACTIONS),true)
+	$(MAKE) -e "./var/log/docker-login-GITHUB.log" || true
 ifneq ($(VCS_BRANCH),master)
-	if (
-	    $(MAKE) -e "./var/log/docker-login-GITHUB.log" &&
-	    $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
-	)
+	if $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
 	then
 	    docker_build_caches+=" --cache-from \
 	$(DOCKER_IMAGE_GITHUB):devel-$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
@@ -1166,7 +1141,7 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	) |& tee -a "$(@)"
 
 ./.git/hooks/pre-commit:
-	$(MAKE) "./var/log/tox/build/build.log"
+	$(MAKE) "$(HOME)/.local/var/log/python-project-structure-host-install.log"
 	$(TOX_EXEC_BUILD_ARGS) pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
 
@@ -1345,6 +1320,26 @@ else
 endif
 	fi
 	envsubst <"$(template)" >"$(target)"
+
+.PHONY: pull-docker
+### Pull an existing image best to use as a cache for building new images
+pull-docker:
+	for vcs_branch in $(VCS_BRANCHES)
+	do
+	    docker_tag="$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$${vcs_branch}"
+	    for docker_image in $(DOCKER_IMAGES)
+	    do
+	        if docker pull "$${docker_image}:$${docker_tag}"
+	        then
+	            docker tag "$${docker_image}:$${docker_tag}" \
+	                "$(DOCKER_IMAGE_DOCKER):$${docker_tag}"
+	            exit
+	        fi
+	    done
+	done
+	set +x
+	echo "ERROR: Could not pull any existing docker image"
+	false
 
 # TEMPLATE: Run this once for your project.  See the `./var/log/docker-login*.log`
 # targets for the authentication environment variables that need to be set or just login
