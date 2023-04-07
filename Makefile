@@ -192,7 +192,7 @@ DOCKER_VARIANT_PREFIX=
 ifneq ($(DOCKER_VARIANT),)
 DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
 endif
-DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
+export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_VOLUMES=\
 ./var/ ./var/docker/$(PYTHON_ENV)/ \
 ./src/python_project_structure.egg-info/ \
@@ -397,7 +397,7 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): \
 		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
 		./var/log/tox/build/build.log
 	docker_image=$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))
-	export VERSION=$$(./.tox/build/bin/cz version --project)
+	VERSION=$$(./.tox/build/bin/cz version --project)
 	major_version=$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')
 	minor_version=$$(
 	    echo $${VERSION} | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
@@ -554,11 +554,12 @@ endif
 	exit_code=0
 	$(TOX_EXEC_BUILD_ARGS) cz check --rev-range \
 	    "$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)..HEAD" || exit_code=$$?
-	if ! (( $$exit_code == 3 || $$exit_code == 21 ))
+	if ! (( $$exit_code == 0 ||  $$exit_code == 3 || $$exit_code == 21 ))
 	then
 	    exit $$exit_code
 	fi
-	if $(TOX_EXEC_BUILD_ARGS) python ./bin/cz-check-bump \
+ifneq ($(VCS_BRANCH),master)
+	if $(TOX_EXEC_BUILD_ARGS) python ./bin/cz-check-bump --compare-ref \
 	    "$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	then
 	    docker compose run $(DOCKER_COMPOSE_RUN_ARGS) \
@@ -566,6 +567,12 @@ endif
 	        towncrier check --compare-with \
 		"$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	fi
+else
+	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) \
+	    python-project-structure-devel $(TOX_EXEC_ARGS) \
+	    towncrier check --compare-with \
+	        "$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
+endif
 
 .PHONY: test-clean
 ### Confirm that the checkout is free of uncommitted VCS changes.
@@ -584,7 +591,7 @@ test-clean:
 # end-users.
 
 .PHONY: release
-### Publish installable Python packages to PyPI and container images to Docker Hub.
+### Publish installable Python packages and container images as required by commits.
 release: release-python release-docker
 
 .PHONY: release-python
@@ -602,40 +609,44 @@ endif
 	$(MAKE) "test-clean"
 # Only release from the `master` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
+# Only release if required by conventional commits and the version bump is committed:
+	if $(MAKE) release-bump
+	then
 # The VCS remote should reflect the release before the release is published to ensure
 # that a published release is never *not* reflected in VCS.  Also ensure the tag is in
 # place on any mirrors, using multiple `pushurl` remotes, for those project hosts as
 # well:
-	git push --no-verify --tags "$(VCS_REMOTE)" "HEAD:$(VCS_BRANCH)"
-	./.tox/build/bin/twine upload -s -r "$(PYPI_REPO)" \
-	    "$(call current_pkg,.whl)" "$(call current_pkg,.tar.gz)"
-	export VERSION=$$(./.tox/build/bin/cz version --project)
+	    git push --no-verify --tags "$(VCS_REMOTE)" "HEAD:$(VCS_BRANCH)"
+	    ./.tox/build/bin/twine upload -s -r "$(PYPI_REPO)" \
+	        "$(call current_pkg,.whl)" "$(call current_pkg,.tar.gz)"
+	    export VERSION=$$(./.tox/build/bin/cz version --project)
 # Create a GitLab release
-	./.tox/build/bin/twine upload -s -r "gitlab" ./dist/python?project?structure-*
-	release_cli_args="--description ./NEWS-release.rst"
-	release_cli_args+=" --tag-name v$${VERSION}"
-	release_cli_args+=" --assets-link {\
-	\"name\":\"PyPI\",\
-	\"url\":\"https://$(PYPI_HOSTNAME)/project/$(CI_PROJECT_NAME)/$${VERSION}/\",\
-	\"link_type\":\"package\"\
-	}"
-	release_cli_args+=" --assets-link {\
-	\"name\":\"GitLab-PyPI-Package-Registry\",\
-	\"url\":\"$(CI_SERVER_URL)/$(CI_PROJECT_PATH)/-/packages/\",\
-	\"link_type\":\"package\"\
-	}"
-	release_cli_args+=" --assets-link {\
-	\"name\":\"Docker-Hub-Container-Registry\",\
-	\"url\":\"https://hub.docker.com/r/merpatterson/$(CI_PROJECT_NAME)/tags\",\
-	\"link_type\":\"image\"\
-	}"
-	docker compose pull gitlab-release-cli
-	docker compose run --rm gitlab-release-cli release-cli \
-	    --server-url "$(CI_SERVER_URL)" --project-id "$(CI_PROJECT_ID)" \
-	    create $${release_cli_args}
+	    ./.tox/build/bin/twine upload -s -r "gitlab" ./dist/python?project?structure-*
+	    release_cli_args="--description ./NEWS-release.rst"
+	    release_cli_args+=" --tag-name v$${VERSION}"
+	    release_cli_args+=" --assets-link {\
+	    \"name\":\"PyPI\",\
+	    \"url\":\"https://$(PYPI_HOSTNAME)/project/$(CI_PROJECT_NAME)/$${VERSION}/\",\
+	    \"link_type\":\"package\"\
+	    }"
+	    release_cli_args+=" --assets-link {\
+	    \"name\":\"GitLab-PyPI-Package-Registry\",\
+	    \"url\":\"$(CI_SERVER_URL)/$(CI_PROJECT_PATH)/-/packages/\",\
+	    \"link_type\":\"package\"\
+	    }"
+	    release_cli_args+=" --assets-link {\
+	    \"name\":\"Docker-Hub-Container-Registry\",\
+	    \"url\":\"https://hub.docker.com/r/merpatterson/$(CI_PROJECT_NAME)/tags\",\
+	    \"link_type\":\"image\"\
+	    }"
+	    docker compose pull gitlab-release-cli
+	    docker compose run --rm gitlab-release-cli release-cli \
+	        --server-url "$(CI_SERVER_URL)" --project-id "$(CI_PROJECT_ID)" \
+	        create $${release_cli_args}
 # Create a GitHub release
-	gh release create "v$${VERSION}" $(GITHUB_RELEASE_ARGS) \
-	    --notes-file "./NEWS-release.rst" ./dist/python?project?structure-*
+	    gh release create "v$${VERSION}" $(GITHUB_RELEASE_ARGS) \
+	        --notes-file "./NEWS-release.rst" ./dist/python?project?structure-*
+	fi
 endif
 
 .PHONY: release-docker
@@ -649,8 +660,8 @@ release-docker: build-docker-volumes-$(PYTHON_ENV) build-docker \
 $(PYTHON_MINORS:%=release-docker-%): $(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log)
 	export PYTHON_ENV="py$(subst .,,$(@:release-docker-%=%))"
 	$(MAKE) -e -j $(DOCKER_REGISTRIES:%=release-docker-registry-%)
-	docker compose pull pandoc docker-pushrm
 ifeq ($${PYTHON_ENV},$(PYTHON_LATEST_ENV))
+	docker compose pull pandoc docker-pushrm
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) docker-pushrm
 endif
 
@@ -687,17 +698,9 @@ release-bump: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
 	fi
 # Check if the conventional commits since the last release require new release and thus
 # a version bump:
-	exit_code=0
-	$(TOX_EXEC_BUILD_ARGS) python ./bin/cz-check-bump || exit_code=$$?
-	if (( $$exit_code == 3 || $$exit_code == 21 ))
-	then
-# No release necessary for the commits since the last release, don't publish a release
-	    exit
-	elif (( $$exit_code != 0 ))
-	then
-# Commitizen returned an unexpected exit status code, fail
-	    exit $$exit_code
-	fi
+ifneq ($(VCS_BRANCH),master)
+	$(TOX_EXEC_BUILD_ARGS) python ./bin/cz-check-bump
+endif
 # Collect the versions involved in this release according to conventional commits:
 	cz_bump_args="--check-consistency --no-verify"
 ifneq ($(VCS_BRANCH),master)
