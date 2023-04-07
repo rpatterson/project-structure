@@ -235,7 +235,6 @@ export PROJECT_GITHUB_PAT
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the final/official
 # hosts/indexes/registries:
-BUILD_REQUIREMENTS=true
 PIP_COMPILE_ARGS=--upgrade
 RELEASE_PUBLISH=false
 PYPI_REPO=testpypi
@@ -589,16 +588,16 @@ ifeq ($(RELEASE_PUBLISH),true)
 # Import the private signing key from CI secrets
 	$(MAKE) -e ./var/log/gpg-import.log
 endif
-# https://twine.readthedocs.io/en/latest/#using-twine
-	./.tox/build/bin/twine check \
-	    "$(call current_pkg,.whl)" "$(call current_pkg,.tar.gz)"
-	$(MAKE) "test-clean"
 # Only release from the `master` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 # Only release if required by conventional commits and the version bump is committed:
 	if $(MAKE) release-bump
 	then
 	    $(MAKE) DOCKER_BUILD_PULL="true" build-pkgs
+# https://twine.readthedocs.io/en/latest/#using-twine
+	    ./.tox/build/bin/twine check \
+	        "$(call current_pkg,.whl)" "$(call current_pkg,.tar.gz)"
+	    $(MAKE) "test-clean"
 # The VCS remote should reflect the release before the release is published to ensure
 # that a published release is never *not* reflected in VCS.  Also ensure the tag is in
 # place on any mirrors, using multiple `pushurl` remotes, for those project hosts as
@@ -971,10 +970,12 @@ endif
 	date >>"$(@)"
 # Update the pinned/frozen versions, if needed, using the container.  If changed, then
 # we may need to re-build the container image again to ensure it's current and correct.
-ifeq ($(BUILD_REQUIREMENTS),true)
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) -T \
 	    python-project-structure-devel make -e PYTHON_MINORS="$(PYTHON_MINOR)" \
 	    build-requirements-$(PYTHON_ENV)
+ifneq ($(CI),true)
+# On CI, any changes from compiling requirements is a failure so no need to waste time
+# rebuilding images:
 	$(MAKE) -e "$(@)"
 endif
 endif
