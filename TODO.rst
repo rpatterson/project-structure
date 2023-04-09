@@ -1,22 +1,21 @@
-###########################################################################
+########################################################################################
 Seeking Contributions
-###########################################################################
+########################################################################################
 
 Known bugs and desirable features for which contributions are most welcome.
 
+TEMPLATE: Remove any of the following TODOs from the template that your project doesn't
+care about and add your own.
 
-********
+
+****************************************************************************************
 Required
-********
-
-#. Document template usage.
-
-#. Document ``devel-upgrade-branch`` scheduled pipeline, including variables.
+****************************************************************************************
 
 
-*************
+****************************************************************************************
 High Priority
-*************
+****************************************************************************************
 
 #. Any documentation improvements!
 
@@ -26,9 +25,9 @@ High Priority
    users the same confusion.
 
 
-************
+****************************************************************************************
 Nice to Have
-************
+****************************************************************************************
 
 #. Documentation via Sphinx with CI to publish to RTFD.
 
@@ -49,3 +48,5 @@ Nice to Have
      This SHOULD be the immediate image sharing zero-indexed layers with the image, such as from a Dockerfile FROM statement.
      This SHOULD NOT reference any other images used to generate the contents of the image (e.g., multi-stage Dockerfile builds).
      If the image.base.name annotation is specified, the image.base.digest annotation SHOULD be the digest of the manifest referenced by the image.ref.name annotation.
+
+#. Automate submitting merge/pull requests from the ``devel-upgrade-branch`` target.
