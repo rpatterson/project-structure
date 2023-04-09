@@ -181,20 +181,6 @@ details.
 Optional shell tab completion is available via `argcomplete`_.
 
 
-*****
-Usage
-*****
-
-See the command-line help for details on options and arguments::
-
-  $ usage: python-project-structure [-h]
-
-  Python project structure foundation or template, top-level package.
-
-  optional arguments:
-    -h, --help  show this help message and exit
-
-
 ****************************************************************************************
 Usage
 ****************************************************************************************
