@@ -1,8 +1,8 @@
-###############################################
+########################################################################################
 python-project-structure
-###############################################
+########################################################################################
 Python project structure foundation or template
-***********************************************
+****************************************************************************************
 
 .. list-table::
    :class: borderless align-right
@@ -79,21 +79,101 @@ Django, etc.), libraries and such, branches will be used for each such variation
 that structure common to different variations can be merged back into the branches for
 those specific variations.
 
-Do not use the ``develop`` or ``master`` branches in your project as those branches are
-used to test the CI/CD automatic releases process and as such contain bumped versions,
-release notes, and other release artifacts that shouldn't be merged into real projects.
-On that same note, when adding this template as a remote be sure to configure it with
-``$ git config remote.template.tagOpt --no-tags`` to avoid clashing VCS versions in your
-project.
+
+****************************************************************************************
+Template Usage
+****************************************************************************************
+
+This is a rough guide to applying this project template to your project.  This is not
+thoroughly tested as such tests would be so meta as to be extremely wasteful of
+developer time to create and maintain.  So report any issues you have or better yet
+figure it out and submit a PR with corrections to this section.
+
+#. Choose the right branch to use:
+
+   Is your project a CLI utility?  A web application?  Which project hosting provider
+   and/or CI/CD platform will you use?  Choose the appropriate branch for your project:
+
+   - ``dist``:
+
+     Basic Python distribution with build, tests, linters, code formatting and release
+     publishing from local developer checkouts.
+
+   - ``cli``:
+
+     The above plus support for project's that provide an executable CLI.
+
+   - ``docker``:
+
+     The ``dist`` branch plus Docker containers for both development and
+     end-users/deployments.
+
+   - ``ci``:
+
+     The above plus GitLab CI/CD pipelines that run tests and linters as CI and
+     publish releases from ``develop`` and ``master`` as CD.
+
+   - ``ci-cli``:
+
+     The above plus the ``cli`` branch.
+
+   - etc.
+
+   Do not use the ``develop`` or ``master`` branches in your project as those branches
+   are used to test the CI/CD automatic releases process and as such contain bumped
+   versions, release notes, and other release artifacts that shouldn't be merged into
+   real projects.
+
+#. Reconcile VCS history:
+
+   If starting a fresh project::
+
+     $ git clone --origin "template" --branch "ci-cli" \
+     "https://gitlab.com/rpatterson/python-project-structure.git" "./foo-project"
+     $ cd "./foo-project"
+     $ git config remote.template.tagOpt --no-tags
+     $ git remote add "origin" "git@gitlab.com:foo-username/foo-project.git"
+     $ git config remote.template.tagOpt --no-tags
+     $ git checkout -B "master" --track "origin/master"
+
+   If merging into an existing project::
+
+     $ git remote add "template" \
+     "https://gitlab.com/rpatterson/python-project-structure.git"
+     $ git config remote.template.tagOpt --no-tags
+     $ git merge --allow-unrelated-histories "template/ci-cli"
+
+#. Rename file and directory paths derived from the project name::
+
+     $ git ls-files | grep -iE 'python.?project.?structure'
+
+#. Rename strings derived from the project name and template author identity in project
+   files::
+
+     $ git grep -iE 'python.?project.?structure|ross|Patterson'
+
+#. Examine ``# TEMPLATE:`` comments and change as appropriate:
+
+   These are the bits that need the developer's attention and reasoning to take the
+   correct action.  So read the comments and address them with care and attention::
+
+     $ git grep "TEMPLATE"
+
+Finally, remove this section from this ``./README.rst`` and update the rest of it's
+content as appropriate for your project.  As fixes and features are added to the
+upstream template, you can merge them into your project and repeat steps 3-5 above as
+needed.
 
 
-************
+****************************************************************************************
 Installation
-************
+****************************************************************************************
 
 Install using any tool for installing standard Python 3 distributions such as `pip`_::
 
   $ sudo pip3 install python-project-structure
+
+Optional shell tab completion is available via `argcomplete`_.
 
 Or use `the Docker image`_.  See `the example ./docker-compose.yml file`_ for usage
 details.
@@ -101,9 +181,9 @@ details.
 Optional shell tab completion is available via `argcomplete`_.
 
 
-*****
+****************************************************************************************
 Usage
-*****
+****************************************************************************************
 
 See the command-line help for details on options and arguments::
 
@@ -115,9 +195,9 @@ See the command-line help for details on options and arguments::
     -h, --help  show this help message and exit
 
 
-************
+****************************************************************************************
 CONTRIBUTING
-************
+****************************************************************************************
 
 NOTE: `This project is hosted on GitLab`_.  There's `a mirror on GitHub`_ but please use
 GitLab for reporting issues, submitting PRs/MRs and any other development or maintenance
@@ -127,9 +207,9 @@ See `the ./CONTRIBUTING.rst file`_ for more details on how to get started with
 development.
 
 
-**********
+****************************************************************************************
 Motivation
-**********
+****************************************************************************************
 
 There are many other Python project templates so why make another? I've been doing
 Python development since 1998, so I've had plenty of time to develop plenty of opinions
