@@ -9,7 +9,7 @@
 # Variables used as options to control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
 # https://devguide.python.org/versions/#supported-versions
-PYTHON_SUPPORTED_MINORS=3.11 3.10 3.9 3.8 3.7
+PYTHON_SUPPORTED_MINORS=3.10
 # Project-specific variables
 export DOCKER_USER=merpatterson
 # TEMPLATE: See comments towards the bottom and update.
@@ -341,7 +341,7 @@ ifeq ($(PYTHON_MINOR),$(PYTHON_HOST_MINOR))
 # TEMPLATE: Choose the platforms on which your end-users need to be able to run the
 # image.  These default platforms should cover most common end-user platforms, including
 # modern Apple M1 CPUs, Raspberry Pi devices, etc.:
-DOCKER_PLATFORMS=linux/amd64 linux/arm64 linux/arm/v7
+DOCKER_PLATFORMS=linux/amd64
 endif
 endif
 endif
