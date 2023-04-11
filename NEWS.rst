@@ -1,3 +1,9 @@
+python-project-structure 0.8.8 (2023-04-11)
+===========================================
+
+No significant changes.
+
+
 python-project-structure 0.8.8b0 (2023-04-11)
 =============================================
 
