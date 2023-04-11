@@ -1,3 +1,12 @@
+python-project-structure 0.8.8b0 (2023-04-11)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
 python-project-structure 0.8.7 (2023-04-11)
 ===========================================
 
