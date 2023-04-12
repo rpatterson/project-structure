@@ -1,5 +1,8 @@
-python-project-structure 0.8.9b6 (2023-04-12)
+python-project-structure 0.8.9b7 (2023-04-12)
 =============================================
 
-No significant changes.
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
 
