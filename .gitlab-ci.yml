@@ -58,6 +58,7 @@ build-test:
           $CI_COMMIT_BRANCH !~ /^(develop|master)$/
           || $CI_COMMIT_MESSAGE =~ /(?ims).*\[ci release\].*/
         )
+        && ($CI_COMMIT_TAG == null || $CI_COMMIT_TAG == "")
         && $CI_PIPELINE_SOURCE != "schedule"
   interruptible: true
   parallel:
