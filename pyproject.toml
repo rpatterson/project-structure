@@ -19,13 +19,15 @@ name = "cz_conventional_commits"
 # TEMPLATE: Update these versions to the latest version for your project and ensure the
 # tag exists both locally and on the project's remote:
 changelog_start_rev = "v0.0.0"
-version = "0.8.8"
+version = "0.8.9b7"
 tag_format = "v$version"
 annotated_tag = true
+gpg_sign = true
 bump_message = """\
 build(release): Version $current_version → $new_version
 
 [actions skip]
+[ci release]
 """
 [tool.towncrier]
 # https://towncrier.readthedocs.io/en/stable/#quick-start

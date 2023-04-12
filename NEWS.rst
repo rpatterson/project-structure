@@ -1,3 +1,75 @@
+python-project-structure 0.8.9b7 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
+python-project-structure 0.8.9b6 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
+python-project-structure 0.8.9b5 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
+python-project-structure 0.8.9b4 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
+python-project-structure 0.8.9b3 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
+python-project-structure 0.8.9b2 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
+python-project-structure 0.8.9b1 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Upgrade all requirements to the latest versions as of Wed Apr 12 06:44:42 PM UTC 2023. (upgrade-requirements)
+
+
+python-project-structure 0.8.9b0 (2023-04-12)
+=============================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
 python-project-structure 0.8.8 (2023-04-11)
 ===========================================
 
