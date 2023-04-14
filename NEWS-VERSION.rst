@@ -1,5 +1,8 @@
-python-project-structure 0.8.15 (2023-04-14)
-============================================
+python-project-structure 0.8.16b0 (2023-04-14)
+==============================================
 
-No significant changes.
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
 
