@@ -186,7 +186,7 @@ VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
 endif
 endif
 endif
-ifneq ($(VCS_MERGE_BRANCH),)
+ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
 VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
 endif
 # Determine the sequence of branches to find closes existing build artifacts, such as
@@ -265,6 +265,11 @@ GITHUB_REPOSITORY_OWNER=$(CI_UPSTREAM_NAMESPACE)
 CI_IS_FORK=false
 ifeq ($(GITLAB_CI),true)
 USER_EMAIL=$(USER_NAME)@runners-manager.gitlab.com
+ifneq ($(VCS_BRANCH),develop)
+ifneq ($(VCS_BRANCH),main)
+DOCKER_REGISTRIES=GITLAB
+endif
+endif
 ifneq ($(CI_PROJECT_NAMESPACE),$(CI_UPSTREAM_NAMESPACE))
 CI_IS_FORK=true
 DOCKER_REGISTRIES=GITLAB
@@ -272,6 +277,11 @@ DOCKER_IMAGES+=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_UPSTREAM_NAMESPACE)/$(CI_PROJEC
 endif
 else ifeq ($(GITHUB_ACTIONS),true)
 USER_EMAIL=$(USER_NAME)@actions.github.com
+ifneq ($(VCS_BRANCH),develop)
+ifneq ($(VCS_BRANCH),main)
+DOCKER_REGISTRIES=GITHUB
+endif
+endif
 ifneq ($(GITHUB_REPOSITORY_OWNER),$(CI_UPSTREAM_NAMESPACE))
 CI_IS_FORK=true
 DOCKER_REGISTRIES=GITHUB
@@ -644,7 +654,8 @@ release: release-python release-docker
 
 .PHONY: release-python
 ### Publish installable Python packages to PyPI.
-release-python: ./var/log/tox/build/build.log $(VCS_RELEASE_FETCH_TARGETS) \
+release-python: ./var/log/tox/build/build.log ./var/log/git-remotes.log \
+		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
 		~/.pypirc ./.env build-docker-volumes-$(PYTHON_ENV)
 # Only release from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
@@ -704,10 +715,12 @@ $(PYTHON_MINORS:%=release-docker-%): $(DOCKER_REGISTRIES:%=./var/log/docker-logi
 	export PYTHON_ENV="py$(subst .,,$(@:release-docker-%=%))"
 	$(MAKE) -e -j DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
 	    $(DOCKER_REGISTRIES:%=release-docker-registry-%)
+ifeq ($(VCS_BRANCH),main)
 ifeq ($${PYTHON_ENV},$(PYTHON_HOST_ENV))
 	$(MAKE) -e "./var/log/docker-login-DOCKER.log"
 	docker compose pull pandoc docker-pushrm
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) docker-pushrm
+endif
 endif
 
 .PHONY: $(DOCKER_REGISTRIES:%=release-docker-registry-%)
@@ -732,7 +745,7 @@ $(DOCKER_REGISTRIES:%=release-docker-registry-%):
 
 .PHONY: release-bump
 ### Bump the package version if on a branch that should trigger a release.
-release-bump: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
+release-bump: ~/.gitconfig $(VCS_RELEASE_FETCH_TARGETS) \
 		./var/log/git-remotes.log ./var/log/tox/build/build.log \
 		./var/docker/$(PYTHON_ENV)/log/build-devel.log \
 		./.env build-docker-volumes-$(PYTHON_ENV)
@@ -864,7 +877,7 @@ devel-upgrade-branch: ~/.gitconfig ./var/log/gpg-import.log \
 	then
 	    remote_branch_exists=true
 	fi
-	git switch -C "$(VCS_BRANCH)-upgrade" --track "$(VCS_REMOTE)/$(VCS_BRANCH)" --
+	git switch -C "$(VCS_BRANCH)-upgrade" --track "$(VCS_BRANCH)" --
 	now=$$(date -u)
 	$(MAKE) -e devel-upgrade
 	if $(MAKE) -e "test-clean"
@@ -874,11 +887,13 @@ devel-upgrade-branch: ~/.gitconfig ./var/log/gpg-import.log \
 	fi
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the latest versions as of $${now}." \
-	    >"./src/pythonprojectstructure/newsfragments/upgrade-requirements.bugfix.rst"
+	    >"./src/pythonprojectstructure/newsfragments/\
+	+upgrade-requirements.bugfix.rst"
 	git add --update './build-host/requirements-*.txt' './requirements/*/*.txt' \
 	    "./.pre-commit-config.yaml"
 	git add \
-	    "./src/pythonprojectstructure/newsfragments/upgrade-requirements.bugfix.rst"
+	    "./src/pythonprojectstructure/newsfragments/\
+	+upgrade-requirements.bugfix.rst"
 	git_commit_args="--all --gpg-sign"
 ifeq ($(CI),true)
 # Don't duplicate the CI run from the push below:
@@ -1415,7 +1430,7 @@ endif
 # configuration, register it with your project, compare it with the template
 # prerequisite, apply the appropriate changes and then  run using `$ docker compose up
 # gitlab-runner`.  Particularly useful to conserve shared runner minutes:
-./gitlab-runner/config/config.toml: ./gitlab-runner/config/config.toml.in
+./var/gitlab-runner/config/config.toml: ./gitlab-runner/config/config.toml.in
 	docker compose run --rm gitlab-runner register \
 	    --url "https://gitlab.com/" --docker-image "docker" --executor "docker"
 
