@@ -216,22 +216,23 @@ TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
 TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --
 TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build" --
 
-# Values used to build Docker images and run containers:
+# Values used to build Docker images:
+DOCKER_PLATFORMS=
+DOCKER_BUILD_ARGS=
+export DOCKER_BUILD_PULL=false
+# Values used to tag built images:
+export DOCKER_VARIANT=
+DOCKER_VARIANT_PREFIX=
+ifneq ($(DOCKER_VARIANT),)
+DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
+endif
+export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 GITLAB_CI=false
 GITHUB_ACTIONS=false
 CI_PROJECT_NAMESPACE=$(CI_UPSTREAM_NAMESPACE)
 CI_TEMPLATE_REGISTRY_HOST=registry.gitlab.com
 CI_REGISTRY=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_PROJECT_NAMESPACE)
 CI_REGISTRY_IMAGE=$(CI_REGISTRY)/$(CI_PROJECT_NAME)
-DOCKER_COMPOSE_RUN_ARGS=
-DOCKER_COMPOSE_RUN_ARGS+= --rm
-ifneq ($(CI),true)
-DOCKER_COMPOSE_RUN_ARGS+= --quiet-pull
-endif
-ifeq ($(shell tty),not a tty)
-DOCKER_COMPOSE_RUN_ARGS+= -T
-endif
-DOCKER_BUILD_ARGS=
 DOCKER_REGISTRIES=DOCKER GITLAB GITHUB
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(CI_PROJECT_NAME)
@@ -246,18 +247,20 @@ DOCKER_IMAGES+=$(DOCKER_IMAGE_GITHUB)
 else
 DOCKER_IMAGES+=$(DOCKER_IMAGE_DOCKER)
 endif
-export DOCKER_VARIANT=
-DOCKER_VARIANT_PREFIX=
-ifneq ($(DOCKER_VARIANT),)
-DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
-endif
-export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
+# Values used to run built images in containers:
 DOCKER_VOLUMES=\
 ./var/docker/$(PYTHON_ENV)/ \
 ./src/python_project_structure.egg-info/ \
 ./var/docker/$(PYTHON_ENV)/python_project_structure.egg-info/ \
 ./.tox/ ./var/docker/$(PYTHON_ENV)/.tox/
-export DOCKER_BUILD_PULL=false
+DOCKER_COMPOSE_RUN_ARGS=
+DOCKER_COMPOSE_RUN_ARGS+= --rm
+ifneq ($(CI),true)
+DOCKER_COMPOSE_RUN_ARGS+= --quiet-pull
+endif
+ifeq ($(shell tty),not a tty)
+DOCKER_COMPOSE_RUN_ARGS+= -T
+endif
 
 # Values derived from or overridden by CI environments:
 GITHUB_REPOSITORY_OWNER=$(CI_UPSTREAM_NAMESPACE)
@@ -325,10 +328,15 @@ RELEASE_PUBLISH=true
 PYPI_REPO=pypi
 PYPI_HOSTNAME=pypi.org
 GITHUB_RELEASE_ARGS=
+# TEMPLATE: Choose the platforms on which your end-users need to be able to run the
+# image.  These default platforms should cover most common end-user platforms, including
+# modern Apple M1 CPUs, Raspberry Pi devices, etc.:
+DOCKER_PLATFORMS=linux/amd64,linux/arm64,linux/arm/v7
 else ifeq ($(VCS_BRANCH),develop)
 # Publish pre-releases from the `develop` branch:
 RELEASE_PUBLISH=true
 PYPI_REPO=pypi
+DOCKER_PLATFORMS=linux/amd64,linux/arm64,linux/arm/v7
 endif
 endif
 CI_REGISTRY_USER=$(CI_PROJECT_NAMESPACE)
@@ -338,6 +346,11 @@ PYPI_PASSWORD=
 export PYPI_PASSWORD
 TEST_PYPI_PASSWORD=
 export TEST_PYPI_PASSWORD
+ifneq ($(DOCKER_PLATFORMS),)
+DOCKER_BUILD_ARGS+= --platform $(DOCKER_PLATFORMS)
+else
+DOCKER_BUILD_ARGS+= --output "type=docker"
+endif
 VCS_REMOTE_PUSH_URL=
 CODECOV_TOKEN=
 DOCKER_PASS=
@@ -1023,7 +1036,8 @@ $(PYTHON_ENVS:%=./var/log/tox/%/editable.log):
 		./docker-compose.override.yml ./.env \
 		./var/docker/$(PYTHON_ENV)/log/rebuild.log
 	true DEBUG Updated prereqs: $(?)
-	$(MAKE) -e "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)" \
+	$(MAKE) -e "$(HOME)/.local/var/log/docker-multi-platform-host-install.log" \
+	    "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)" \
 	    build-docker-volumes-$(PYTHON_ENV) "./var/log/tox/build/build.log" \
 	    "./var/log/docker-login-DOCKER.log"
 	mkdir -pv "$(dir $(@))"
@@ -1113,7 +1127,8 @@ endif
 		./var/docker/$(PYTHON_ENV)/log/build-devel.log ./Dockerfile \
 		./var/docker/$(PYTHON_ENV)/log/rebuild.log
 	true DEBUG Updated prereqs: $(?)
-	$(MAKE) -e "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)" \
+	$(MAKE) -e "$(HOME)/.local/var/log/docker-multi-platform-host-install.log" \
+	    "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)" \
 	    "./var/log/tox/build/build.log"
 	mkdir -pv "$(dir $(@))"
 	export VERSION=$$(./.tox/build/bin/cz version --project)
@@ -1215,6 +1230,12 @@ $(HOME)/.local/var/log/python-project-structure-host-install.log:
 	        pip install -r "./build-host/requirements.txt.in"
 	    fi
 	) | tee -a "$(@)"
+
+# https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
+$(HOME)/.local/var/log/docker-multi-platform-host-install.log:
+	mkdir -pv "$(dir $(@))"
+	docker context create "multi-platform" |& tee -a "$(@)"
+	docker buildx create --use "multi-platform" |& tee -a "$(@)"
 
 ./var/log/codecov-install.log:
 	mkdir -pv "$(dir $(@))"
