@@ -1,8 +1,8 @@
-python-project-structure 0.8.19b0 (2023-04-20)
-==============================================
+python-project-structure 0.8.19 (2023-04-20)
+============================================
 
 Bugfixes
 --------
 
-- Simulate a patch release. (simulate)
+- Upgrade all requirements to the latest versions as of Thu Apr 20 09:09:07 PM UTC 2023.
 
