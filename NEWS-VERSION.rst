@@ -1,5 +1,5 @@
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.22 (2023-04-22)
+============================================
 
 No significant changes.
 

@@ -1,11 +1,11 @@
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.22 (2023-04-22)
+============================================
 
 No significant changes.
 
 
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.22b1 (2023-04-22)
+==============================================
 
 Bugfixes
 --------
@@ -13,8 +13,8 @@ Bugfixes
 - Simulate a patch release. (simulate)
 
 
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.22b0 (2023-04-22)
+==============================================
 
 Bugfixes
 --------
@@ -22,8 +22,8 @@ Bugfixes
 - Simulate a patch release. (simulate)
 
 
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.21 (2023-04-22)
+============================================
 
 Bugfixes
 --------
@@ -31,8 +31,8 @@ Bugfixes
 - Upgrade all requirements to the latest versions as of Sat Apr 22 05:19:15 PM UTC 2023.
 
 
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.21b0 (2023-04-22)
+==============================================
 
 Bugfixes
 --------
@@ -40,14 +40,14 @@ Bugfixes
 - Simulate a patch release. (simulate)
 
 
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.20 (2023-04-22)
+============================================
 
 No significant changes.
 
 
-python-project-structure  (2023-04-22)
-======================================
+python-project-structure 0.8.20b0 (2023-04-22)
+==============================================
 
 Bugfixes
 --------
