@@ -8,6 +8,8 @@
 
 # Variables used as options to control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
+# TEMPLATE: Create an NPM organization and set it's name here
+NPM_SCOPE=rpattersonnet
 
 
 ## "Private" Variables:
@@ -364,6 +366,15 @@ clean:
 #
 # Recipes that make actual changes and create and update files for the target.
 
+./package.json: $(HOME)/.npm/config
+# https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
+	~/.nvm/nvm-exec npm init --yes --scope="@$(NPM_SCOPE)"
+
+$(HOME)/.npm/config: $(HOME)/.local/var/log/project-structure-host-install.log
+# https://docs.npmjs.com/creating-a-package-json-file#setting-config-options-for-the-init-command
+	~/.nvm/nvm-exec npm set init-author-email "$(USER_EMAIL)"
+	~/.nvm/nvm-exec npm set init-author-name "$(USER_FULL_NAME)"
+	~/.nvm/nvm-exec npm set init-license "MIT"
 
 # Install all tools required by recipes that have to be installed externally on the
 # host.  Use a target file outside this checkout to support multiple checkouts.  Use a
