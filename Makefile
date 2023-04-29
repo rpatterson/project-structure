@@ -172,7 +172,7 @@ build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 .PHONY: test
 ### Run the full suite of tests, coverage checks, and linters.
 test: build
-	true "TEMPLATE: Always specific to the type of project"
+	~/.nvm/nvm-exec npm test
 
 .PHONY: test-lint
 ### Perform any linter or style checks, including non-code checks.
@@ -314,8 +314,6 @@ devel-format: $(HOME)/.local/var/log/project-structure-host-install.log
 devel-upgrade:
 	touch "./package.json"
 	$(MAKE) -e "./package-lock.json"
-# Update VCS hooks from remotes to the latest tag.
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit autoupdate
 
 .PHONY: devel-upgrade-branch
 ### Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -331,7 +329,6 @@ devel-upgrade-branch: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BR
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the latest versions as of $${now}." \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
-	git add --update "./.pre-commit-config.yaml"
 	git add "./package-lock.json" "./newsfragments/+upgrade-requirements.bugfix.rst"
 	git commit --all --gpg-sign -m \
 	    "fix(deps): Upgrade requirements latest versions"
@@ -355,10 +352,7 @@ devel-merge: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANC
 .PHONY: clean
 ### Restore the checkout to a state as close to an initial clone as possible.
 clean:
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit uninstall \
-	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
-	    || true
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit clean || true
+	~/.nvm/nvm-exec npx husky uninstall
 	git clean -dfx -e "var/"
 	rm -rfv "./var/log/"
 
@@ -455,6 +449,16 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 ./.husky/pre-commit:
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
 	~/.nvm/nvm-exec npx husky-init
+./.husky/pre-merge-commit: ./var/log/npm-install.log
+	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test"
+./.husky/commit-msg: ./var/log/npm-install.log
+	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	~/.nvm/nvm-exec npx husky add "$(@)" \
+	    "tox exec -e build -- cz check --allow-abort --commit-msg-file ${1}"
+./.husky/pre-push: ./var/log/npm-install.log
+	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test-push test"
 
 # Tell Emacs where to find checkout-local tools needed to check the code.
 ./.dir-locals.el: ./.dir-locals.el.in

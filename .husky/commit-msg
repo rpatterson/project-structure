@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+tox exec -e build -- cz check --allow-abort --commit-msg-file "${1}"

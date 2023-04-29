@@ -176,4 +176,4 @@ template.
 
 .. _Makefile: ./Makefile
 .. _`the ./CONTRIBUTING.rst file`: ./CONTRIBUTING.rst
-.. _`VCS hooks`: ./.pre-commit-config.yaml
+.. _`VCS hooks`: ./.husky/
