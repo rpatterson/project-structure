@@ -376,6 +376,9 @@ $(HOME)/.npm/config: $(HOME)/.local/var/log/project-structure-host-install.log
 	~/.nvm/nvm-exec npm set init-author-name "$(USER_FULL_NAME)"
 	~/.nvm/nvm-exec npm set init-license "MIT"
 
+./README.md: README.rst
+	docker compose run --rm "pandoc"
+
 # Install all tools required by recipes that have to be installed externally on the
 # host.  Use a target file outside this checkout to support multiple checkouts.  Use a
 # target specific to this project so that other projects can use the same approach but
@@ -392,10 +395,13 @@ $(HOME)/.local/var/log/project-structure-host-install.log:
 # We need `$ envsubst` in the `expand-template:` target recipe:
 	                "gettext" \
 # We need `$ pip3` to install the project's Python tools:
-	                "py3-pip"
+	                "py3-pip" \
+# Needed for dependencies we can't get current versions for locally:
+	                "docker-cli-compose"
 	        else
 	            sudo apt-get update
-	            sudo apt-get install -y "gettext-base" "python3-pip"
+	            sudo apt-get install -y "gettext-base" "python3-pip" \
+	                "docker-compose-plugin"
 	        fi
 	    fi
 	    pip install -r "./build-host/requirements.txt.in"
