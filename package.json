@@ -1,12 +1,12 @@
 {
   "name": "@rpattersonnet/project-structure",
-  "version": "1.0.0",
-  "description": "Project Structure ######################################################################################## project-structure foundation or template ****************************************************************************************",
+  "version": "0.0.0",
+  "description": "Project structure foundation or template, package metadata",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "Ross Patterson <rpatterson@rpatterson.rpatterson.net>",
+  "author": "Ross Patterson <me@rpatterson.net>",
   "license": "MIT"
 }
