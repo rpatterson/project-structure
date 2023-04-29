@@ -163,7 +163,7 @@ build: $(HOME)/.local/var/log/project-structure-host-install.log \
 .PHONY: build-pkgs
 ### Ensure the built package is current when used outside of tox.
 build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-	true "TEMPLATE: Always specific to the type of project"
+	~/.nvm/nvm-exec npm pack --pack-destination "./dist/"
 
 
 ## Test Targets:
