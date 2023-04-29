@@ -157,7 +157,6 @@ all: build
 .PHONY: build
 ### Perform any currently necessary local set-up common to most operations.
 build: $(HOME)/.local/var/log/project-structure-host-install.log \
-		./.git/hooks/pre-commit \
 		./var/log/npm-prepare.log ./var/log/npm-install.log
 
 .PHONY: build-pkgs
@@ -449,10 +448,13 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	        tee -a "$(@)"
 	fi
 
-./.git/hooks/pre-commit:
+./var/log/npm-prepare.log: ./var/log/npm-install.log
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit install \
-	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
+	mkdir -pv "$(dir $(@))"
+	~/.nvm/nvm-exec npm run prepare | tee -a "$(@)"
+./.husky/pre-commit:
+	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	~/.nvm/nvm-exec npx husky-init
 
 # Tell Emacs where to find checkout-local tools needed to check the code.
 ./.dir-locals.el: ./.dir-locals.el.in
