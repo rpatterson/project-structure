@@ -460,6 +460,14 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test-push test"
 
+./.husky/prepare-commit-msg: ./var/log/npm-install.log
+	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	~/.nvm/nvm-exec npx husky add "$(@)" "exec < /dev/tty && npx cz --hook || true"
+./var/log/commitizen-init.log:
+	mkdir -pv "$(dir $(@))"
+	~/.nvm/nvm-exec npx commitizen init cz-conventional-changelog --save-dev \
+	    --save-exact | tee -a "$(@)"
+
 # Tell Emacs where to find checkout-local tools needed to check the code.
 ./.dir-locals.el: ./.dir-locals.el.in
 	$(MAKE) -e "template=$(<)" "target=$(@)" expand-template
