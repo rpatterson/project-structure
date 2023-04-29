@@ -5,6 +5,7 @@
 # Distribution / packaging
 env/
 build/
+/node_modules
 var/
 /README.md
 

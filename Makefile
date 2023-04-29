@@ -156,9 +156,9 @@ all: build
 
 .PHONY: build
 ### Perform any currently necessary local set-up common to most operations.
-build: \
-	./.git/hooks/pre-commit \
-	$(HOME)/.local/var/log/project-structure-host-install.log
+build: $(HOME)/.local/var/log/project-structure-host-install.log \
+		./.git/hooks/pre-commit \
+		./var/log/npm-prepare.log ./var/log/npm-install.log
 
 .PHONY: build-pkgs
 ### Ensure the built package is current when used outside of tox.
@@ -313,6 +313,8 @@ devel-format: $(HOME)/.local/var/log/project-structure-host-install.log
 .PHONY: devel-upgrade
 ### Update all fixed/pinned dependencies to their latest available versions.
 devel-upgrade:
+	touch "./package.json"
+	$(MAKE) -e "./package-lock.json"
 # Update VCS hooks from remotes to the latest tag.
 	$(TOX_EXEC_BUILD_ARGS) -- pre-commit autoupdate
 
@@ -331,7 +333,7 @@ devel-upgrade-branch: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BR
 	echo "Upgrade all requirements to the latest versions as of $${now}." \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
 	git add --update "./.pre-commit-config.yaml"
-	git add "./newsfragments/+upgrade-requirements.bugfix.rst"
+	git add "./package-lock.json" "./newsfragments/+upgrade-requirements.bugfix.rst"
 	git commit --all --gpg-sign -m \
 	    "fix(deps): Upgrade requirements latest versions"
 # Fail if upgrading left untracked files in VCS
@@ -365,6 +367,13 @@ clean:
 ## Real Targets:
 #
 # Recipes that make actual changes and create and update files for the target.
+
+./var/log/npm-install.log: ./package-lock.json
+	mkdir -pv "$(dir $(@))"
+	~/.nvm/nvm-exec npm install | tee -a "$(@)"
+
+./package-lock.json: ./package.json
+	~/.nvm/nvm-exec npm update
 
 ./package.json:
 # https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
