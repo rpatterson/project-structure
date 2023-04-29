@@ -197,8 +197,7 @@ test-push: $(VCS_FETCH_TARGETS) \
 	fi
 	exit_code=0
 	(
-	    $(TOX_EXEC_BUILD_ARGS) -- \
-	        cz check --rev-range "$${vcs_compare_rev}..HEAD" &&
+	    ~/.nvm/nvm-exec npx commitlint --from "$${vcs_compare_rev}" --to "HEAD" &&
 	    $(TOX_EXEC_BUILD_ARGS) -- \
 	        python ./bin/cz-check-bump --compare-ref "$${vcs_compare_rev}"
 	) || exit_code=$$?
@@ -452,13 +451,17 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 ./.husky/pre-merge-commit: ./var/log/npm-install.log
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test"
-./.husky/commit-msg: ./var/log/npm-install.log
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
-	~/.nvm/nvm-exec npx husky add "$(@)" \
-	    "tox exec -e build -- cz check --allow-abort --commit-msg-file ${1}"
 ./.husky/pre-push: ./var/log/npm-install.log
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test-push test"
+
+./.husky/commit-msg: ./var/log/npm-install.log
+	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	~/.nvm/nvm-exec npx husky add "$(@)" 'npx --no -- commitlint --edit $${1}'
+./var/log/commitlint-init.log:
+	mkdir -pv "$(dir $(@))"
+# https://commitlint.js.org/#/guides-local-setup?id=install-commitlint
+	~/.nvm/nvm-exec npm install --save-dev @commitlint/{cli,config-conventional}
 
 ./.husky/prepare-commit-msg: ./var/log/npm-install.log
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
