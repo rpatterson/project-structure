@@ -158,6 +158,7 @@ all: build
 ### Perform any currently necessary local set-up common to most operations.
 build: $(HOME)/.local/var/log/project-structure-host-install.log \
 		./var/log/npm-prepare.log ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run build
 
 .PHONY: build-pkgs
 ### Ensure the built package is current when used outside of tox.
@@ -178,6 +179,7 @@ test: build
 ### Perform any linter or style checks, including non-code checks.
 test-lint: $(HOME)/.local/var/log/project-structure-host-install.log
 	~/.nvm/nvm-exec npm run format:check
+	~/.nvm/nvm-exec npm run lint
 # Run non-code checks, e.g. documentation:
 	tox run -e "build"
 
@@ -357,6 +359,7 @@ devel-merge: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANC
 .PHONY: clean
 ### Restore the checkout to a state as close to an initial clone as possible.
 clean:
+	~/.nvm/nvm-exec npm run clean
 	~/.nvm/nvm-exec npx husky uninstall
 	git clean -dfx -e "var/"
 	rm -rfv "./var/log/"
