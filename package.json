@@ -10,7 +10,10 @@
     "format": "prettier --write ./",
     "format:check": "prettier --check ./"
   },
-  "keywords": [],
+  "keywords": [
+    "template",
+    "structure"
+  ],
   "author": "Ross Patterson <me@rpatterson.net>",
   "license": "MIT",
   "repository": {
