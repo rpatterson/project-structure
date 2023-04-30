@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-~/.nvm/nvm-exec npx --no -- commitlint --edit "${1}"
+tox exec -e build -- cz check --allow-abort --commit-msg-file "${1}"

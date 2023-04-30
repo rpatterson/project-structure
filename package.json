@@ -1,12 +1,11 @@
 {
   "name": "@rpattersonnet/project-structure",
-  "version": "0.0.0-development",
+  "version": "0.0.0",
   "description": "Project structure foundation or template, package metadata",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky install",
-    "semantic-release": "semantic-release"
+    "prepare": "husky install"
   },
   "keywords": [],
   "author": "Ross Patterson <me@rpatterson.net>",
@@ -16,24 +15,6 @@
     "url": "https://gitlab.com/rpatterson/project-structure.git"
   },
   "devDependencies": {
-    "@commitlint/cli": "^17.6.1",
-    "@commitlint/config-conventional": "^17.6.1",
-    "cz-conventional-changelog": "^3.3.0",
-    "husky": "^8.0.0",
-    "semantic-release": "^21.0.2"
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
-    }
-  },
-  "release": {
-    "branches": [
-      "main",
-      {"name": "develop", "prerelease": "beta"}
-    ],
-    "plugins": [
-      "@semantic-release/commit-analyzer"
-    ]
+    "husky": "^8.0.0"
   }
 }
