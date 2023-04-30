@@ -5,20 +5,31 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "release": "standard-version"
   },
   "keywords": [],
   "author": "Ross Patterson <me@rpatterson.net>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/rpatterson/project-structure.git"
+  },
   "devDependencies": {
     "@commitlint/cli": "^17.6.1",
     "@commitlint/config-conventional": "^17.6.1",
     "cz-conventional-changelog": "^3.3.0",
-    "husky": "^8.0.0"
+    "husky": "^8.0.0",
+    "standard-version": "^9.5.0"
   },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "standard-version": {
+    "skip": {
+      "changelog": true
     }
   }
 }

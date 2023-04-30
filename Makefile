@@ -112,6 +112,12 @@ endif
 ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
 VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
 endif
+define VCS_BUMP_MSG=
+build(release): Version {{previousTag}} → {{currentTag}}
+
+[ci release]
+endef
+VCS_BUMP_ARGS=--sign --commit-all --releaseCommitMessageFormat "$(VCS_BUMP_MSG)"
 
 # Run Python tools in isolated environments managed by Tox:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
@@ -195,9 +201,9 @@ test-push: $(VCS_FETCH_TARGETS) \
 # Compare with the pre-release branch if this branch hasn't been pushed yet:
 	    vcs_compare_rev="$(VCS_COMPARE_REMOTE)/develop"
 	fi
+	~/.nvm/nvm-exec npx commitlint --from "$${vcs_compare_rev}" --to "HEAD"
 	exit_code=0
 	(
-	    ~/.nvm/nvm-exec npx commitlint --from "$${vcs_compare_rev}" --to "HEAD" &&
 	    $(TOX_EXEC_BUILD_ARGS) -- \
 	        python ./bin/cz-check-bump --compare-ref "$${vcs_compare_rev}"
 	) || exit_code=$$?
@@ -273,14 +279,14 @@ release-bump: ~/.gitconfig $(VCS_RELEASE_FETCH_TARGETS) \
 	    fi
 	fi
 # Collect the versions involved in this release according to conventional commits:
-	cz_bump_args="--check-consistency --no-verify"
+	bump_args=""
 ifneq ($(VCS_BRANCH),main)
-	cz_bump_args+=" --prerelease beta"
+	bump_args+=" --prerelease beta"
 endif
 # Build and stage the release notes to be commited by `$ cz bump`
 	next_version=$$(
-	    $(TOX_EXEC_BUILD_ARGS) -qq -- cz bump $${cz_bump_args} --yes --dry-run |
-	    sed -nE 's|.* ([^ ]+) *→ *([^ ]+).*|\2|p;q'
+	    ~/.nvm/nvm-exec npm run release -- $(VCS_BUMP_ARGS) $${bump_args} \
+	    --dry-run | sed -nE 's|.* ([^ ]+) *→ *([^ ]+).*|\2|p;q'
 	) || true
 	$(TOX_EXEC_BUILD_ARGS) -qq -- \
 	    towncrier build --version "$${next_version}" --draft --yes \
@@ -288,7 +294,7 @@ endif
 	git add -- "./NEWS-VERSION.rst"
 	$(TOX_EXEC_BUILD_ARGS) -- towncrier build --version "$${next_version}" --yes
 # Increment the version in VCS
-	$(TOX_EXEC_BUILD_ARGS) -- cz bump $${cz_bump_args}
+	~/.nvm/nvm-exec npm run release -- $(VCS_BUMP_ARGS) $${bump_args}
 ifeq ($(VCS_BRANCH),main)
 # Merge the bumped version back into `develop`:
 	bump_rev="$$(git rev-parse HEAD)"
@@ -470,6 +476,11 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npx commitizen init cz-conventional-changelog --save-dev \
 	    --save-exact | tee -a "$(@)"
+
+./var/log/standard-version-init.log:
+	mkdir -pv "$(dir $(@))"
+# https://github.com/conventional-changelog/standard-version#installing-standard-version
+	~/.nvm/nvm-exec npm install --save-dev "standard-version" | tee -a "$(@)"
 
 # Tell Emacs where to find checkout-local tools needed to check the code.
 ./.dir-locals.el: ./.dir-locals.el.in
