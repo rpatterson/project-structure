@@ -13,8 +13,8 @@
     "type": "git",
     "url": "https://gitlab.com/rpatterson/project-structure.git"
   },
-  "main": "my-element.js",
-  "module": "my-element.js",
+  "main": "./build/my-element.js",
+  "module": "./build/my-element.js",
   "type": "module",
   "scripts": {
     "prepare": "husky install",
@@ -71,7 +71,7 @@
     "rollup-plugin-terser": "^7.0.2",
     "typescript": "~4.7.4"
   },
-  "customElements": "custom-elements.json",
+  "customElements": "./build/custom-elements.json",
   "publishConfig": {
     "access": "public"
   }
