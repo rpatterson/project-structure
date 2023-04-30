@@ -231,12 +231,12 @@ test-clean:
 
 .PHONY: release
 ### Publish installable packages if conventional commits require a release.
-release: $(HOME)/.local/var/log/project-structure-host-install.log
+release: $(HOME)/.local/var/log/project-structure-host-install.log \
+		./var/log/npm-login.log ./README.md
 # Only release from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
-	$(MAKE) -e build-pkgs
-	true "TEMPLATE: Always specific to the type of project"
 	$(MAKE) -e test-clean
+	~/.nvm/nvm-exec npm publish
 endif
 
 .PHONY: release-bump
@@ -459,6 +459,10 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 ./.husky/pre-push: ./var/log/npm-install.log
 	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test-push test"
+
+./var/log/npm-login.log: $(HOME)/.local/var/log/project-structure-host-install.log
+	mkdir -pv "$(dir $(@))"
+	~/.nvm/nvm-exec npm login | tee -a "$(@)"
 
 # Tell Emacs where to find checkout-local tools needed to check the code.
 ./.dir-locals.el: ./.dir-locals.el.in

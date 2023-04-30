@@ -1,5 +1,6 @@
 {
   "name": "@rpattersonnet/project-structure",
+  "scope": "@rpattersonnet",
   "version": "0.0.0",
   "description": "Project structure foundation or template, package metadata",
   "main": "index.js",
@@ -16,5 +17,8 @@
   },
   "devDependencies": {
     "husky": "^8.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
