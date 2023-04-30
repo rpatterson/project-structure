@@ -177,6 +177,7 @@ test: build
 .PHONY: test-lint
 ### Perform any linter or style checks, including non-code checks.
 test-lint: $(HOME)/.local/var/log/project-structure-host-install.log
+	~/.nvm/nvm-exec npm run format:check
 # Run non-code checks, e.g. documentation:
 	tox run -e "build"
 
@@ -311,7 +312,7 @@ endif
 .PHONY: devel-format
 ### Automatically correct code in this checkout according to linters and style checkers.
 devel-format: $(HOME)/.local/var/log/project-structure-host-install.log
-	true "TEMPLATE: Always specific to the type of project"
+	~/.nvm/nvm-exec npm run format
 
 .PHONY: devel-upgrade
 ### Update all fixed/pinned dependencies to their latest available versions.
