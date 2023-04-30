@@ -1,12 +1,12 @@
 {
   "name": "@rpattersonnet/project-structure",
-  "version": "0.0.0",
+  "version": "0.0.0-development",
   "description": "Project structure foundation or template, package metadata",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky install",
-    "release": "standard-version"
+    "semantic-release": "semantic-release"
   },
   "keywords": [],
   "author": "Ross Patterson <me@rpatterson.net>",
@@ -20,16 +20,20 @@
     "@commitlint/config-conventional": "^17.6.1",
     "cz-conventional-changelog": "^3.3.0",
     "husky": "^8.0.0",
-    "standard-version": "^9.5.0"
+    "semantic-release": "^21.0.2"
   },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
   },
-  "standard-version": {
-    "skip": {
-      "changelog": true
-    }
+  "release": {
+    "branches": [
+      "main",
+      {"name": "develop", "prerelease": "beta"}
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer"
+    ]
   }
 }
