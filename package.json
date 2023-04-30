@@ -13,14 +13,14 @@
     "type": "git",
     "url": "https://gitlab.com/rpatterson/project-structure.git"
   },
-  "main": "./build/my-element.js",
-  "module": "./build/my-element.js",
+  "main": "./build/project-structure-element.js",
+  "module": "./build/project-structure-element.js",
   "type": "module",
   "scripts": {
     "prepare": "husky install",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "clean": "rimraf my-element.{d.ts,d.ts.map,js,js.map} test/my-element.{d.ts,d.ts.map,js,js.map} test/my-element_test.{d.ts,d.ts.map,js,js.map}",
+    "clean": "rimraf project-structure-element.{d.ts,d.ts.map,js,js.map} test/project-structure-element.{d.ts,d.ts.map,js,js.map} test/project-structure-element_test.{d.ts,d.ts.map,js,js.map}",
     "lint": "npm run lint:lit-analyzer && npm run lint:eslint",
     "lint:eslint": "eslint 'src/**/*.ts'",
     "lint:lit-analyzer": "lit-analyzer",
@@ -30,7 +30,7 @@
     "docs:clean": "rimraf docs",
     "docs:gen": "eleventy --config=.eleventy.cjs",
     "docs:gen:watch": "eleventy --config=.eleventy.cjs --watch",
-    "docs:build": "rollup -c --file docs/my-element.bundled.js",
+    "docs:build": "rollup -c --file docs/project-structure-element.bundled.js",
     "docs:assets": "cp node_modules/prismjs/themes/prism-okaidia.css docs/",
     "docs:serve": "wds --root-dir=docs --node-resolve --watch",
     "analyze": "cem analyze --litelement --globs \"src/**/*.ts\"",
@@ -42,7 +42,7 @@
     "test:watch": "wtr --watch",
     "test:prod": "MODE=prod wtr",
     "test:prod:watch": "MODE=prod wtr --watch",
-    "checksize": "rollup -c ; cat my-element.bundled.js | gzip -9 | wc -c ; rm my-element.bundled.js"
+    "checksize": "rollup -c ; cat project-structure-element.bundled.js | gzip -9 | wc -c ; rm project-structure-element.bundled.js"
   },
   "dependencies": {
     "lit": "^2.2.4"

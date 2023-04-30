@@ -10,9 +10,9 @@ import resolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 
 export default {
-  input: './build/my-element.js',
+  input: './build/project-structure-element.js',
   output: {
-    file: './build/my-element.bundled.js',
+    file: './build/project-structure-element.bundled.js',
     format: 'esm',
   },
   onwarn(warning) {
