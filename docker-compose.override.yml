@@ -1,19 +1,19 @@
 # Override `$ docker compose ...` configuration for development or testing here in this
 # repo checkout.  Everything that may be used outside this checkout should be in
 # `./docker-compose.yml`.
-version: "3.8"
+version: '3.8'
 
 services:
   pandoc:
-    image: "pandoc/core"
+    image: 'pandoc/core'
     profiles:
-      - "release"
-    user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
+      - 'release'
+    user: '${PUID:-1000}:${PGID:-${PUID:-1000}}'
     environment:
-      TZ: "${TZ:-Etc/UTC}"
+      TZ: '${TZ:-Etc/UTC}'
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
-    entrypoint: "ash"
+      - '${CHECKOUT_DIR:-.}/:/data/'
+    entrypoint: 'ash'
     # Strip reStructuredText directives unsupported in Markdown before converting and
     # converted Markdown that isn't widely supported, e.g. table of contents and tables
     # respectively:

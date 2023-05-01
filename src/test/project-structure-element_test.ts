@@ -16,7 +16,9 @@ suite('project-structure-element', () => {
   });
 
   test('renders with default values', async () => {
-    const el = await fixture(html`<project-structure-element></project-structure-element>`);
+    const el = await fixture(
+      html`<project-structure-element></project-structure-element>`
+    );
     assert.shadowDom.equal(
       el,
       `
@@ -28,7 +30,9 @@ suite('project-structure-element', () => {
   });
 
   test('renders with a set name', async () => {
-    const el = await fixture(html`<project-structure-element name="Test"></project-structure-element>`);
+    const el = await fixture(
+      html`<project-structure-element name="Test"></project-structure-element>`
+    );
     assert.shadowDom.equal(
       el,
       `
@@ -40,7 +44,9 @@ suite('project-structure-element', () => {
   });
 
   test('handles a click', async () => {
-    const el = (await fixture(html`<project-structure-element></project-structure-element>`)) as MyElement;
+    const el = (await fixture(
+      html`<project-structure-element></project-structure-element>`
+    )) as MyElement;
     const button = el.shadowRoot!.querySelector('button')!;
     button.click();
     await el.updateComplete;
@@ -55,7 +61,9 @@ suite('project-structure-element', () => {
   });
 
   test('styling applied', async () => {
-    const el = (await fixture(html`<project-structure-element></project-structure-element>`)) as MyElement;
+    const el = (await fixture(
+      html`<project-structure-element></project-structure-element>`
+    )) as MyElement;
     await el.updateComplete;
     assert.equal(getComputedStyle(el).paddingTop, '16px');
   });
