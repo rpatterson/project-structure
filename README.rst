@@ -167,7 +167,7 @@ template.
 
 
 .. _`JavaScript NPM package`: https://docs.npmjs.com/creating-a-package-json-file
-.._ _`An opinionated code formatter`: https://prettier.io/docs/en/install.html
+.. _`An opinionated code formatter`: https://prettier.io/docs/en/install.html
 .. _`Towncrier`: https://towncrier.readthedocs.io
 
 .. _`conventional commits`: https://www.conventionalcommits.org
