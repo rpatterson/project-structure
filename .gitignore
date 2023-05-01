@@ -21,3 +21,16 @@ docs/_build/
 
 # Emacs editor settings
 /.dir-locals.el
+
+# From Lit project template:
+/node_modules/
+/lib/
+/test/
+custom-elements.json
+# top level source
+my-element.js
+my-element.js.map
+my-element.d.ts
+my-element.d.ts.map
+# only generated for size check
+my-element.bundled.js
