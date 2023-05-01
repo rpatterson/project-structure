@@ -15,11 +15,19 @@
     "template",
     "structure"
   ],
-  "author": "Ross Patterson <me@rpatterson.net>",
   "license": "MIT",
+  "author": {
+    "name": "Ross Patterson",
+    "email": "me@rpatterson.net",
+    "url": "https://www.rpatterson.net/"
+  },
   "repository": {
     "type": "git",
     "url": "https://gitlab.com/rpatterson/project-structure.git"
+  },
+  "funding": {
+    "type": "liberapay",
+    "url": "https://liberapay.com/rpatterson/donate"
   },
   "devDependencies": {
     "husky": "^8.0.0",
