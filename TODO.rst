@@ -16,6 +16,9 @@ care about and add your own.
 Required
 ****************************************************************************************
 
+#. Remove documentation and examples from the Lit template in favor of future Sphinx
+   documentation.
+
 #. Docker container to run tests, linters and checks in for isolation and
    reproducibility.
 
@@ -24,8 +27,6 @@ Required
 #. A ``js-ci`` branch for CI/CD.
 
 #. CI/CD badges.
-
-#. Update documentation and examples from the Lit template.
 
 
 ****************************************************************************************
