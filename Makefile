@@ -151,6 +151,11 @@ include $(wildcard .env)
 ### The default target.
 all: build
 
+.PHONY: run
+### Run the development environment
+run: build
+	~/.nvm/nvm-exec npm run serve
+
 
 ## Build Targets:
 #
