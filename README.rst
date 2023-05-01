@@ -24,9 +24,10 @@ project-structure foundation or template
 This repository is meant to be used as a minimal, yet opinionated baseline for software
 projects.  It includes:
 
+- Basic `JavaScript NPM package`_ metadata
 - A `Makefile`_ for local development build, test and maintenance tasks
 - A `Makefile`_ target to format all code, including using for style
-- A kitchen sink linter configuration that runs all available code checks
+- `An opinionated code formatter`_ that formats all code
 - `VCS hooks`_ to enforce `conventional commits`_ and successful build and test on
   commit and push, and release notes on push
 - Targets/recipes in the `Makefile`_ to automate releases controlled by `conventional
@@ -165,6 +166,8 @@ a remote from which we can merge structure updates over the life of projects usi
 template.
 
 
+.. _`JavaScript NPM package`: https://docs.npmjs.com/creating-a-package-json-file
+.._ _`An opinionated code formatter`: https://prettier.io/docs/en/install.html
 .. _`Towncrier`: https://towncrier.readthedocs.io
 
 .. _`conventional commits`: https://www.conventionalcommits.org
