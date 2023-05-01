@@ -31,7 +31,10 @@ For this element to work from unpkg.com specifically, you need to include the `?
 ### HTML
 
 ```html
-<script type="module" src="https://unpkg.com/project-structure?module"></script>
+<script
+  type="module"
+  src="https://unpkg.com/project-structure-element?module"
+></script>
 ```
 
 ### JavaScript
