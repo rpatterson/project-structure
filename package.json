@@ -3,13 +3,12 @@
   "scope": "@rpattersonnet",
   "version": "0.0.0",
   "description": "Project structure foundation or template, package metadata",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky install",
     "format": "prettier --write ./",
     "format:check": "prettier --check ./",
-    "docs:api": "jsdoc -c jsdocrc.json ./*.js"
+    "docs:api": "jsdoc -c ./jsdocrc.json"
   },
   "keywords": [
     "template",
@@ -28,6 +27,11 @@
   "funding": {
     "type": "liberapay",
     "url": "https://liberapay.com/rpatterson/donate"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./*.js": "./src/*.js"
   },
   "devDependencies": {
     "husky": "^8.0.0",

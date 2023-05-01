@@ -373,6 +373,9 @@ clean:
 ./package-lock.json: ./package.json
 	~/.nvm/nvm-exec npm update
 
+# TEMPLATE: Use "Conditional exports" if your module is exclusively supports only the
+# browser or only Node.js:
+# https://nodejs.org/api/packages.html#conditional-exports
 ./package.json:
 # https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
 	$(MAKE) "$(HOME)/.npmrc"

@@ -1,5 +1,9 @@
 {
+  "source": {
+    "include": ["./src/"]
+  },
   "opts": {
+    "recurse": true,
     "package": "./package.json",
     "destination": "./build/jsdoc/"
   }
