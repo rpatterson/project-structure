@@ -12,7 +12,8 @@ care about and add your own.
 Required
 ****************************************************************************************
 
-#. Update documentation and examples from the Lit template.
+#. Remove documentation and examples from the Lit template in favor of future Sphinx
+   documentation.
 
 
 ****************************************************************************************
