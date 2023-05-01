@@ -126,9 +126,9 @@ should go straight to final release.  For example they may decide that:
 Installation
 ****************************************************************************************
 
-Install using any tool for installing standard packages for the project language::
+Install using any tool for `installing JavaScript NPM packages`_::
 
-  $ true "TEMPLATE: Always specific to the type of project"
+  $ npm install project-structure-element
 
 
 ****************************************************************************************
@@ -171,6 +171,9 @@ template.
 .. _`Towncrier`: https://towncrier.readthedocs.io
 
 .. _`conventional commits`: https://www.conventionalcommits.org
+
+.. _`installing JavaScript NPM packages`:
+   https://docs.npmjs.com/downloading-and-installing-packages-locally
 
 .. _`This project is hosted on GitLab`:
    https://gitlab.com/rpatterson/project-structure
