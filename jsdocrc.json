@@ -1,0 +1,6 @@
+{
+  "opts": {
+    "package": "./package.json",
+    "destination": "./build/jsdoc/"
+  }
+}

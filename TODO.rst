@@ -31,5 +31,8 @@ Nice to Have
 
 #. Documentation via Sphinx with CI to publish to RTFD.
 
+#. Include API documentation via `sphinx-js
+   <https://github.com/mozilla/sphinx-js#setup>`_
+
 #. Better release notes content for final releases with no changes since the last
    pre-release.
