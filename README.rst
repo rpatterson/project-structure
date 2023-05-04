@@ -1,63 +1,67 @@
+.. SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+..
+.. SPDX-License-Identifier: MIT
+
 ########################################################################################
-python-project-structure
+Project Structure
 ########################################################################################
-Python project structure foundation or template
+Project structure foundation or template
 ****************************************************************************************
 
 .. list-table::
    :class: borderless align-right
 
-   * - .. figure:: https://img.shields.io/pypi/v/python-project-structure.svg?logo=pypi&label=PyPI&logoColor=gold
+   * - .. figure:: https://img.shields.io/pypi/v/project-structure.svg?logo=pypi&label=PyPI&logoColor=gold
           :alt: PyPI latest release version
-          :target: https://pypi.org/project/python-project-structure/
-       .. figure:: https://img.shields.io/pypi/dm/python-project-structure.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold
-          :alt: PyPI downloads per month
-          :target: https://pypi.org/project/python-project-structure/
-       .. figure:: https://img.shields.io/pypi/pyversions/python-project-structure.svg?logo=python&label=Python&logoColor=gold
+          :target: https://pypi.org/project/project-structure/
+       .. figure:: https://img.shields.io/pypi/pyversions/project-structure.svg?logo=python&label=Python&logoColor=gold
           :alt: PyPI Python versions
-          :target: https://pypi.org/project/python-project-structure/
+          :target: https://pypi.org/project/project-structure/
        .. figure:: https://img.shields.io/badge/code%20style-black-000000.svg
           :alt: Python code style
           :target: https://github.com/psf/black
+       .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
+          :alt: REUSE license status
+          :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
 
-     - .. figure:: https://gitlab.com/rpatterson/python-project-structure/-/badges/release.svg
+     - .. figure:: https://gitlab.com/rpatterson/project-structure/-/badges/release.svg
 	  :alt: GitLab latest release
-	  :target: https://gitlab.com/rpatterson/python-project-structure/-/releases
-       .. figure:: https://gitlab.com/rpatterson/python-project-structure/badges/main/pipeline.svg
+	  :target: https://gitlab.com/rpatterson/project-structure/-/releases
+       .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/pipeline.svg
           :alt: GitLab CI/CD pipeline status
-          :target: https://gitlab.com/rpatterson/python-project-structure/-/commits/main
-       .. figure:: https://gitlab.com/rpatterson/python-project-structure/badges/main/coverage.svg
+          :target: https://gitlab.com/rpatterson/project-structure/-/commits/main
+       .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/coverage.svg
           :alt: GitLab coverage report
-	  :target: https://gitlab.com/rpatterson/python-project-structure/-/commits/main
-       .. figure:: https://img.shields.io/gitlab/stars/rpatterson/python-project-structure?gitlab_url=https%3A%2F%2Fgitlab.com&logo=gitlab
+	  :target: https://gitlab.com/rpatterson/project-structure/-/commits/main
+       .. figure:: https://img.shields.io/gitlab/stars/rpatterson/project-structure?gitlab_url=https%3A%2F%2Fgitlab.com&logo=gitlab
 	  :alt: GitLab repo stars
-	  :target: https://gitlab.com/rpatterson/python-project-structure
+	  :target: https://gitlab.com/rpatterson/project-structure
 
-     - .. figure:: https://img.shields.io/github/v/release/rpatterson/python-project-structure?logo=github
+     - .. figure:: https://img.shields.io/github/v/release/rpatterson/project-structure?logo=github
 	  :alt: GitHub release (latest SemVer)
-	  :target: https://github.com/rpatterson/python-project-structure/releases
-       .. figure:: https://github.com/rpatterson/python-project-structure/actions/workflows/build-test.yml/badge.svg
+	  :target: https://github.com/rpatterson/project-structure/releases
+       .. figure:: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml/badge.svg
           :alt: GitHub Actions status
-          :target: https://github.com/rpatterson/python-project-structure/actions/workflows/build-test.yml
-       .. figure:: https://codecov.io/github/rpatterson/python-project-structure/branch/main/graph/badge.svg?token=GNKVQ8VYOU
+          :target: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml
+       .. figure:: https://codecov.io/github/rpatterson/project-structure/branch/main/graph/badge.svg?token=GNKVQ8VYOU
           :alt: Codecov test coverage
-	  :target: https://app.codecov.io/github/rpatterson/python-project-structure
-       .. figure:: https://img.shields.io/github/stars/rpatterson/python-project-structure?logo=github
+	  :target: https://app.codecov.io/github/rpatterson/project-structure
+       .. figure:: https://img.shields.io/github/stars/rpatterson/project-structure?logo=github
 	  :alt: GitHub repo stars
-	  :target: https://github.com/rpatterson/python-project-structure/
+	  :target: https://github.com/rpatterson/project-structure/
 
-     - .. figure:: https://img.shields.io/docker/v/merpatterson/python-project-structure/main?sort=semver&logo=docker
+     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main?sort=semver&logo=docker
           :alt: Docker Hub image version (latest semver)
-          :target: https://hub.docker.com/r/merpatterson/python-project-structure
-       .. figure:: https://img.shields.io/docker/pulls/merpatterson/python-project-structure?logo=docker
+          :target: https://hub.docker.com/r/merpatterson/project-structure
+       .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image pulls count
-          :target: https://hub.docker.com/r/merpatterson/python-project-structure
-       .. figure:: https://img.shields.io/docker/stars/merpatterson/python-project-structure?logo=docker
+          :target: https://hub.docker.com/r/merpatterson/project-structure
+       .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
 	  :alt: Docker Hub stars
-          :target: https://hub.docker.com/r/merpatterson/python-project-structure
-       .. figure:: https://img.shields.io/docker/image-size/merpatterson/python-project-structure?logo=docker
+          :target: https://hub.docker.com/r/merpatterson/project-structure
+       .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
 	  :alt: Docker Hub image size (latest semver)
-          :target: https://hub.docker.com/r/merpatterson/python-project-structure
+          :target: https://hub.docker.com/r/merpatterson/project-structure
 
      - .. figure:: https://img.shields.io/keybase/pgp/rpatterson?logo=keybase
           :alt: KeyBase PGP key ID
@@ -79,7 +83,6 @@ software projects.  It includes:
 - Basic `Python "distribution"/project`_ metadata
 - Command-line console script with sub-command boilerplate
 - A `Makefile`_ for local development build, test and maintenance tasks
-- `Docker`_ container images for users and development
 - `Docker`_ container images for users and development in which tests are run
 - A `Makefile`_ target to format all Python code, including using `Black`_ for style
 - A `kitchen sink linter configuration`_ for `Prospector`_ that runs all available
@@ -154,20 +157,19 @@ figure it out and submit a PR with corrections to this section.
 
    If starting a fresh project::
 
-     $ git clone --origin "template" --branch "ci-cli" \
-     "https://gitlab.com/rpatterson/python-project-structure.git" "./foo-project"
+     $ git clone --origin "template" --branch "${TEMPLATE_BRANCH}" \
+     "https://gitlab.com/rpatterson/project-structure.git" "./foo-project"
      $ cd "./foo-project"
      $ git config remote.template.tagOpt --no-tags
      $ git remote add "origin" "git@gitlab.com:foo-username/foo-project.git"
-     $ git config remote.template.tagOpt --no-tags
      $ git switch -C "main" --track "origin/main"
 
    If merging into an existing project::
 
      $ git remote add "template" \
-     "https://gitlab.com/rpatterson/python-project-structure.git"
+     "https://gitlab.com/rpatterson/project-structure.git"
      $ git config remote.template.tagOpt --no-tags
-     $ git merge --allow-unrelated-histories "template/ci-cli"
+     $ git merge --allow-unrelated-histories "template/${TEMPLATE_BRANCH}"
 
 #. Rename file and directory paths derived from the project name::
 
@@ -211,14 +213,14 @@ should go straight to final release.  For example they may decide that:
 Installation
 ****************************************************************************************
 
-Install and use either via a local, native installation or a Docker container image:
-
 Local/Native Installation
 ========================================================================================
 
 Install using any tool for installing standard Python 3 distributions such as `pip`_::
 
-  $ pip3 install --user python-project-structure
+  $ pip3 install --user project-structure
+
+Optional shell tab completion is available via `argcomplete`_.
 
 Optional shell tab completion is available via `argcomplete`_.
 
@@ -233,23 +235,22 @@ your configuration, you can create and run the container::
 
 Alternatively, you make use the image directly.  Pull `the Docker image`_::
 
-  $ docker pull "registry.gitlab.org/rpatterson/python-project-structure"
+  $ docker pull "registry.gitlab.com/rpatterson/project-structure"
 
 And then use the image to create and run a container::
 
-  $ docker run --rm -it "registry.gitlab.org/rpatterson/python-project-structure" ...
+  $ docker run --rm -it "registry.gitlab.com/rpatterson/project-structure" ...
 
 Images variant tags are published for the Python version, branch, and major/minor
 versions so that users can control when they get new images over time,
-e.g. ``registry.gitlab.org/merpatterson/python-project-structure:py310-main``.  The
-canonical Python version is 3.10 which is the version used in tags without ``py###``,
-e.g. ``registry.gitlab.org/merpatterson/python-project-structure:main``.  Pre-releases
-are from ``develop`` and final releases are from ``main`` which is also the default for
-tags without a branch,
-e.g. ``registry.gitlab.org/merpatterson/python-project-structure:py310``. The
+e.g. ``registry.gitlab.com/rpatterson/project-structure:py310-main``.  The canonical
+Python version is 3.10 which is the version used in tags without ``py###``,
+e.g. ``registry.gitlab.com/rpatterson/project-structure:main``.  Pre-releases are from
+``develop`` and final releases are from ``main`` which is also the default for tags
+without a branch, e.g. ``registry.gitlab.com/rpatterson/project-structure:py310``. The
 major/minor version tags are only applied to the final release images and without the
 corresponding ``main`` branch tag,
-e.g. ``registry.gitlab.org/merpatterson/python-project-structure:py310-v0.8``.
+e.g. ``registry.gitlab.com/rpatterson/project-structure:py310-v0.8``.
 
 Multi-platform Docker images are published containing images for the following
 platforms or architectures in the Python 3.10 ``py310`` variant:
@@ -265,21 +266,21 @@ Usage
 
 See the command-line help for details on options and arguments::
 
-  $ python-project-structure --help
-  usage: python-project-structure [-h]
+  $ project-structure --help
+  usage: project-structure [-h]
 
-  Python project structure foundation or template, top-level package.
+  project structure foundation or template, top-level package.
 
-  optional arguments:
+  Pptional arguments:
     -h, --help  show this help message and exit
 
 If using the Docker container image, the container can be run from the command-line as
 well::
 
-  $ docker compose run "python-project-structure" python-project-structure --help
-  usage: python-project-structure [-h]
+  $ docker compose run "project-structure" project-structure --help
+  usage: project-structure [-h]
 
-  Python project structure foundation or template, top-level package.
+  Project structure foundation or template, top-level package.
 
   optional arguments:
     -h, --help  show this help message and exit
@@ -333,27 +334,26 @@ template.
 
 .. _`conventional commits`: https://www.conventionalcommits.org
 
-.. _`This project is hosted on GitLab`:
-   https://gitlab.com/rpatterson/python-project-structure
-.. _`a mirror on GitHub`:
-   https://github.com/rpatterson/python-project-structure
 .. _`Docker`: https://docs.docker.com/
 .. _`Docker Compose`: https://docs.docker.com/compose/
-.. _the Docker image: https://hub.docker.com/r/merpatterson/python-project-structure
+.. _the Docker image: https://hub.docker.com/r/merpatterson/project-structure
 
+.. _`This project is hosted on GitLab`:
+   https://gitlab.com/rpatterson/project-structure
+.. _`a mirror on GitHub`:
+   https://github.com/rpatterson/project-structure
 .. _`GitLab CI/CD`: https://docs.gitlab.com/ee/ci/
-
 .. _`GitHub Actions`: https://docs.github.com/en/actions
 
 .. _Makefile:
-   https://gitlab.com/rpatterson/python-project-structure/blob/main/Makefile
+   https://gitlab.com/rpatterson/project-structure/blob/main/Makefile
 .. _`the example ./docker-compose.yml file`:
-   https://gitlab.com/rpatterson/python-project-structure/blob/main/docker-compose.yml
+   https://gitlab.com/rpatterson/project-structure/blob/main/docker-compose.yml
 .. _`the ./CONTRIBUTING.rst file`:
-   https://gitlab.com/rpatterson/python-project-structure/blob/main/CONTRIBUTING.rst
+   https://gitlab.com/rpatterson/project-structure/blob/main/CONTRIBUTING.rst
 .. _`kitchen sink linter configuration`:
-   https://gitlab.com/rpatterson/python-project-structure/blob/main/.prospector.yaml
+   https://gitlab.com/rpatterson/project-structure/blob/main/.prospector.yaml
 .. _`tox.ini`:
-   https://gitlab.com/rpatterson/python-project-structure/blob/main/tox.ini
+   https://gitlab.com/rpatterson/project-structure/blob/main/tox.ini
 .. _`VCS hooks`:
-   https://gitlab.com/rpatterson/python-project-structure/blob/main/.pre-commit-config.yaml
+   https://gitlab.com/rpatterson/project-structure/blob/main/.pre-commit-config.yaml

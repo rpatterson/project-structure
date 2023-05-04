@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
 # Backup files
 *~
 **/*~
@@ -16,6 +20,14 @@ __pycache__
 *.so
 **/.so
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
 # Distribution / packaging
 .Python
 env/
@@ -29,6 +41,7 @@ lib64/
 parts/
 sdist/
 var/
+/README.md
 *.egg-info
 **/*.egg-info
 .installed.cfg

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
 ## Container image for use by end users
 
 # Stay as close to a vanilla Python environment as possible
@@ -15,7 +19,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Put the `ENTRYPOINT` on the `$PATH`
 COPY [ "./bin/entrypoint", "/usr/local/bin/entrypoint" ]
 
-WORKDIR "/usr/local/src/python-project-structure/"
+WORKDIR "/usr/local/src/project-structure/"
 # Install dependencies with fixed versions in a separate layer to optimize build times
 # because this step takes the most time and changes the least frequently.
 ARG PYTHON_ENV=py310
@@ -33,17 +37,17 @@ RUN --mount=type=cache,target=/root/.cache,sharing=locked \
     rm -rfv "./dist/"
 
 # Find the same home directory even when run as another user, e.g. `root`.
-ENV HOME="/home/python-project-structure"
-WORKDIR "/home/python-project-structure/"
+ENV HOME="/home/project-structure"
+WORKDIR "/home/project-structure/"
 ENTRYPOINT [ "entrypoint" ]
-CMD [ "python-project-structure" ]
+CMD [ "project-structure" ]
 
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
-LABEL org.opencontainers.image.url="https://gitlab.com/rpatterson/python-project-structure"
-LABEL org.opencontainers.image.documentation="https://gitlab.com/rpatterson/python-project-structure"
-LABEL org.opencontainers.image.source="https://gitlab.com/rpatterson/python-project-structure"
-LABEL org.opencontainers.image.title="Python Project Structure"
-LABEL org.opencontainers.image.description="Python project structure foundation or template"
+LABEL org.opencontainers.image.url="https://gitlab.com/rpatterson/project-structure"
+LABEL org.opencontainers.image.documentation="https://gitlab.com/rpatterson/project-structure"
+LABEL org.opencontainers.image.source="https://gitlab.com/rpatterson/project-structure"
+LABEL org.opencontainers.image.title="Project Structure"
+LABEL org.opencontainers.image.description="Project structure foundation or template"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.authors="Ross Patterson <me@rpatterson.net>"
 LABEL org.opencontainers.image.vendor="rpatterson.net"
