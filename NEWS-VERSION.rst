@@ -1,5 +1,8 @@
-project-structure 0.8.26 (2023-05-05)
+project-structure 0.8.27 (2023-05-05)
 =====================================
 
-No significant changes.
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
 
