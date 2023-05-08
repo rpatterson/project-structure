@@ -1,3 +1,12 @@
+project-structure 0.8.28b2 (2023-05-08)
+=======================================
+
+Bugfixes
+--------
+
+- Simulate a patch release. (simulate)
+
+
 project-structure 0.8.28b1 (2023-05-08)
 =======================================
 
