@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
 # Build, release and development tools that can operate totally independently of the
 # project's code or package.
 
@@ -13,3 +17,8 @@ towncrier
 
 # Check reStructuredText documentation:
 rstcheck
+
+# Check copyright and licensing:
+# Prevent upgrading to broken releases:
+# https://github.com/fsfe/reuse-tool/issues/738
+reuse<1.1.0

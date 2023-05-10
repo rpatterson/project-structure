@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
 ## Development, build and maintenance tasks:
 #
 # To ease discovery for new contributors, variables that act as options affecting
@@ -5,6 +9,10 @@
 # intended for use by developers.  The real work, however, is in the recipes for real
 # targets that follow.  If making changes here, please start by reading the philosophy
 # commentary at the bottom of this file.
+
+# Project specific values:
+export PROJECT_NAMESPACE=rpatterson
+export PROJECT_NAME=project-structure
 
 # Variables used as options to control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
@@ -43,6 +51,7 @@ ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
+export CHECKOUT_DIR=$(PWD)
 
 # Values derived from VCS/git:
 VCS_LOCAL_BRANCH:=$(shell git branch --show-current)
@@ -129,18 +138,11 @@ else ifeq ($(VCS_BRANCH),develop)
 RELEASE_PUBLISH=true
 endif
 
+# Override variable values if present in `./.env` and if not overridden on the CLI:
+include $(wildcard .env)
+
 # Done with `$(shell ...)`, echo recipe commands going forward
 .SHELLFLAGS+= -x
-
-
-## Makefile "functions":
-#
-# Snippets whose output is frequently used including across recipes.  Used for output
-# only, not actually making any changes.
-# https://www.gnu.org/software/make/manual/html_node/Call-Function.html
-
-# Return the most recently built package:
-current_pkg = $(shell ls -t ./dist/*$(1) | head -n 1)
 
 
 ## Top-level targets:
@@ -156,7 +158,8 @@ all: build
 
 .PHONY: build
 ### Perform any currently necessary local set-up common to most operations.
-build: $(HOME)/.local/var/log/project-structure-host-install.log \
+build: ./.git/hooks/pre-commit ./.env.~out~ \
+		$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log \
 		./var/log/npm-prepare.log ./var/log/npm-install.log
 
 .PHONY: build-pkgs
@@ -171,12 +174,12 @@ build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 
 .PHONY: test
 ### Run the full suite of tests, coverage checks, and linters.
-test: build
+test: build test-lint
 	~/.nvm/nvm-exec npm test
 
 .PHONY: test-lint
 ### Perform any linter or style checks, including non-code checks.
-test-lint: $(HOME)/.local/var/log/project-structure-host-install.log
+test-lint: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	~/.nvm/nvm-exec npm run format:check
 # Run non-code checks, e.g. documentation:
 	tox run -e "build"
@@ -189,7 +192,7 @@ test-debug:
 .PHONY: test-push
 ### Perform any checks that should only be run before pushing.
 test-push: $(VCS_FETCH_TARGETS) \
-		$(HOME)/.local/var/log/project-structure-host-install.log
+		$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -232,7 +235,7 @@ test-clean:
 
 .PHONY: release
 ### Publish installable packages if conventional commits require a release.
-release: $(HOME)/.local/var/log/project-structure-host-install.log \
+release: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log \
 		./var/log/npm-login.log ./README.md
 # Only release from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
@@ -243,7 +246,7 @@ endif
 .PHONY: release-bump
 ### Bump the package version if on a branch that should trigger a release.
 release-bump: ~/.gitconfig $(VCS_RELEASE_FETCH_TARGETS) \
-		$(HOME)/.local/var/log/project-structure-host-install.log
+		$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -251,7 +254,7 @@ release-bump: ~/.gitconfig $(VCS_RELEASE_FETCH_TARGETS) \
 	    false
 	fi
 # Ensure the local branch is updated to the forthcoming version bump commit:
-	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)" --
+	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 # Check if a release is required:
 	exit_code=0
 	if [ "$(VCS_BRANCH)" = "main" ] &&
@@ -297,11 +300,9 @@ endif
 	$(TOX_EXEC_BUILD_ARGS) -- cz bump $${cz_bump_args}
 ifeq ($(VCS_BRANCH),main)
 # Merge the bumped version back into `develop`:
-	bump_rev="$$(git rev-parse HEAD)"
-	git switch -C "develop" --track "$(VCS_COMPARE_REMOTE)/develop" --
-	git merge --ff --gpg-sign \
-	    -m "Merge branch 'main' release back into develop" "$${bump_rev}"
-	git switch -C "$(VCS_BRANCH)" "$${bump_rev}" --
+	$(MAKE) VCS_BRANCH="main" VCS_MERGE_BRANCH="develop" \
+	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
+	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
 
 
@@ -311,8 +312,10 @@ endif
 
 .PHONY: devel-format
 ### Automatically correct code in this checkout according to linters and style checkers.
-devel-format: $(HOME)/.local/var/log/project-structure-host-install.log
+devel-format: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	~/.nvm/nvm-exec npm run format
+	$(TOX_EXEC_BUILD_ARGS) -- reuse addheader -r --skip-unrecognised \
+	    --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT" "./"
 
 .PHONY: devel-upgrade
 ### Update all fixed/pinned dependencies to their latest available versions.
@@ -323,7 +326,7 @@ devel-upgrade:
 .PHONY: devel-upgrade-branch
 ### Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
 devel-upgrade-branch: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-	git switch -C "$(VCS_BRANCH)-upgrade" --track "$(VCS_BRANCH)" --
+	git switch -C "$(VCS_BRANCH)-upgrade"
 	now=$$(date -u)
 	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
 	if $(MAKE) -e "test-clean"
@@ -358,7 +361,7 @@ devel-merge: ~/.gitconfig ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANC
 ### Restore the checkout to a state as close to an initial clone as possible.
 clean:
 	~/.nvm/nvm-exec npx husky uninstall
-	git clean -dfx -e "var/"
+	git clean -dfx -e "/var" -e "/.env" -e "*~"
 	rm -rfv "./var/log/"
 
 
@@ -381,7 +384,7 @@ clean:
 	$(MAKE) "$(HOME)/.npmrc"
 	~/.nvm/nvm-exec npm init --yes --scope="@$(NPM_SCOPE)"
 
-$(HOME)/.npmrc: $(HOME)/.local/var/log/project-structure-host-install.log
+$(HOME)/.npmrc: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 # https://docs.npmjs.com/creating-a-package-json-file#setting-config-options-for-the-init-command
 	~/.nvm/nvm-exec npm set init-author-email "$(USER_EMAIL)"
 	~/.nvm/nvm-exec npm set init-author-name "$(USER_FULL_NAME)"
@@ -390,52 +393,22 @@ $(HOME)/.npmrc: $(HOME)/.local/var/log/project-structure-host-install.log
 ./README.md: README.rst
 	docker compose run --rm "pandoc"
 
+# Local environment variables and secrets from a template:
+./.env.~out~: ./.env.in
+	$(call expand_template,$(<),$(@))
+
 # Install all tools required by recipes that have to be installed externally on the
 # host.  Use a target file outside this checkout to support multiple checkouts.  Use a
 # target specific to this project so that other projects can use the same approach but
 # with different requirements.
-$(HOME)/.local/var/log/project-structure-host-install.log:
+$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log: ./bin/host-install \
+		./build-host/requirements.txt.in
 	mkdir -pv "$(dir $(@))"
-	(
-	    if ! which pip
-	    then
-	        if which apk
-	        then
-	            apk update
-	            apk add \
-# We need `$ envsubst` in the `expand-template:` target recipe:
-	                "gettext" \
-# We need `$ pip3` to install the project's Python tools:
-	                "py3-pip" \
-# Needed for dependencies we can't get current versions for locally:
-	                "docker-cli-compose"
-	        else
-	            sudo apt-get update
-	            sudo apt-get install -y "gettext-base" "python3-pip" \
-	                "docker-compose-plugin"
-	        fi
-	    fi
-	    pip install -r "./build-host/requirements.txt.in"
-# Manage JavaScript/TypeScript packages:
-# https://github.com/nvm-sh/nvm#install--update-script
-	    if ! which nvm
-	    then
-	        wget -qO- \
-	            "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh" \
-	            | bash
-	        set +x
-	        . ~/.nvm/nvm.sh || true
-	    fi
-# The `./.nvmrc` is using latest stable version:
-# https://github.com/nodejs/release#release-schedule
-	    set +x
-	    nvm install
-	    set -x
-	) |& tee -a "$(@)"
+	"$(<)" |& tee -a "$(@)"
 
 # Retrieve VCS data needed for versioning (tags) and release (release notes).
 $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
-	git_fetch_args=--tags
+	git_fetch_args="--tags --prune --prune-tags --force"
 	if [ "$$(git rev-parse --is-shallow-repository)" == "true" ]
 	then
 	    git_fetch_args+=" --unshallow"
@@ -451,30 +424,30 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	fi
 
 ./var/log/npm-prepare.log: ./var/log/npm-install.log
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	$(MAKE) -e "$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log"
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npm run prepare | tee -a "$(@)"
 ./.husky/pre-commit:
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	$(MAKE) -e "$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log"
 	~/.nvm/nvm-exec npx husky-init
 ./.husky/pre-merge-commit: ./var/log/npm-install.log
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	$(MAKE) -e "$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test"
 ./.husky/commit-msg: ./var/log/npm-install.log
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	$(MAKE) -e "$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" \
 	    "tox exec -e build -- cz check --allow-abort --commit-msg-file ${1}"
 ./.husky/pre-push: ./var/log/npm-install.log
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
+	$(MAKE) -e "$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log"
 	~/.nvm/nvm-exec npx husky add "$(@)" "make -e test-push test"
 
-./var/log/npm-login.log: $(HOME)/.local/var/log/project-structure-host-install.log
+./var/log/npm-login.log: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npm login | tee -a "$(@)"
 
 # Tell Emacs where to find checkout-local tools needed to check the code.
-./.dir-locals.el: ./.dir-locals.el.in
-	$(MAKE) -e "template=$(<)" "target=$(@)" expand-template
+./.dir-locals.el.~out~: ./.dir-locals.el.in
+	$(call expand_template,$(<),$(@))
 
 # Ensure minimal VCS configuration, mostly useful in automation such as CI.
 ~/.gitconfig:
@@ -482,28 +455,54 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	git config --global user.email "$(USER_EMAIL)"
 
 
-## Utility Targets:
+## Makefile "functions":
 #
-# Recipes used to make similar changes across targets where using Make's basic syntax
-# can't be used.
+# Snippets whose output is frequently used including across recipes:
+# https://www.gnu.org/software/make/manual/html_node/Call-Function.html
 
-.PHONY: expand-template
-## Create a file from a template replacing environment variables
-expand-template:
-	$(MAKE) -e "$(HOME)/.local/var/log/project-structure-host-install.log"
-	set +x
-	if [ -e "$(target)" ]
-	then
-ifeq ($(TEMPLATE_IGNORE_EXISTING),true)
-	    exit
-else
-	    envsubst <"$(template)" | diff -u "$(target)" "-" || true
-	    echo "ERROR: Template $(template) has been updated:"
-	    echo "       Reconcile changes and \`$$ touch $(target)\`:"
-	    false
-endif
-	fi
-	envsubst <"$(template)" >"$(target)"
+# Return the most recently built package:
+current_pkg=$(shell ls -t ./dist/*$(1) | head -n 1)
+
+# Have to use a placeholder `*.~out~` as the target instead of the real expanded
+# template because we can't disable `.DELETE_ON_ERROR` on a per-target basis.
+#
+# Short-circuit/repeat the host-install recipe here because expanded templates should
+# *not* be updated when `./bin/host-install` is, so we can't use it as a prerequisite,
+# *but* it is required to expand templates.  We can't use a sub-make because any
+# expanded templates we use in `include ...` directives, such as `./.env`, are updated
+# as targets when reading the `./Makefile` leading to endless recursion.
+define expand_template=
+if ! which envsubst
+then
+    mkdir -pv "$(HOME)/.local/var/log/"
+    ./bin/host-install >"$(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log"
+fi
+if [ "$(2:%.~out~=%)" -nt "$(1)" ]
+then
+    envsubst <"$(1)" >"$(2)"
+    exit
+fi
+if [ ! -e "$(2:%.~out~=%)" ]
+then
+    touch -d "@0" "$(2:%.~out~=%)"
+fi
+envsubst <"$(1)" | diff -u "$(2:%.~out~=%)" "-" || true
+set +x
+echo "WARNING:Template $(1) has been updated."
+echo "        Reconcile changes and \`$$ touch $(2:%.~out~=%)\`."
+set -x
+if [ ! -s "$(2:%.~out~=%)" ]
+then
+    envsubst <"$(1)" >"$(2:%.~out~=%)"
+    touch -d "@0" "$(2:%.~out~=%)"
+fi
+if [ "$(TEMPLATE_IGNORE_EXISTING)" == "true" ]
+then
+    envsubst <"$(1)" >"$(2)"
+    exit
+fi
+exit 1
+endef
 
 
 ## Makefile Development:

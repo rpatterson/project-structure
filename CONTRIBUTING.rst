@@ -1,3 +1,7 @@
+.. SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+..
+.. SPDX-License-Identifier: MIT
+
 ########################################################################################
 Contributing
 ########################################################################################
@@ -16,7 +20,7 @@ If there's not already `an issue/ticket`_ for the changes you'll be making, crea
 Regardless, take note of the issue/ticket number, e.g. ``#123``.  Then create a
 branch/fork off of the ``develop`` branch::
 
-  $ git switch -c feat-123-foo-bar origin/develop
+  $ git switch -c feat-123-foo-bar --track origin/develop
 
 This project uses `towncrier`_ to manage it's release notes, AKA changelog and thus
 requires at least one `news fragment`_ before merging back into ``develop``.  The VCS
@@ -33,8 +37,24 @@ You can also inspect test failures and errors in an interactive debugger::
 
   $ make test-debug
 
-The ``$ make test`` target also runs the ``$ make format`` target to format code
-according to this project's guidelines and rules.
+The linters make various decisions on style, formatting, and conventions for you so you
+don't have to think about them and no one has to debate them.  They're enforced by ``$
+make test`` and the VCS hooks.  You may also use the same tools to apply all fixes and
+formatting that can be automated to format code according to this project's guidelines
+and rules::
+
+  $ make devel-format
+
+This project also uses `Reuse`_ to manage licenses and copyright.  If you add files,
+you'll need to put an `SPDX header comment`_ in each added file.  For those file types
+recognized by the `reuse-tool`_, you can use ``$ make devel-format`` to add such headers
+automatically.  Otherwise you may have to use ``$ reuse addheader`` manually specifying
+the appropriate ``--style`` option.  See ``$ reuse addheader --help`` for the available
+``${COMMENT_STYLE}`` values.  You can use ``--style "python"`` for unrecognized file
+types that support the common ``#`` comment style::
+
+  $ tox exec -e build -- reuse addheader --style "${COMMENT_STYLE:?}" \
+  --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT" "${PATH:?}"
 
 Contributions should be pushed to feature branches or forks off of the upstream
 ``develop`` branch.  Once work is finished and all the tests are passing, project
@@ -69,7 +89,11 @@ in executable form in the `Makefile`_.  See the philosophy commentary at the bot
 the `Makefile`_ for guidance on making contributions there.
 
 .. _`towncrier`: https://towncrier.readthedocs.io/en/stable/#philosophy
-.. _`news fragment`: https://towncrier.readthedocs.io/en/stable/quickstart.html#creating-news-fragments
+.. _`news fragment`:
+   https://towncrier.readthedocs.io/en/stable/quickstart.html#creating-news-fragments
+.. _`Reuse`: https://reuse.software/tutorial/#step-2
+.. _`SPDX header comment`: https://spdx.dev/specifications/#current-version
+.. _`reuse-tool`: https://github.com/fsfe/reuse-tool#usage
 
 .. _`an issue/ticket`: https://gitlab.com/rpatterson/project-structure/-/issues
 
