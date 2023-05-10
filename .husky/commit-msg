@@ -1,4 +1,9 @@
 #!/usr/bin/env sh
+
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
 . "$(dirname -- "$0")/_/husky.sh"
 
 tox exec -e build -- cz check --allow-abort --commit-msg-file "${1}"
