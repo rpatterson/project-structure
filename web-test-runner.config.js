@@ -1,8 +1,10 @@
 /**
  * @license
- * SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+ * Copyright 2023 Ross Patterson
  * SPDX-License-Identifier: MIT
  */
+
+import { playwrightLauncher } from "@web/test-runner-playwright";
 
 const mode = process.env.MODE || "dev";
 if (!["dev", "prod"].includes(mode)) {
@@ -13,4 +15,9 @@ if (!["dev", "prod"].includes(mode)) {
 export default {
   files: ["./test/**/*_test.js"],
   nodeResolve: { exportConditions: mode === "dev" ? ["development"] : [] },
+  browsers: [
+    playwrightLauncher({ product: "chromium" }),
+    playwrightLauncher({ product: "firefox" }),
+    playwrightLauncher({ product: "webkit" }),
+  ],
 };
