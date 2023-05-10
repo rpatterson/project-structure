@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "description": "Project structure foundation or template, package metadata",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "wtr",
+    "test:watch": "wtr --watch",
     "prepare": "husky install",
     "format": "prettier --write ./",
     "format:check": "prettier --check ./",
@@ -34,6 +35,8 @@
     "./*.js": "./src/*.js"
   },
   "devDependencies": {
+    "@esm-bundle/chai": "4.3.4-fix.0",
+    "@web/test-runner": "0.16.1",
     "husky": "^8.0.0",
     "jsdoc": "4.0.2",
     "prettier": "2.8.8"
