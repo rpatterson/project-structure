@@ -1,5 +1,8 @@
-project-structure 0.8.28 (2023-05-08)
-=====================================
+project-structure 0.8.29b0 (2023-05-10)
+=======================================
 
-No significant changes.
+Bugfixes
+--------
+
+- Upgrade all requirements to the latest versions as of Tue May  9 09:31:01 PM UTC 2023.
 
