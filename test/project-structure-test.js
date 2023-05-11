@@ -9,5 +9,5 @@ import { expect } from "@esm-bundle/chai";
 import projectStructure from "../src/index";
 
 it("imports a module", () => {
-  expect(projectStructure).to.be.null;
+  expect(projectStructure).to.be.undefined;
 });

@@ -33,6 +33,10 @@ High Priority
 Nice to Have
 ****************************************************************************************
 
+#. Evaluate `AVA as a test runner <https://github.com/avajs/ava#readme>`_.
+
+#. Evaluate `XO as a linter <https://github.com/xojs/xo#readme>`_
+
 #. Documentation via Sphinx with CI to publish to RTFD.
 
 #. Include API documentation via `sphinx-js

@@ -12,6 +12,8 @@
     "plugin:security/recommended",
     "plugin:xss/recommended",
     "plugin:no-unsanitized/DOM",
+    "plugin:sonarjs/recommended",
+    "plugin:unicorn/all",
     "prettier"
   ],
   "overrides": [],

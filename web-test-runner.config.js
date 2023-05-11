@@ -15,7 +15,7 @@ if (!["dev", "prod"].includes(mode)) {
 
 // https://modern-web.dev/docs/test-runner/cli-and-configuration/
 export default {
-  files: ["./test/**/*_test.js"],
+  files: ["./test/**/*-test.js"],
   nodeResolve: { exportConditions: mode === "dev" ? ["development"] : [] },
   browsers: [
     playwrightLauncher({ product: "chromium" }),

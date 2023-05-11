@@ -4,4 +4,4 @@
  * SPDX-License-Identifier: MIT
  */
 
-export default null;
+export default undefined;
