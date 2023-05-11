@@ -4,6 +4,7 @@
     "es2021": true,
     "mocha": true
   },
+  "plugins": ["mocha-no-only"],
   "extends": ["airbnb-base", "prettier"],
   "overrides": [],
   "parserOptions": {
