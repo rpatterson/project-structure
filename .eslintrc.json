@@ -5,7 +5,7 @@
     "mocha": true
   },
   "plugins": ["mocha-no-only"],
-  "extends": ["airbnb-base", "prettier"],
+  "extends": ["eslint:all", "airbnb-base", "prettier"],
   "overrides": [],
   "parserOptions": {
     "ecmaVersion": "latest",
