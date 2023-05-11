@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { expect } from "@esm-bundle/chai";
+import { expect } from '@esm-bundle/chai';
 
-import project_structure from '../src/index.js';
+import projectStructure from '../src/index';
 
-it("imports a module", () => {
-  expect(project_structure).to.be.null;
+it('imports a module', () => {
+  expect(projectStructure).to.be.null;
 });
