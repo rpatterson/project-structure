@@ -7,9 +7,9 @@
     "test": "wtr",
     "test:watch": "wtr --watch",
     "prepare": "husky install",
-    "format": "prettier --write ./",
-    "format:check": "prettier --check ./",
-    "docs:api": "jsdoc -c ./jsdocrc.json"
+    "format": "prettier --write './'",
+    "format:check": "prettier --check './'",
+    "docs:api": "jsdoc -c './jsdocrc.json'"
   },
   "keywords": [
     "template",
