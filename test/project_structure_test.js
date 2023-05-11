@@ -6,6 +6,8 @@
 
 import { expect } from "@esm-bundle/chai";
 
-it("runs a test", () => {
-  expect(true).to.be.true;
+import project_structure from '../src/index.js';
+
+it("imports a module", () => {
+  expect(project_structure).to.be.null;
 });

@@ -20,4 +20,13 @@ export default {
     playwrightLauncher({ product: "firefox" }),
     playwrightLauncher({ product: "webkit" }),
   ],
+  coverage: true,
+  coverageConfig: {
+    threshold: {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+    },
+  },
 };
