@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# Run a `node_modules/.bin/*` script in the proper NPM environment.x
+
+set -eu -o pipefail
+shopt -s inherit_errexit
+if [ "${DEBUG:=false}" = "true" ]
+then
+    # Echo commands for easier debugging
+    PS4='$0:$LINENO+'
+    set -x
+fi
+
+
+main() {
+    exec ~/.nvm/nvm-exec npm exec -- "$(basename "${0}")" "$@"
+}
+
+
+main "$@"
