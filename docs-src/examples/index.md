@@ -1,9 +1,17 @@
+<!--
+SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+
+SPDX-License-Identifier: MIT
+-->
+
 ---
+
 layout: example.11ty.cjs
 title: <my-element> ⌲ Examples ⌲ Basic
 tags: example
 name: Basic
 description: A basic example
+
 ---
 
 <style>

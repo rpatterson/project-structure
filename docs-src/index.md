@@ -1,6 +1,14 @@
+<!--
+SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+
+SPDX-License-Identifier: MIT
+-->
+
 ---
+
 layout: page.11ty.cjs
 title: <my-element> ⌲ Home
+
 ---
 
 # &lt;my-element>
@@ -53,9 +61,9 @@ title: <my-element> ⌲ Home
 `<my-element>` can be used with declarative rendering libraries like Angular, React, Vue, and lit-html
 
 ```js
-import {html, render} from 'lit-html';
+import { html, render } from "lit-html";
 
-const name = 'lit-html';
+const name = "lit-html";
 
 render(
   html`

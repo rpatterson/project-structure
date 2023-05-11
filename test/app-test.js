@@ -1,23 +1,24 @@
 /**
  * @license
- * Copyright 2021 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+ * SPDX-License-Identifier: MIT
  */
 
-import {AppElement} from '../src/ui/app.js';
-import {fixture, assert} from '@open-wc/testing';
-import {html} from 'lit/static-html.js';
+import { fixture, assert } from "@open-wc/testing";
+/* eslint import/extensions: off */
+import { html } from "lit/static-html.js";
+import AppElement from "../src/ui/app";
 
-suite('app-element', () => {
-  test('is defined', () => {
-    const el = document.createElement('app-element');
-    assert.instanceOf(el, AppElement);
+suite("app-element", () => {
+  test("is defined", () => {
+    const element = document.createElement("app-element");
+    assert.instanceOf(element, AppElement);
   });
 
-  test('renders with default values', async () => {
-    const el = await fixture(html`<app-element></app-element>`);
+  test("renders with default values", async () => {
+    const element = await fixture(html`<app-element></app-element>`);
     assert.shadowDom.equal(
-      el,
+      element,
       `
       <h1>Hello, World!</h1>
       <button part="button">Click Count: 0</button>
@@ -26,10 +27,12 @@ suite('app-element', () => {
     );
   });
 
-  test('renders with a set name', async () => {
-    const el = await fixture(html`<app-element name="Test"></app-element>`);
+  test("renders with a set name", async () => {
+    const element = await fixture(
+      html`<app-element name="Test"></app-element>`
+    );
     assert.shadowDom.equal(
-      el,
+      element,
       `
       <h1>Hello, Test!</h1>
       <button part="button">Click Count: 0</button>
@@ -38,13 +41,13 @@ suite('app-element', () => {
     );
   });
 
-  test('handles a click', async () => {
-    const el = await fixture(html`<app-element></app-element>`);
-    const button = el.shadowRoot.querySelector('button');
+  test("handles a click", async () => {
+    const element = await fixture(html`<app-element></app-element>`);
+    const button = element.shadowRoot.querySelector("button");
     button.click();
-    await el.updateComplete;
+    await element.updateComplete;
     assert.shadowDom.equal(
-      el,
+      element,
       `
       <h1>Hello, World!</h1>
       <button part="button">Click Count: 1</button>
@@ -53,9 +56,9 @@ suite('app-element', () => {
     );
   });
 
-  test('styling applied', async () => {
-    const el = await fixture(html`<app-element></app-element>`);
-    await el.updateComplete;
-    assert.equal(getComputedStyle(el).paddingTop, '16px');
+  test("styling applied", async () => {
+    const element = await fixture(html`<app-element></app-element>`);
+    await element.updateComplete;
+    assert.equal(getComputedStyle(element).paddingTop, "16px");
   });
 });

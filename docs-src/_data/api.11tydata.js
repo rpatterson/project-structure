@@ -1,16 +1,10 @@
 /**
  * @license
- * Copyright 2021 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+ * SPDX-License-Identifier: MIT
  */
 
-const fs = require('fs');
+import fs from "node:fs";
 
-module.exports = () => {
-  const customElements = JSON.parse(
-    fs.readFileSync('custom-elements.json', 'utf-8')
-  );
-  return {
-    customElements,
-  };
-};
+/* eslint import/no-unused-modules: off */
+export default JSON.parse(fs.readFileSync("custom-elements.json"));

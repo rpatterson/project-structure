@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+
+SPDX-License-Identifier: MIT
+-->
+
 # LitElement JavaScript starter
 
 This project includes a sample component using LitElement with JavaScript.

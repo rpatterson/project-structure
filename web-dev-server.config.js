@@ -1,18 +1,22 @@
 /**
  * @license
- * Copyright 2021 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+ * SPDX-License-Identifier: MIT
  */
 
-import {legacyPlugin} from '@web/dev-server-legacy';
+/* eslint unicorn/prevent-abbreviations: off */
 
-const mode = process.env.MODE || 'dev';
-if (!['dev', 'prod'].includes(mode)) {
+/* eslint import/no-extraneous-dependencies: off */
+import { legacyPlugin } from "@web/dev-server-legacy";
+
+const mode = process.env.MODE || "dev";
+if (!["dev", "prod"].includes(mode)) {
   throw new Error(`MODE must be "dev" or "prod", was "${mode}"`);
 }
 
+/* eslint import/no-unused-modules: off */
 export default {
-  nodeResolve: {exportConditions: mode === 'dev' ? ['development'] : []},
+  nodeResolve: { exportConditions: mode === "dev" ? ["development"] : [] },
   preserveSymlinks: true,
   plugins: [
     legacyPlugin({

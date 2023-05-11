@@ -5,8 +5,7 @@
  */
 
 /* eslint import/no-extraneous-dependencies: off */
-/* eslint import/no-unused-modules: off */
-import {legacyPlugin} from '@web/dev-server-legacy';
+import { legacyPlugin } from "@web/dev-server-legacy";
 import { playwrightLauncher } from "@web/test-runner-playwright";
 
 const mode = process.env.MODE || "dev";
@@ -15,6 +14,7 @@ if (!["dev", "prod"].includes(mode)) {
 }
 
 // https://modern-web.dev/docs/test-runner/cli-and-configuration/
+/* eslint import/no-unused-modules: off */
 export default {
   files: ["./test/**/*-test.js"],
   nodeResolve: { exportConditions: mode === "dev" ? ["development"] : [] },
@@ -50,8 +50,8 @@ export default {
         // for interfacing with the webcomponents polyfills
         custom: [
           {
-            name: 'lit-polyfill-support',
-            path: 'node_modules/lit/polyfill-support.js',
+            name: "lit-polyfill-support",
+            path: "node_modules/lit/polyfill-support.js",
             test: "!('attachShadow' in Element.prototype) || !('getRootNode' in Element.prototype) || window.ShadyDOM && window.ShadyDOM.force",
             module: false,
           },
