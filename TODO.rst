@@ -16,6 +16,15 @@ care about and add your own.
 Required
 ****************************************************************************************
 
+#. Docker container to run tests, linters and checks in for isolation and
+   reproducibility.
+
+#. Docker badges.
+
+#. A ``js-ci`` branch for CI/CD.
+
+#. CI/CD badges.
+
 
 ****************************************************************************************
 High Priority
@@ -33,9 +42,15 @@ High Priority
 Nice to Have
 ****************************************************************************************
 
+#. A ``js-cli`` branch for CLI utility projects run on NodeJS.
+
+#. A ``js-server`` branch for server projects run on NodeJS.
+
 #. Evaluate `AVA as a test runner <https://github.com/avajs/ava#readme>`_.
 
 #. Evaluate `XO as a linter <https://github.com/xojs/xo#readme>`_
+
+#. Branches for different frameworks, e.g.: ``js-express``, etc.
 
 #. Documentation via Sphinx with CI to publish to RTFD.
 

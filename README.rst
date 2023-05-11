@@ -11,7 +11,16 @@ project-structure foundation or template
 .. list-table::
    :class: borderless align-right
 
-   * - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
+   * - .. figure:: https://img.shields.io/npm/v/@rpattersonnet/project-structure?logo=npm
+          :alt: NPM package version
+          :target: https://www.npmjs.com/package/@rpattersonnet/project-structure
+       .. figure:: https://img.shields.io/npm/dw/@rpattersonnet/project-structure?logo=npm
+	  :alt: NPM downloads per week
+          :target: https://www.npmjs.com/package/@rpattersonnet/project-structure
+       .. figure:: https://img.shields.io/badge/code_style-prettier-ff69b4.svg?logo=prettier
+          :alt: Code style: prettier
+          :target: https://prettier.io/
+       .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: REUSE license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
 
