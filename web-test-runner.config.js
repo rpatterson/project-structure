@@ -5,6 +5,7 @@
  */
 
 /* eslint import/no-extraneous-dependencies: off */
+/* eslint import/no-unused-modules: off */
 import { playwrightLauncher } from "@web/test-runner-playwright";
 
 const mode = process.env.MODE || "dev";

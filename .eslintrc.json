@@ -10,7 +10,12 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "rules": {},
+  "rules": {
+    "import/no-unused-modules": [
+      "error",
+      { "missingExports": true, "unusedExports": true }
+    ]
+  },
   "overrides": [
     {
       "files": ["web-test-runner.config.js"],
