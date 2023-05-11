@@ -180,7 +180,7 @@ test: build test-lint
 .PHONY: test-lint
 ### Perform any linter or style checks, including non-code checks.
 test-lint: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
-	~/.nvm/nvm-exec npm run format:check
+	~/.nvm/nvm-exec npm run lint
 # Run non-code checks, e.g. documentation:
 	tox run -e "build"
 

@@ -4,11 +4,15 @@
   "version": "0.0.0",
   "description": "Project structure foundation or template, package metadata",
   "scripts": {
+    "prepare": "husky install",
     "test": "wtr",
     "test:watch": "wtr --watch",
-    "prepare": "husky install",
-    "format": "prettier --write './'",
-    "format:check": "prettier --check './'",
+    "lint": "npm run lint:eslint && npm run lint:prettier",
+    "lint:eslint": "eslint './'",
+    "lint:prettier": "prettier --check './'",
+    "format": "npm run format:eslint && npm run format:prettier",
+    "format:eslint": "eslint --fix './'",
+    "format:prettier": "prettier --write './'",
     "docs:api": "jsdoc -c './jsdocrc.json'"
   },
   "keywords": [
