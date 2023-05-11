@@ -39,10 +39,12 @@
     "./*.js": "./src/*.js"
   },
   "devDependencies": {
+    "@babel/core": "7.21.8",
+    "@babel/eslint-parser": "7.21.8",
     "@esm-bundle/chai": "4.3.4-fix.0",
     "@web/test-runner": "0.16.1",
     "@web/test-runner-playwright": "0.10.0",
-    "eslint": "^8.40.0",
+    "eslint": "8.40.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "8.8.0",
     "eslint-plugin-import": "^2.27.5",

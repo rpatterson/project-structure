@@ -4,12 +4,14 @@
     "es2021": true,
     "mocha": true
   },
+  "parser": "@babel/eslint-parser",
   "plugins": ["mocha-no-only"],
   "extends": ["eslint:all", "airbnb-base", "prettier"],
   "overrides": [],
   "parserOptions": {
     "ecmaVersion": "latest",
-    "sourceType": "module"
+    "sourceType": "module",
+    "requireConfigFile": false
   },
   "rules": {
     "import/no-unused-modules": [
