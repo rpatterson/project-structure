@@ -8,16 +8,11 @@
 import { legacyPlugin } from "@web/dev-server-legacy";
 import { playwrightLauncher } from "@web/test-runner-playwright";
 
-const mode = process.env.MODE || "dev";
-if (!["dev", "prod"].includes(mode)) {
-  throw new Error(`MODE must be "dev" or "prod", was "${mode}"`);
-}
-
 // https://modern-web.dev/docs/test-runner/cli-and-configuration/
 /* eslint import/no-unused-modules: off */
 export default {
   files: ["./test/**/*-test.js"],
-  nodeResolve: { exportConditions: mode === "dev" ? ["development"] : [] },
+  nodeResolve: { exportConditions: ["development"] },
   browsers: [
     playwrightLauncher({ product: "chromium" }),
     playwrightLauncher({ product: "firefox" }),

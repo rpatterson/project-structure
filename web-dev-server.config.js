@@ -9,14 +9,9 @@
 /* eslint import/no-extraneous-dependencies: off */
 import { legacyPlugin } from "@web/dev-server-legacy";
 
-const mode = process.env.MODE || "dev";
-if (!["dev", "prod"].includes(mode)) {
-  throw new Error(`MODE must be "dev" or "prod", was "${mode}"`);
-}
-
 /* eslint import/no-unused-modules: off */
 export default {
-  nodeResolve: { exportConditions: mode === "dev" ? ["development"] : [] },
+  nodeResolve: { exportConditions: ["development"] },
   preserveSymlinks: true,
   plugins: [
     legacyPlugin({
