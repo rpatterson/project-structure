@@ -22,6 +22,14 @@ export default {
     playwrightLauncher({ product: "firefox" }),
     playwrightLauncher({ product: "webkit" }),
   ],
+  testFramework: {
+    // Use the `assert` TDD style, as opposed to the `expect` BDD style:
+    //   https://www.chaijs.com/guide/styles/
+    //   https://mochajs.org/#interfaces
+    config: {
+      ui: "tdd",
+    },
+  },
   coverage: true,
   coverageConfig: {
     threshold: {
