@@ -8,13 +8,23 @@
 version: "3.8"
 
 services:
-  pandoc:
-    image: "pandoc/core"
+  reuse:
+    image: "docker.io/fsfe/reuse:latest-debian"
     profiles:
       - "release"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
     environment:
       TZ: "${TZ:-Etc/UTC}"
+    volumes:
+      - "${CHECKOUT_DIR:-.}/:/data/"
+    command: >-
+      lint
+
+  pandoc:
+    image: "docker.io/pandoc/core"
+    profiles:
+      - "release"
+    user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/data/"
     entrypoint: "ash"
