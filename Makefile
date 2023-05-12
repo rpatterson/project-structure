@@ -589,3 +589,26 @@ endef
 # developers who may not have significant familiarity with Make.  If there's a good,
 # pragmatic reason to add use of further features feel free to make the case but avoid
 # them if possible.
+
+
+## Maintainer targets:
+#
+# Recipes not used during the normal course of development.
+
+.PHONY: devel-merge-lit
+### Merge changes from the upstream Lit project template.
+devel-merge-lit:
+	git fetch "lit" "main"
+	git switch -C "lit-main" --track "lit/main"
+	git ls-files | grep -vE "^packages/lit-starter-js" | xargs -t git rm -rf --
+	git commit -m "build(js-lit): Merge upstream template, step 1"
+	git ls-files -z "packages/lit-starter-js/*" |
+	    sed -znE 's|packages/lit-starter-js/(.+)|\1|p' | while read -d $$'\0'
+	    do
+	        mkdir -pv "$$(dirname "$${REPLY}")"
+	        git mv -fv -- "packages/lit-starter-js/$${REPLY}" "$${REPLY}"
+	    done
+	git commit -m "build(js-lit): Merge upstream template, step 2"
+	git switch "js-lit"
+	git merge "lit-main" || true
+	git status --porcelain | sed -nE 's|^DU (.+)|\1|p' | xargs -t git rm --
