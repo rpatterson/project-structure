@@ -6,10 +6,10 @@
 
 import { assert } from "@esm-bundle/chai";
 
-import projectStructure from "../src/index";
+import AppElement from "../src/index";
 
 suite("project-structure module", () => {
   test("imports as a module", () => {
-    assert.isUndefined(projectStructure, "Imported unexpected value");
+    assert.isDefined(AppElement, "Imported unexpected value");
   });
 });

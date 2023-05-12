@@ -4,4 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-export default undefined;
+import AppElement from "./ui/app";
+
+/* eslint unicorn/prefer-export-from: off */
+export default AppElement;

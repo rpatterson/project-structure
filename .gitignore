@@ -11,6 +11,9 @@ build/
 /node_modules
 var/
 /README.md
+custom-elements.json
+# only generated for size check
+my-element.bundled.js
 
 # Testing and coverage
 /coverage
