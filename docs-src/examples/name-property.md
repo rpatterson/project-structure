@@ -7,17 +7,17 @@ SPDX-License-Identifier: MIT
 ---
 
 layout: example.11ty.cjs
-title: <my-element> ⌲ Examples ⌲ Name Property
+title: <project-structure-app> ⌲ Examples ⌲ Name Property
 tags: example
 name: Name Property
 description: Setting the name property
 
 ---
 
-<my-element name="Earth"></my-element>
+<project-structure-app name="Earth"></project-structure-app>
 
 <h3>HTML</h3>
 
 ```html
-<my-element name="Earth"></my-element>
+<project-structure-app name="Earth"></project-structure-app>
 ```

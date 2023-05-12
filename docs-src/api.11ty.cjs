@@ -12,7 +12,7 @@ module.exports = class Docs {
   data() {
     return {
       layout: "page.11ty.cjs",
-      title: "<my-element> ⌲ Docs",
+      title: "<project-structure-app> ⌲ Docs",
     };
   }
 

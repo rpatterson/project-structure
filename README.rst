@@ -145,7 +145,7 @@ Installation
 
 Install using any tool for `installing JavaScript NPM packages`_::
 
-  $ npm install project-structure-element
+  $ npm install project-structure
 
 
 ****************************************************************************************

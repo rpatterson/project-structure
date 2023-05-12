@@ -11,9 +11,9 @@ import replace from "@rollup/plugin-replace";
 
 /* eslint import/no-unused-modules: off */
 export default {
-  input: "my-element.js",
+  input: "src/index.js",
   output: {
-    file: "my-element.bundled.js",
+    file: "./build/project-structure.bundled.js",
     format: "esm",
   },
   plugins: [

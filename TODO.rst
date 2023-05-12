@@ -25,6 +25,8 @@ Required
 
 #. CI/CD badges.
 
+#. Update documentation and examples from the Lit template.
+
 
 ****************************************************************************************
 High Priority
@@ -59,3 +61,6 @@ Nice to Have
 
 #. Better release notes content for final releases with no changes since the last
    pre-release.
+
+#. `Custom elements with XML
+   namespaces <https://github.com/WICG/webcomponents/issues/634>`_

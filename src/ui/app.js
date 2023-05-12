@@ -7,7 +7,7 @@
 import { LitElement, html, css } from "lit";
 
 /**
- * An example element.
+ * An project structure element.
  *
  * @fires count-changed - Indicates when the count changes
  * @slot - This element has a slot
@@ -72,4 +72,4 @@ export default class AppElement extends LitElement {
   }
 }
 
-window.customElements.define("app-element", AppElement);
+window.customElements.define("project-structure-app", AppElement);

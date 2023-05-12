@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><my-element> ⌲ Install</title>
+    <title><project-structure-app> ⌲ Install</title>
     <link rel="stylesheet" href="../docs.css" />
     <link
       rel="stylesheet"
@@ -19,11 +19,11 @@ SPDX-License-Identifier: MIT
     <link href="../prism-okaidia.css" rel="stylesheet" />
     <script src="/node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
     <script src="/node_modules/lit/polyfill-support.js"></script>
-    <script type="module" src="../my-element.bundled.js"></script>
+    <script type="module" src="../build/project-structure.bundled.js"></script>
   </head>
   <body>
     <header>
-      <h1>&lt;my-element></h1>
+      <h1>&lt;project-structure-app></h1>
       <h2>A web component just for me.</h2>
     </header>
 
@@ -37,13 +37,13 @@ SPDX-License-Identifier: MIT
       <main>
         <h1>Install</h1>
         <p>
-          <code>&lt;my-element&gt;</code> is distributed on npm, so you can
-          install it locally or use it via npm CDNs like unpkg.com.
+          <code>&lt;project-structure-app&gt;</code> is distributed on npm, so
+          you can install it locally or use it via npm CDNs like unpkg.com.
         </p>
         <h2>Local Installation</h2>
         <pre
           class="language-bash"
-        ><code class="language-bash"><span class="token function">npm</span> i my-element</code></pre>
+        ><code class="language-bash"><span class="token function">npm</span> i project-structure-app</code></pre>
         <h2>CDN</h2>
         <p>
           npm CDNs like <a href="">unpkg.com</a> can directly serve files that
@@ -58,11 +58,11 @@ SPDX-License-Identifier: MIT
         <h3>HTML</h3>
         <pre
           class="language-html"
-        ><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>script</span> <span class="token attr-name">type</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>module<span class="token punctuation">"</span></span> <span class="token attr-name">src</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>https://unpkg.com/my-element?module<span class="token punctuation">"</span></span><span class="token punctuation">></span></span><span class="token script"></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>script</span><span class="token punctuation">></span></span></code></pre>
+        ><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>script</span> <span class="token attr-name">type</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>module<span class="token punctuation">"</span></span> <span class="token attr-name">src</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>https://unpkg.com/project-structure?module<span class="token punctuation">"</span></span><span class="token punctuation">></span></span><span class="token script"></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>script</span><span class="token punctuation">></span></span></code></pre>
         <h3>JavaScript</h3>
         <pre
           class="language-html"
-        ><code class="language-html">import {MyElement} from 'https://unpkg.com/my-element?module';</code></pre>
+        ><code class="language-html">import {AppElement} from 'https://unpkg.com/project-structure?module';</code></pre>
       </main>
     </div>
 

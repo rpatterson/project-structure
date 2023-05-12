@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 ---
 
 layout: example.11ty.cjs
-title: <my-element> ⌲ Examples ⌲ Basic
+title: <project-structure-app> ⌲ Examples ⌲ Basic
 tags: example
 name: Basic
 description: A basic example
@@ -15,14 +15,14 @@ description: A basic example
 ---
 
 <style>
-  my-element p {
+  project-structure-app p {
     border: solid 1px blue;
     padding: 8px;
   }
 </style>
-<my-element>
+<project-structure-app>
   <p>This is child content</p>
-</my-element>
+</project-structure-app>
 
 <h3>CSS</h3>
 
@@ -36,7 +36,7 @@ p {
 <h3>HTML</h3>
 
 ```html
-<my-element>
+<project-structure-app>
   <p>This is child content</p>
-</my-element>
+</project-structure-app>
 ```

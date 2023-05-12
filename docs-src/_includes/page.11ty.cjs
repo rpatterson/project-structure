@@ -26,7 +26,7 @@ module.exports = function (data) {
     <script src="/node_modules/lit/polyfill-support.js"></script>
     <script type="module" src="${relative(
       page.url,
-      "/my-element.bundled.js"
+      "/build/project-structure.bundled.js"
     )}"></script>
   </head>
   <body>

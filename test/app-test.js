@@ -9,14 +9,16 @@ import { fixture, assert } from "@open-wc/testing";
 import { html } from "lit/static-html.js";
 import AppElement from "../src/ui/app";
 
-suite("app-element", () => {
+suite("project-structure-app", () => {
   test("is defined", () => {
-    const element = document.createElement("app-element");
+    const element = document.createElement("project-structure-app");
     assert.instanceOf(element, AppElement);
   });
 
   test("renders with default values", async () => {
-    const element = await fixture(html`<app-element></app-element>`);
+    const element = await fixture(
+      html`<project-structure-app></project-structure-app>`
+    );
     assert.shadowDom.equal(
       element,
       `
@@ -29,7 +31,7 @@ suite("app-element", () => {
 
   test("renders with a set name", async () => {
     const element = await fixture(
-      html`<app-element name="Test"></app-element>`
+      html`<project-structure-app name="Test"></project-structure-app>`
     );
     assert.shadowDom.equal(
       element,
@@ -42,7 +44,9 @@ suite("app-element", () => {
   });
 
   test("handles a click", async () => {
-    const element = await fixture(html`<app-element></app-element>`);
+    const element = await fixture(
+      html`<project-structure-app></project-structure-app>`
+    );
     const button = element.shadowRoot.querySelector("button");
     button.click();
     await element.updateComplete;
@@ -57,7 +61,9 @@ suite("app-element", () => {
   });
 
   test("styling applied", async () => {
-    const element = await fixture(html`<app-element></app-element>`);
+    const element = await fixture(
+      html`<project-structure-app></project-structure-app>`
+    );
     await element.updateComplete;
     assert.equal(getComputedStyle(element).paddingTop, "16px");
   });
