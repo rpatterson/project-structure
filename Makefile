@@ -320,9 +320,9 @@ endif
 .PHONY: devel-format
 ### Automatically correct code in this checkout according to linters and style checkers.
 devel-format: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
-	~/.nvm/nvm-exec npm run format
 	docker compose run --rm "reuse" annotate -r --skip-unrecognised \
 	    --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT" "./"
+	~/.nvm/nvm-exec npm run format
 
 .PHONY: devel-upgrade
 ### Update all fixed/pinned dependencies to their latest available versions.
