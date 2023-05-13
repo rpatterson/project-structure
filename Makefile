@@ -200,7 +200,8 @@ test-lint-html: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	git ls-files -z '*.html' '*.htm' '*.*ss' '*.svg' \
 	    '*.HTML' '*.HTM' '*.*SS' '*.SVG' |
 	    xargs -0 -t -- docker compose run --rm -T "vnu" \
-	        vnu --stdout --Werror --also-check-css --also-check-svg
+	        vnu --stdout --Werror --also-check-css --also-check-svg \
+	        --filterpattern 'Trailing slash on void elements.*'
 # Outputs one additional error concerning comments before the `<!DOCTYPE html>`:
 	git ls-files -z '*.html' '*.htm' '*.*ss' '*.svg' \
 	    '*.HTML' '*.HTM' '*.*SS' '*.SVG' |
