@@ -179,7 +179,7 @@ build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 
 .PHONY: test
 ### Run the full suite of tests, coverage checks, and linters.
-test: build test-lint
+test: build test-lint test-lint-html
 	~/.nvm/nvm-exec npm test
 
 .PHONY: test-lint
@@ -190,6 +190,43 @@ test-lint: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
 	tox run -e "build"
 # Check copyright and licensing:
 	docker compose run --rm -T "reuse"
+
+.PHONY: test-lint-html
+### Check HTML and CSS for correctness, best practices and style
+test-lint-html: $(HOME)/.local/var/log/$(PROJECT_NAME)-host-install.log
+# TODO: Find a way to pull daily, but not every time
+	docker compose pull "vnu"
+# TODO: Remove, just a wrapper around `vnu` and reports fewer errors:
+#	docker compose run --rm -T "html5validator"
+# Best option, finds the most errors and works as documented without errors:
+	git ls-files -z '*.html' '*.htm' '*.*ss' '*.svg' \
+	    '*.HTML' '*.HTM' '*.*SS' '*.SVG' |
+	    xargs -0 -t -- docker compose run --rm -T "vnu" \
+	        vnu --stdout --Werror --also-check-css --also-check-svg
+# TODO: Remove, fails with an inscrutable error:
+#     + git ls-files -z '*.html' '*.htm' '*.*ss' '*.svg' '*.HTML' '*.HTM' '*.*SS' '*.SVG'
+#     + xargs -0 -t -- /home/rpatterson/.nvm/nvm-exec npm exec -- linthtml
+#     ~.nvm/nvm-exec npm exec -- linthtml components/norg-app/demo/index.html dev/index.html index.html
+#     ✖ Searching for files
+#     TypeError: Cannot read properties of undefined (reading 'undefined')
+#         at print_errors (/home/rpatterson/src/nOrg/node_modules/@linthtml/linthtml/node_modules/@linthtml/cli/dist/print-errors.js:10:57)
+#         at lint (/home/rpatterson/src/nOrg/node_modules/@linthtml/linthtml/node_modules/@linthtml/cli/dist/index.js:100:36)
+#         at Object.cli [as default] (/home/rpatterson/src/nOrg/node_modules/@linthtml/linthtml/node_modules/@linthtml/cli/dist/index.js:87:12)
+#         at Object.<anonymous> (/home/rpatterson/src/nOrg/node_modules/@linthtml/linthtml/bin/linthtml.js:4:33)
+#         at Module._compile (node:internal/modules/cjs/loader:1254:14)
+#         at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+#         at Module.load (node:internal/modules/cjs/loader:1117:32)
+#         at Module._load (node:internal/modules/cjs/loader:958:12)
+#         at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+#         at node:internal/main/run_main_module:23:47
+# https://github.com/linthtml/linthtml/issues/507
+#	git ls-files -z '*.html' '*.htm' '*.*ss' '*.svg' \
+#	    '*.HTML' '*.HTM' '*.*SS' '*.SVG' |
+#	    xargs -0 -t -- ~/.nvm/nvm-exec npm exec -- linthtml
+# Outputs one additional error concerning comments before the `<!DOCTYPE html>`:
+	git ls-files -z '*.html' '*.htm' '*.*ss' '*.svg' \
+	    '*.HTML' '*.HTM' '*.*SS' '*.SVG' |
+	    xargs -0 -t -- ~/.nvm/nvm-exec npm exec -- htmlhint
 
 .PHONY: test-debug
 ### Run tests directly on the host and invoke the debugger on errors/failures.

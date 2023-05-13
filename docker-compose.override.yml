@@ -11,7 +11,7 @@ services:
   reuse:
     image: "docker.io/fsfe/reuse:latest-debian"
     profiles:
-      - "release"
+      - "lint"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
     environment:
       TZ: "${TZ:-Etc/UTC}"
@@ -19,6 +19,29 @@ services:
       - "${CHECKOUT_DIR:-.}/:/data/"
     command: >-
       lint
+
+  # https://github.com/validator/validator/#the-nu-html-checker-vnu--
+  vnu:
+    image: "ghcr.io/validator/validator"
+    profiles:
+      - "lint"
+    volumes:
+      - "${CHECKOUT_DIR:-.}/:/mnt/"
+    working_dir: "/mnt/"
+    command: >-
+      vnu --stdout --Werror --also-check-css --also-check-svg
+
+  # https://github.com/svenkreiss/html5validator#html5-validator
+  html5validator:
+    image: "docker.io/cyb3rjak3/html5validator"
+    profiles:
+      - "lint"
+    volumes:
+      - "${CHECKOUT_DIR:-.}/:/mnt/"
+    working_dir: "/mnt/"
+    command: >-
+      html5validator --show-warnings --also-check-css --also-check-svg
+      --blacklist ".git" "var" "coverage" ".tox" "node_modules"
 
   pandoc:
     image: "docker.io/pandoc/core"
