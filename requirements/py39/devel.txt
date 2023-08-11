@@ -72,7 +72,7 @@ future==0.18.3
     # via radon
 gitdb==4.0.10
     # via gitpython
-gitpython==3.1.31
+gitpython==3.1.32
     # via
     #   bandit
     #   prospector
