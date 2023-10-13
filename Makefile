@@ -48,7 +48,7 @@ USER_NAME:=$(shell id -u -n)
 USER_FULL_NAME:=$(shell \
     getent passwd "$(USER_NAME)" | cut -d ":" -f 5 | cut -d "," -f 1)
 ifeq ($(USER_FULL_NAME),)
-USER_FULL_NAME=$(USER_NAME)
+  USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
 export CHECKOUT_DIR=$(PWD)
@@ -57,30 +57,30 @@ export CHECKOUT_DIR=$(PWD)
 VCS_LOCAL_BRANCH:=$(shell git branch --show-current)
 VCS_TAG=
 ifeq ($(VCS_LOCAL_BRANCH),)
-# Guess branch name from tag:
-ifneq ($(shell echo "$(VCS_TAG)" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$'),)
-# Publish final releases from the `main` branch:
-VCS_LOCAL_BRANCH=main
-else ifneq ($(shell echo "$(VCS_TAG)" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+.+$$'),)
-# Publish pre-releases from the `develop` branch:
-VCS_LOCAL_BRANCH=develop
-endif
+  # Guess branch name from tag:
+  ifneq ($(shell echo "$(VCS_TAG)" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$'),)
+    # Publish final releases from the `main` branch:
+    VCS_LOCAL_BRANCH=main
+  else ifneq ($(shell echo "$(VCS_TAG)" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+.+$$'),)
+    # Publish pre-releases from the `develop` branch:
+    VCS_LOCAL_BRANCH=develop
+  endif
 endif
 # Reproduce Git branch and remote configuration and logic:
 VCS_CLONE_REMOTE:=$(shell git config "clone.defaultRemoteName")
 ifeq ($(VCS_CLONE_REMOTE),)
-VCS_CLONE_REMOTE=origin
+  VCS_CLONE_REMOTE=origin
 endif
 VCS_PUSH_REMOTE:=$(shell git config "branch.$(VCS_LOCAL_BRANCH).pushRemote")
 ifeq ($(VCS_PUSH_REMOTE),)
-VCS_PUSH_REMOTE:=$(shell git config "remote.pushDefault")
+  VCS_PUSH_REMOTE:=$(shell git config "remote.pushDefault")
 endif
 ifeq ($(VCS_PUSH_REMOTE),)
-VCS_PUSH_REMOTE=$(VCS_CLONE_REMOTE)
+  VCS_PUSH_REMOTE=$(VCS_CLONE_REMOTE)
 endif
 VCS_UPSTREAM_REMOTE:=$(shell git config "branch.$(VCS_LOCAL_BRANCH).remote")
 ifeq ($(VCS_UPSTREAM_REMOTE),)
-VCS_UPSTREAM_REMOTE:=$(shell git config "checkout.defaultRemote")
+  VCS_UPSTREAM_REMOTE:=$(shell git config "checkout.defaultRemote")
 endif
 VCS_UPSTREAM_REF:=$(shell git config "branch.$(VCS_LOCAL_BRANCH).merge")
 VCS_UPSTREAM_BRANCH=$(VCS_UPSTREAM_REF:refs/heads/%=%)
@@ -90,40 +90,40 @@ VCS_BRANCH=$(VCS_LOCAL_BRANCH)
 # Find the remote and branch for conventional commits release data:
 VCS_COMPARE_REMOTE=$(VCS_UPSTREAM_REMOTE)
 ifeq ($(VCS_COMPARE_REMOTE),)
-VCS_COMPARE_REMOTE=$(VCS_PUSH_REMOTE)
+  VCS_COMPARE_REMOTE=$(VCS_PUSH_REMOTE)
 endif
 VCS_COMPARE_BRANCH=$(VCS_UPSTREAM_BRANCH)
 ifeq ($(VCS_COMPARE_BRANCH),)
-VCS_COMPARE_BRANCH=$(VCS_BRANCH)
+  VCS_COMPARE_BRANCH=$(VCS_BRANCH)
 endif
 # If pushing to upstream release branches, get release data compared to the preceding
 # release:
 ifeq ($(VCS_COMPARE_BRANCH),develop)
-VCS_COMPARE_BRANCH=main
+  VCS_COMPARE_BRANCH=main
 endif
 VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
 # Tolerate detached `HEAD`, such as during a rebase:
 VCS_FETCH_TARGETS=
 ifneq ($(VCS_BRANCH),)
-# Assemble the targets used to avoid redundant fetches during release tasks:
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)
-endif
-# Also fetch develop for merging back in the final release:
-VCS_RELEASE_FETCH_TARGETS=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifeq ($(VCS_BRANCH),main)
-VCS_RELEASE_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-endif
-endif
-endif
-ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
-endif
+  # Assemble the targets used to avoid redundant fetches during release tasks:
+  VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
+  ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
+    VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)
+  endif
+  # Also fetch develop for merging back in the final release:
+  VCS_RELEASE_FETCH_TARGETS=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
+  ifeq ($(VCS_BRANCH),main)
+    VCS_RELEASE_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
+    ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+      ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+        VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
+      endif
+    endif
+  endif
+  ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
+    VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
+  endif
 endif
 
 # Run Python tools in isolated environments managed by Tox:
@@ -137,10 +137,10 @@ TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build"
 RELEASE_PUBLISH=false
 # Publish releases from the `main` or `develop` branches:
 ifeq ($(VCS_BRANCH),main)
-RELEASE_PUBLISH=true
+  RELEASE_PUBLISH=true
 else ifeq ($(VCS_BRANCH),develop)
-# Publish pre-releases from the `develop` branch:
-RELEASE_PUBLISH=true
+  # Publish pre-releases from the `develop` branch:
+  RELEASE_PUBLISH=true
 endif
 
 # Override variable values if present in `./.env` and if not overridden on the
