@@ -11,7 +11,7 @@ name = "cz_conventional_commits"
 # TEMPLATE: Update these versions to the current version for your project and verify the
 # tag exists locally and on the project's remote:
 changelog_start_rev = "v0.0.0"
-version = "1.0.0b0"
+version = "1.0.0"
 tag_format = "v$version"
 annotated_tag = true
 gpg_sign = true
