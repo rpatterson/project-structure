@@ -25,12 +25,12 @@ charset-normalizer==3.3.1
 click==8.1.7
     # via
     #   proselint
-    #   sphinx-watch
     #   towncrier
     #   typer
 colorama==0.4.6
     # via
     #   commitizen
+    #   sphinx-autobuild
     #   typer
 commitizen==3.12.0
     # via -r requirements/build.txt.in
@@ -51,11 +51,11 @@ docutils==0.20.1
     #   restructuredtext-lint
     #   rstcheck-core
     #   sphinx
-filelock==3.12.4
+filelock==3.13.1
     # via virtualenv
 future==0.18.3
     # via proselint
-identify==2.5.30
+identify==2.5.31
     # via pre-commit
 idna==3.4
     # via requests
@@ -88,6 +88,8 @@ jinja2==3.1.2
     #   towncrier
 keyring==24.2.0
     # via twine
+livereload==2.6.3
+    # via sphinx-autobuild
 markdown-it-py==3.0.0
     # via rich
 markupsafe==2.1.3
@@ -171,16 +173,21 @@ shellingham==1.5.4
 six==1.16.0
     # via
     #   configobj
+    #   livereload
     #   proselint
 snowballstemmer==2.2.0
     # via sphinx
 sphinx==7.1.2
     # via
     #   -r requirements/build.txt.in
-    #   sphinx-watch
-sphinx-lint==0.8.1
+    #   sphinx-autobuild
+    #   sphinx-copybutton
+    #   sphinxext-opengraph
+sphinx-autobuild==2021.3.14
     # via -r requirements/build.txt.in
-sphinx-watch==0.1.2
+sphinx-copybutton==0.5.2
+    # via -r requirements/build.txt.in
+sphinx-lint==0.8.1
     # via -r requirements/build.txt.in
 sphinxcontrib-applehelp==1.0.4
     # via sphinx
@@ -194,6 +201,8 @@ sphinxcontrib-qthelp==1.0.3
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.5
     # via sphinx
+sphinxext-opengraph==0.9.0
+    # via -r requirements/build.txt.in
 stevedore==5.1.0
     # via doc8
 termcolor==2.3.0
@@ -204,6 +213,8 @@ tomli==2.0.1
     #   towncrier
 tomlkit==0.12.1
     # via commitizen
+tornado==6.3.3
+    # via livereload
 towncrier==23.10.0
     # via -r requirements/build.txt.in
 twine==4.0.2
@@ -227,9 +238,7 @@ urllib3==2.0.7
     #   twine
 virtualenv==20.24.6
     # via pre-commit
-watchdog==3.0.0
-    # via sphinx-watch
-wcwidth==0.2.8
+wcwidth==0.2.9
     # via prompt-toolkit
 zipp==3.17.0
     # via

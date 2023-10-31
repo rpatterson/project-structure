@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Run prose linters implemented in Python.
+# Run the Python kitchen sink linter as fast as possible.
 
 set -eu -o pipefail
 shopt -s inherit_errexit
@@ -17,9 +17,8 @@ fi
 
 
 main() {
-    set -x
-    git ls-files -z '*.rst' | xargs -r -0 -- proselint --config "./.proselintrc.json"
+    git ls-files -co --exclude-standard -z '*.py' | xargs -0 -- prospector "${@}"
 }
 
 
-main "$@"
+main "${@}"

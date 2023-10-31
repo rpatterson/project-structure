@@ -127,8 +127,8 @@ ifeq ($(PYTHON_MINOR),)
 # Fallback to the latest installed supported Python version
 PYTHON_MINOR=$(PYTHON_LATEST_BASENAME:python%=%)
 endif
-PYTHON_LATEST_MINOR=$(firstword $(PYTHON_SUPPORTED_MINORS))
-PYTHON_LATEST_ENV=py$(subst .,,$(PYTHON_LATEST_MINOR))
+PYTHON_DEFAULT_MINOR=$(firstword $(PYTHON_SUPPORTED_MINORS))
+PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
 PYTHON_MINORS=$(PYTHON_SUPPORTED_MINORS)
 ifeq ($(PYTHON_MINOR),)
 PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
@@ -269,7 +269,7 @@ export TOX_RUN_ARGS
 # The options that support running arbitrary commands in the venvs managed by tox
 # without Tox's startup time:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
-TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)"
+TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_DEFAULT_ENV)"
 TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build"
 PIP_COMPILE_EXTRA=
 
@@ -369,6 +369,7 @@ export PROJECT_GITHUB_PAT
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
 # project hosting services, indexes, and registries:
+export PIP_COMPILE_ARGS=
 RELEASE_PUBLISH=false
 PYPI_REPO=testpypi
 # Safe defaults for testing the release process without publishing to the final/official
@@ -383,9 +384,9 @@ ifeq ($(CI),true)
 export PIP_COMPILE_ARGS=
 endif
 GITHUB_RELEASE_ARGS=--prerelease
+DOCKER_PLATFORMS=
 # Only publish releases from the `main` or `develop` branches and only under the
 # canonical CI/CD platform:
-DOCKER_PLATFORMS=
 ifeq ($(GITLAB_CI),true)
 ifeq ($(VCS_BRANCH),main)
 RELEASE_PUBLISH=true
@@ -502,17 +503,9 @@ build-pkgs: $(HOST_TARGET_DOCKER) \
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	    tox run -e "$(PYTHON_ENV)" --pkg-only
-# Copy the wheel to a location available to all containers:
-	cp -lfv "$$(
-	    ls -t ./var-docker/$(PYTHON_ENV)/.tox/.pkg/dist/*.whl | head -n 1
-	)" "./dist/"
-# Also build the source distribution:
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	    tox run -e "$(PYTHON_ENV)" --override "testenv.package=sdist" --pkg-only
-	cp -lfv "$$(
-	    ls -t ./var-docker/$(PYTHON_ENV)/.tox/.pkg/dist/*.tar.gz | head -n 1
-	)" "./dist/"
+	    tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only
+# Copy to a location available in the Docker build context:
+	cp -lfv ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/* "./dist/"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
@@ -521,7 +514,8 @@ build-docs: build-docs-html
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
 build-docs-watch: $(HOME)/.local/bin/tox
-	tox exec -e "build" -- sphinx-watch "./docs/" "./build/docs/html/" "html" --httpd
+	mkdir -pv "./build/docs/html/"
+	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 .PHONY: build-docs-%
 # Render the documentation into a specific format.
@@ -674,7 +668,7 @@ test: test-lint test-docker
 .PHONY: test-local
 ## Run the full suite of tests, coverage checks, and linters on the local host.
 test-local: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=build-requirements-%)
-	tox $(TOX_RUN_ARGS) -e "$(TOX_ENV_LIST)"
+	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
@@ -724,7 +718,7 @@ test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 
 .PHONY: test-debug
 ## Run tests directly on the system and start the debugger on errors or failures.
-test-debug: $(HOME)/.local/bin/tox ./.tox/$(PYTHON_ENV)/log/editable.log
+test-debug: $(HOME)/.local/bin/tox
 	$(TOX_EXEC_ARGS) -- pytest --pdb
 
 .PHONY: test-docker
@@ -785,6 +779,18 @@ test-lint-docker: $(HOST_TARGET_DOCKER) ./.env.~out~ ./var/log/docker-login-DOCK
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) hadolint
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) hadolint \
 	    hadolint "./build-host/Dockerfile"
+	$(MAKE) -e -j $(PYTHON_MINORS:%=test-lint-docker-volumes-%)
+.PHONY: $(PYTHON_MINORS:%=test-lint-docker-volumes-%)
+## Prevent Docker volumes owned by `root` for one Python version.
+$(PYTHON_MINORS:%=test-lint-docker-volumes-%):
+	$(MAKE) -e \
+	    PYTHON_MINORS="$(@:test-lint-docker-volumes-%=%)" \
+	    PYTHON_MINOR="$(@:test-lint-docker-volumes-%=%)" \
+	    PYTHON_ENV="py$(subst .,,$(@:test-lint-docker-volumes-%=%))" \
+	    test-lint-docker-volumes
+.PHONY: test-lint-docker-volumes
+## Prevent Docker volumes owned by `root`.
+test-lint-docker-volumes: $(HOST_TARGET_DOCKER) ./.env.~out~
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
@@ -870,15 +876,14 @@ ifeq ($(RELEASE_PUBLISH),true)
 # Bump the version and build the final release packages:
 	$(MAKE) -e build-pkgs
 # https://twine.readthedocs.io/en/latest/#using-twine
-	$(TOX_EXEC_BUILD_ARGS) -- twine check ./dist/$(PYTHON_PROJECT_GLOB)-*
+	$(TOX_EXEC_BUILD_ARGS) -- twine check ./.tox/.pkg/tmp/dist/*
 # Ensure VCS has captured all the effects of building the release:
 	$(MAKE) -e test-clean
 	$(TOX_EXEC_BUILD_ARGS) -- twine upload -s -r "$(PYPI_REPO)" \
-	    ./dist/$(PYTHON_PROJECT_GLOB)-*
+	    ./.tox/.pkg/tmp/dist/*
 	export VERSION=$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)
 # Create a GitLab release
-	./.tox/build/bin/twine upload -s -r "gitlab" \
-	    ./dist/project?structure-*
+	./.tox/build/bin/twine upload -s -r "gitlab" ./.tox/.pkg/tmp/dist/*
 	release_cli_args="--description ./NEWS-VERSION.rst"
 	release_cli_args+=" --tag-name v$${VERSION}"
 	release_cli_args+=" --assets-link {\
@@ -902,7 +907,7 @@ ifeq ($(RELEASE_PUBLISH),true)
 	    create $${release_cli_args}
 # Create a GitHub release
 	gh release create "v$${VERSION}" $(GITHUB_RELEASE_ARGS) \
-	    --notes-file "./NEWS-VERSION.rst" ./dist/project?structure-*
+	    --notes-file "./NEWS-VERSION.rst" ./.tox/.pkg/tmp/dist/*
 endif
 
 .PHONY: release-docker
@@ -1041,7 +1046,9 @@ endif
 ## Automatically correct code in this checkout according to linters and style checkers.
 devel-format: $(HOST_TARGET_DOCKER) ./var/log/npm-install.log $(HOME)/.local/bin/tox
 # Add license and copyright header to files missing them:
-	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' |
+	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
+	    ':!newsfragments/*' ':!NEWS*.rst' ':!styles/*/meta.json' \
+	    ':!styles/*/*.yml' ':!requirements/*/*.txt' |
 	while read -d $$'\0'
 	do
 	    if ! (
@@ -1058,12 +1065,13 @@ devel-format: $(HOST_TARGET_DOCKER) ./var/log/npm-install.log $(HOME)/.local/bin
 	~/.nvm/nvm-exec npm run format
 # Run source code formatting tools implemented in Python:
 	$(TOX_EXEC_ARGS) -- autoflake -r -i --remove-all-unused-imports \
-		--remove-duplicate-keys --remove-unused-variables \
-		--remove-unused-variables "./src/$(PYTHON_PROJECT_PACKAGE)/"
-	$(TOX_EXEC_ARGS) -- autopep8 -v -i -r "./src/$(PYTHON_PROJECT_PACKAGE)/"
-	$(TOX_EXEC_ARGS) -- black "./src/$(PYTHON_PROJECT_PACKAGE)/"
-	$(TOX_EXEC_ARGS) -- reuse addheader -r --skip-unrecognised \
-	    --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT" "./"
+	    --remove-duplicate-keys --remove-unused-variables \
+	    --remove-unused-variables "./src/$(PYTHON_PROJECT_PACKAGE)/" \
+	    "./tests/$(PYTHON_PROJECT_PACKAGE)tests/"
+	$(TOX_EXEC_ARGS) -- autopep8 -v -i -r "./src/$(PYTHON_PROJECT_PACKAGE)/" \
+	    "./tests/$(PYTHON_PROJECT_PACKAGE)tests/"
+	$(TOX_EXEC_ARGS) -- black "./src/$(PYTHON_PROJECT_PACKAGE)/" \
+	    "./tests/$(PYTHON_PROJECT_PACKAGE)tests/"
 
 .PHONY: devel-upgrade
 ## Update all locked or frozen dependencies to their most recent available versions.
@@ -1443,14 +1451,6 @@ $(HOME)/.nvm/nvm.sh:
 $(PYTHON_ALL_ENVS:%=./.tox/%/bin/pip-compile):
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/bin/pip-compile=%)" --notest
-# Workaround tox's `usedevelop = true` not working with `./pyproject.toml`. Use as a
-# prerequisite for targets that use Tox virtual environments directly and changes to
-# code need to take effect in real-time:
-$(PYTHON_ENVS:%=./.tox/%/log/editable.log):
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	mkdir -pv "$(dir $(@))"
-	tox exec $(TOX_EXEC_OPTS) -e "$(@:.tox/%/log/editable.log=%)" -- \
-	    pip3 install -e "./" |& tee -a "$(@)"
 $(HOME)/.local/bin/tox:
 	$(MAKE) "$(HOME)/.local/bin/pipx"
 # https://tox.wiki/en/latest/installation.html#via-pipx
@@ -1611,7 +1611,7 @@ then
 fi
 if test "$(TEMPLATE_IGNORE_EXISTING)" = "true"
 then
-    envsubst <"$(1)" >"$(2)"
+    envsubst <"$(1)" >"$(2:%.~out~=%)"
     exit
 fi
 exit 1
@@ -1725,10 +1725,9 @@ pull-docker: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) $(HOST_TARGET_DO
 
 # TEMPLATE: Only necessary if you customize the `./build-host/` image.  Different
 # projects can use the same image, even across individuals and organizations.  If you do
-# need to customize the image, then run this a single time for each customized
-# image. See the `./var/log/docker-login*.log` targets for the authentication
-# environment variables to set or login to those container registries manually and `$
-# touch` these targets.
+# need to customize the image, then run this every time the image changes. See the
+# `./var/log/docker-login*.log` targets for the authentication environment variables to
+# set or login to those container registries manually and `$ touch` these targets.
 .PHONY: bootstrap-project
 bootstrap-project: ./var/log/docker-login-GITLAB.log ./var/log/docker-login-GITHUB.log
 # Initially seed the build host Docker image to bootstrap CI/CD environments

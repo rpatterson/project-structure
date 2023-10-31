@@ -66,8 +66,8 @@ nosetests.xml
 *,cover
 **/,cover
 .hypothesis
-.mypy_cache
-**/.mypy_cache
+.pytest_cache
+**/.pytest_cache
 
 # Translations
 *.mo
@@ -81,7 +81,7 @@ nosetests.xml
 local_settings.py
 
 # Flask stuff:
-instance/
+instance
 .webassets-cache
 
 # Scrapy stuff:
@@ -108,6 +108,7 @@ celerybeat-schedule
 # Linters:
 .tox
 .mypy_cache
+**/.mypy_cache
 
 # virtualenv
 venv
