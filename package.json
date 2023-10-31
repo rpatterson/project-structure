@@ -1,7 +1,7 @@
 {
   "name": "@rpattersonnet/project-structure",
   "scope": "@rpattersonnet",
-  "version": "1.0.0",
+  "version": "1.0.1-b0",
   "description": "Project structure foundation or template, package metadata",
   "scripts": {
     "lint": "npm run lint:code && npm run lint:prose",

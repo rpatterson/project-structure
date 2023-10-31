@@ -1,7 +1,11 @@
-project-structure 1.0.0 (2023-10-26)
-====================================
+project-structure 1.0.1b0 (2023-10-31)
+======================================
 
-No significant changes.
+Bugfixes
+--------
+
+- Upgrade all requirements to the most recent versions as of
+  Tue Oct 31 05:01:35 PM UTC 2023.
 
 
 
