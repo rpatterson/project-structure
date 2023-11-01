@@ -702,7 +702,7 @@ clean:
 # Build the development image:
 ./var-docker/log/build-devel.log: ./Dockerfile ./.dockerignore ./bin/entrypoint.sh \
 		./docker-compose.yml ./docker-compose.override.yml ./.env.~out~ \
-		./var-docker/log/rebuild.log $(HOST_TARGET_DOCKER)
+		./var-docker/log/rebuild.log $(HOST_TARGET_DOCKER) ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
