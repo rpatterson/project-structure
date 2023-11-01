@@ -449,7 +449,6 @@ devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 # No changes from upgrade, exit signaling success but push nothing:
 	    exit
 	fi
-	git switch -C "$(VCS_BRANCH)-upgrade"
 # Only add changes upgrade-related changes:
 	git add --update "./.pre-commit-config.yaml" "./.vale.ini" "./styles/"
 # Commit the upgrade changes
@@ -459,6 +458,8 @@ devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 	git add "./newsfragments/+upgrade-requirements.bugfix.rst"
 	git commit --all --gpg-sign -m \
 	    "fix(deps): Upgrade to most recent versions"
+# Create or reset the feature branch for merge or pull requests:
+	git switch -C "$(VCS_BRANCH)-upgrade"
 # Fail if upgrading left un-tracked files in VCS:
 	$(MAKE) -e "test-clean"
 
