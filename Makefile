@@ -649,7 +649,8 @@ devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 	    exit 1
 	fi
 	now=$$(date -u)
-	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
+	$(MAKE) -e DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" \
+	    devel-upgrade
 	if $(MAKE) -e "test-clean"
 	then
 # No changes from upgrade, exit signaling success but push nothing:
@@ -708,11 +709,9 @@ clean:
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
-	if docker compose pull --quiet $(PROJECT_NAME)-devel
-	then
-	    touch "$(@)" "./var-docker/log/rebuild.log"
-	    exit
-	fi
+	docker compose pull --quiet $(PROJECT_NAME)-devel
+	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
+	exit
 endif
 	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
 	    build-docker-build | tee -a "$(@)"
