@@ -138,6 +138,7 @@ release:
           )
         )
         && $CI_PROJECT_NAMESPACE == $PROJECT_NAMESPACE
+        && $CI_PIPELINE_SOURCE != "schedule"
   script:
     - >-
       init-job.sh entrypoint.sh make -e release-pkgs test-clean
