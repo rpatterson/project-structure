@@ -8,7 +8,7 @@ alabaster==0.7.13
     # via sphinx
 annotated-types==0.6.0
     # via pydantic
-argcomplete==3.1.2
+argcomplete==3.1.4
     # via commitizen
 babel==2.13.1
     # via sphinx
@@ -18,7 +18,7 @@ cffi==1.16.0
     # via cryptography
 cfgv==3.4.0
     # via pre-commit
-charset-normalizer==3.3.1
+charset-normalizer==3.3.2
     # via
     #   commitizen
     #   requests
@@ -211,7 +211,7 @@ tomli==2.0.1
     # via
     #   doc8
     #   towncrier
-tomlkit==0.12.1
+tomlkit==0.12.2
     # via commitizen
 tornado==6.3.3
     # via livereload
