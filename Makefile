@@ -874,13 +874,13 @@ devel-upgrade-branch: ./var/log/gpg-import.log \
 	    remote_branch_exists=true
 	fi
 	now=$$(date -u)
-	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
+	$(MAKE) -e DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" \
+	    devel-upgrade
 	if $(MAKE) -e "test-clean"
 	then
 # No changes from upgrade, exit signaling success but push nothing:
 	    exit
 	fi
-	git switch -C "$(VCS_BRANCH)-upgrade"
 # Only add changes upgrade-related changes:
 	git add --update "./.pre-commit-config.yaml" "./.vale.ini" "./styles/"
 # Commit the upgrade changes
@@ -895,6 +895,8 @@ ifeq ($(CI),true)
 endif
 	git commit $${git_commit_args} -m \
 	    "fix(deps): Upgrade to most recent versions"
+# Create or reset the feature branch for merge or pull requests:
+	git switch -C "$(VCS_BRANCH)-upgrade"
 # Fail if upgrading left un-tracked files in VCS:
 	$(MAKE) -e "test-clean"
 ifeq ($(CI),true)
@@ -948,16 +950,14 @@ clean:
 # Build the development image:
 ./var-docker/log/build-devel.log: ./Dockerfile ./.dockerignore ./bin/entrypoint.sh \
 		./docker-compose.yml ./docker-compose.override.yml ./.env.~out~ \
-		./var-docker/log/rebuild.log $(HOST_TARGET_DOCKER)
+		./var-docker/log/rebuild.log $(HOST_TARGET_DOCKER) ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
-	if $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
-	then
-	    touch "$(@)" "./var-docker/log/rebuild.log"
-	    exit
-	fi
+	docker compose pull --quiet $(PROJECT_NAME)-devel
+	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
+	exit
 endif
 	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
 	    build-docker-build | tee -a "$(@)"
