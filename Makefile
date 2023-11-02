@@ -953,7 +953,7 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
 	docker compose pull --quiet $(PROJECT_NAME)-devel
-	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
+	date | tee -a "$(@)" "./var-docker/$(PYTHON_ENV)/log/rebuild.log"
 # Ensure the virtualenv in the volume is also current:
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
 	    tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
