@@ -1106,13 +1106,13 @@ devel-upgrade-branch: ./var/log/gpg-import.log \
 	    remote_branch_exists=true
 	fi
 	now=$$(date -u)
-	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
+	$(MAKE) -e DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" \
+	    devel-upgrade
 	if $(MAKE) -e "test-clean"
 	then
 # No changes from upgrade, exit signaling success but push nothing:
 	    exit
 	fi
-	git switch -C "$(VCS_BRANCH)-upgrade"
 # Only add changes upgrade-related changes:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
 	    "./.vale.ini" "./styles/"
@@ -1128,6 +1128,8 @@ ifeq ($(CI),true)
 endif
 	git commit $${git_commit_args} -m \
 	    "fix(deps): Upgrade to most recent versions"
+# Create or reset the feature branch for merge or pull requests:
+	git switch -C "$(VCS_BRANCH)-upgrade"
 # Fail if upgrading left un-tracked files in VCS:
 	$(MAKE) -e "test-clean"
 ifeq ($(CI),true)
@@ -1221,19 +1223,17 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 ./var-docker/$(PYTHON_ENV)/log/build-devel.log: ./Dockerfile ./.dockerignore \
 		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
 		./.env.~out~ ./var-docker/$(PYTHON_ENV)/log/rebuild.log \
-		$(HOST_TARGET_DOCKER) ./pyproject.toml ./setup.cfg
+		$(HOST_TARGET_DOCKER) ./pyproject.toml ./setup.cfg ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
-	if $(MAKE) -e DOCKER_VARIANT="devel" pull-docker
-	then
-	    touch "$(@)" "./var-docker/$(PYTHON_ENV)/log/rebuild.log"
+	docker compose pull --quiet $(PROJECT_NAME)-devel
+	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
 # Ensure the virtualenv in the volume is also current:
-	    docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	        tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
-	    exit
-	fi
+	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
+	    tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
+	exit
 endif
 	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
 	    build-docker-build | tee -a "$(@)"
