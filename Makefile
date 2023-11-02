@@ -889,10 +889,6 @@ devel-upgrade-branch: ./var/log/gpg-import.log \
 	echo "$${now}." >>"./newsfragments/+upgrade-requirements.bugfix.rst"
 	git add "./newsfragments/+upgrade-requirements.bugfix.rst"
 	git_commit_args="--all --gpg-sign"
-ifeq ($(CI),true)
-# Don't duplicate the CI run from the following push:
-	git_push_args+=" --no-verify"
-endif
 	git commit $${git_commit_args} -m \
 	    "fix(deps): Upgrade to most recent versions"
 # Create or reset the feature branch for merge or pull requests:
