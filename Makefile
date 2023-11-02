@@ -852,7 +852,8 @@ devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 	    exit 1
 	fi
 	now=$$(date -u)
-	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
+	$(MAKE) -e DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" \
+	    devel-upgrade
 	if $(MAKE) -e "test-clean"
 	then
 # No changes from upgrade, exit signaling success but push nothing:
@@ -946,19 +947,17 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 ./var-docker/$(PYTHON_ENV)/log/build-devel.log: ./Dockerfile ./.dockerignore \
 		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
 		./.env.~out~ ./var-docker/$(PYTHON_ENV)/log/rebuild.log \
-		$(HOST_TARGET_DOCKER) ./pyproject.toml ./setup.cfg
+		$(HOST_TARGET_DOCKER) ./pyproject.toml ./setup.cfg ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
-	if docker compose pull --quiet $(PROJECT_NAME)-devel
-	then
-	    touch "$(@)" "./var-docker/$(PYTHON_ENV)/log/rebuild.log"
+	docker compose pull --quiet $(PROJECT_NAME)-devel
+	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
 # Ensure the virtualenv in the volume is also current:
-	    docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	        tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
-	    exit
-	fi
+	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
+	    tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
+	exit
 endif
 	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
 	    build-docker-build | tee -a "$(@)"
