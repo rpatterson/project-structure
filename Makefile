@@ -13,11 +13,12 @@
 # Project specific values:
 export PROJECT_NAMESPACE=rpatterson
 export PROJECT_NAME=project-structure
+# TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
+NPM_SCOPE=rpattersonnet
+export DOCKER_USER=merpatterson
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
-# TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
-NPM_SCOPE=rpattersonnet
 
 
 ### "Private" Variables:
@@ -67,6 +68,11 @@ HOST_PKG_NAMES_PIP=py3-pip
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
+# Detect Docker command-line baked into the build-host image:
+HOST_TARGET_DOCKER:=$(shell which docker)
+ifeq ($(HOST_TARGET_DOCKER),)
+HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
+endif
 
 # Values derived from the environment:
 USER_NAME:=$(shell id -u -n)
@@ -197,7 +203,7 @@ build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_PREFIX)/bin/docker \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log
 
 .PHONY: build-pkgs
-## Update the built package for use outside tox.
+## Ensure the built package is current.
 build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 	true "TEMPLATE: Always specific to the project type"
 
@@ -480,6 +486,7 @@ devel-merge: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
 .PHONY: clean
 ## Restore the checkout to an initial clone state.
 clean:
+	docker compose down --remove-orphans --rmi "all" -v || true
 	$(TOX_EXEC_BUILD_ARGS) -- pre-commit uninstall \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
@@ -495,10 +502,6 @@ clean:
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
 	$(call expand_template,$(<),$(@))
-
-./README.md: README.rst
-	$(MAKE) "$(HOST_PREFIX)/bin/docker"
-	docker compose run --rm "pandoc"
 
 
 ### Development Tools:
@@ -619,9 +622,6 @@ $(STATE_DIR)/log/host-update.log:
 #
 # Snippets used several times, including in different recipes:
 # https://www.gnu.org/software/make/manual/html_node/Call-Function.html
-
-# Return the most recent built package:
-current_pkg=$(shell ls -t ./dist/*$(1) | head -n 1)
 
 # Have to use a placeholder `*.~out~` target instead of the real expanded template
 # because targets can't disable `.DELETE_ON_ERROR` on a per-target basis.

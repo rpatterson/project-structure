@@ -32,18 +32,3 @@ services:
     working_dir: "/usr/local/src/project-structure"
     command: >-
       .
-
-  pandoc:
-    image: "docker.io/pandoc/core"
-    profiles:
-      - "release"
-    user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
-    volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
-    entrypoint: "ash"
-    # Strip reStructuredText directives unsupported in Markdown:
-    command: >-
-      -xeu -c '
-        grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
-        pandoc -f "rst" -t "markdown" -o "./README.md"
-      '
