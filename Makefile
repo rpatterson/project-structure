@@ -308,6 +308,7 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
 ifeq ($(VCS_BRANCH),main)
 # Update tags users depend on to be stable from the `main` branch:
+	echo $${docker_image}:$(DOCKER_VARIANT)
 	VERSION=$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)
 	major_version=$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')
 	minor_version=$$(
@@ -317,8 +318,6 @@ ifeq ($(VCS_BRANCH),main)
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
 ifeq ($(DOCKER_VARIANT),)
 	echo $${docker_image}:latest
-else
-	echo $${docker_image}:$(DOCKER_VARIANT)
 endif
 endif
 
