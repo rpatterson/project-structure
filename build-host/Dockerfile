@@ -4,10 +4,7 @@
 
 ## Container image in which to build, test, and release projects.
 
-# I *want* something to break to let me know if something changes in the latest version
-# of the base image changes something:
-# hadolint ignore=DL3007
-FROM docker:latest
+FROM docker:dind
 
 # Least volatile layers first:
 
