@@ -293,7 +293,8 @@ test-debug:
 ## Check the style and content of the `./Dockerfile*` files
 test-lint-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	docker compose pull --quiet hadolint
-	docker compose run --rm -T hadolint hadolint hadolint "./build-host/Dockerfile"
+	git ls-files -z '*Dockerfile*' |
+	    xargs -0 -- docker compose run -T hadolint hadolint
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
