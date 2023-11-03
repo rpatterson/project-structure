@@ -315,13 +315,6 @@ ifeq ($(VCS_BRANCH),main)
 	)
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
 	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)
-endif
-# Use this variant as the default used for tags such as `latest`
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
-ifeq ($(VCS_BRANCH),main)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
 ifeq ($(DOCKER_VARIANT),)
 	echo $${docker_image}:latest
 else
