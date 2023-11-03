@@ -163,6 +163,8 @@ endif
 # Run Python tools in isolated environments managed by Tox:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
 TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build"
+TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
+    sphinx-lint doc8 restructuredtext-lint proselint
 
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
@@ -235,43 +237,92 @@ build-date:
 
 .PHONY: test
 ## Run the full suite of tests, coverage checks, and linters.
-test: test-lint
+test: test-lint test-code
+
+.PHONY: test-code
+## Run the full suite of tests and coverage checks.
+test-code:
 	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
 test-lint: $(HOST_TARGET_DOCKER) test-lint-code test-lint-docker test-lint-docs \
-		test-lint-prose
-# Lint copyright and licensing:
+		test-lint-prose test-lint-licenses
+.PHONY: test-lint-licenses
+## Lint copyright and license annotations for all files tracked in VCS.
+test-lint-licenses: $(HOST_TARGET_DOCKER)
 	docker compose run --rm -T "reuse"
 
 .PHONY: test-lint-code
 ## Lint source code for errors, style, and other issues.
-test-lint-code: ./var/log/npm-install.log
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:code
+test-lint-code: test-lint-code-prettier
+.PHONY: test-lint-code-prettier
+## Lint source code for formatting with Prettier.
+test-lint-code-prettier: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run lint:prettier
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: $(HOME)/.local/bin/tox
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-docs.sh'
+test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
+		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
+		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+# TODO: Audit what checks all tools perform and remove redundant tools.
+.PHONY: test-lint-docs-rstcheck
+## Lint documentation for formatting errors and other issues with rstcheck.
+test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
+# Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
+# `.. include:: ../README.rst` directive breaks `$ rstcheck`:
+#     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
+# Also exclude `./NEWS*.rst` because it's duplicate headings cause:
+#     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
+.PHONY: test-lint-docs-sphinx-build
+## Test that the documentation can build successfully with sphinx-build.
+test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-linkcheck
+## Test the documentation for broken links.
+test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-lint
+## Test the documentation for formatting errors with sphinx-lint.
+test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' | xargs -r -0 -- \
+	    "$(<:%/.tox-info.json=%/bin/sphinx-lint)" -e "all" -d "line-too-long"
+.PHONY: test-lint-docs-doc8
+## Test the documentation for formatting errors with doc8.
+test-lint-docs-doc8: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
+.PHONY: test-lint-docs-restructuredtext-lint
+## Test the documentation for formatting errors with restructuredtext-lint.
+test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
-## Lint prose text for spelling, grammar, and style
-test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log
-# Lint all markup files tracked in VCS with Vale:
+## Lint prose text for spelling, grammar, and style.
+test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
+		test-lint-prose-vale-misc test-lint-prose-proselint \
+		test-lint-prose-write-good test-lint-prose-alex
+.PHONY: test-lint-prose-vale-markup
+## Lint prose in all markup files tracked in VCS with Vale.
+test-lint-prose-vale-markup: $(HOST_TARGET_DOCKER)
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
 	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
-# Lint all source code files tracked in VCS with Vale:
+.PHONY: test-lint-prose-vale-code
+## Lint comment prose in all source code files tracked in VCS with Vale.
+test-lint-prose-vale-code: $(HOST_TARGET_DOCKER)
 	git ls-files -co --exclude-standard -z \
 	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
-# Lint source code files tracked in VCS but without extensions with Vale:
+.PHONY: test-lint-prose-vale-misc
+## Lint source code files tracked in VCS but without extensions with Vale.
+test-lint-prose-vale-misc: $(HOST_TARGET_DOCKER)
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -279,10 +330,20 @@ test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 	            docker compose run --rm -T vale --config="./styles/code.ini" \
 	                --ext=".pl"
 	    done
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-prose.sh'
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:prose
+.PHONY: test-lint-prose-proselint
+## Lint prose in all markup files tracked in VCS with proselint.
+test-lint-prose-proselint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
+	    --config "./.proselintrc.json"
+.PHONY: test-lint-prose-write-good
+## Lint prose in all files tracked in VCS with write-good.
+test-lint-prose-write-good: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:write-good"
+.PHONY: test-lint-prose-alex
+## Lint prose in all files tracked in VCS with alex.
+test-lint-prose-alex: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:alex"
 
 .PHONY: test-debug
 ## Run tests directly on the system and start the debugger on errors or failures.
@@ -409,6 +470,15 @@ ifeq ($(VCS_BRANCH),main)
 	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
+
+.PHONY: release-all
+## Run the whole release process, end to end.
+release-all: test-push test
+# Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
+# running as much of the process as possible with `$ make -j`:
+	$(MAKE) release-bump
+	$(MAKE) release
+	$(MAKE) test-clean
 
 
 ### Development Targets:
@@ -590,15 +660,18 @@ $(HOME)/.nvm/nvm.sh:
 	    | bash
 
 # Manage Python tools:
-$(HOME)/.local/bin/tox:
-	$(MAKE) "$(HOME)/.local/bin/pipx"
+./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini ./requirements/build.txt.in
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
-$(HOME)/.local/bin/pipx:
-	$(MAKE) "$(HOST_PREFIX)/bin/pip3"
+	touch "$(@)"
+$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 # https://pypa.github.io/pipx/installation/#install-pipx
 	pip3 install --user "pipx"
 	python3 -m pipx ensurepath
+	touch "$(@)"
 $(HOST_PREFIX)/bin/pip3:
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
