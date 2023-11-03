@@ -199,7 +199,7 @@ all: build
 
 .PHONY: build
 ## Perform any necessary local setup common to most operations.
-build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_PREFIX)/bin/docker \
+build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_TARGET_DOCKER) \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log
 
 .PHONY: build-pkgs
@@ -240,7 +240,8 @@ test: test-lint
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
-test-lint: $(HOST_PREFIX)/bin/docker test-lint-code test-lint-docs test-lint-prose
+test-lint: $(HOST_TARGET_DOCKER) test-lint-code test-lint-docker test-lint-docs \
+		test-lint-prose
 # Lint copyright and licensing:
 	docker compose run --rm -T "reuse"
 
@@ -258,7 +259,7 @@ test-lint-docs: $(HOME)/.local/bin/tox
 
 .PHONY: test-lint-prose
 ## Lint prose text for spelling, grammar, and style
-test-lint-prose: $(HOST_PREFIX)/bin/docker $(HOME)/.local/bin/tox \
+test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 		./var/log/npm-install.log
 # Lint all markup files tracked in VCS with Vale:
 # https://vale.sh/docs/topics/scoping/#formats
@@ -287,6 +288,12 @@ test-lint-prose: $(HOST_PREFIX)/bin/docker $(HOME)/.local/bin/tox \
 ## Run tests directly on the system and start the debugger on errors or failures.
 test-debug:
 	true "TEMPLATE: Always specific to the project type"
+
+.PHONY: test-lint-docker
+## Check the style and content of the `./Dockerfile*` files
+test-lint-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
+	docker compose pull --quiet hadolint
+	docker compose run --rm -T hadolint hadolint hadolint "./build-host/Dockerfile"
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
@@ -409,7 +416,7 @@ endif
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: $(HOST_PREFIX)/bin/docker ./var/log/npm-install.log
+devel-format: $(HOST_TARGET_DOCKER) ./var/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
@@ -553,7 +560,7 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
 ./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini ./.env.~out~
-	$(MAKE) "$(HOST_PREFIX)/bin/docker"
+	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	docker compose run --rm vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
@@ -596,7 +603,7 @@ $(HOST_PREFIX)/bin/pip3:
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
 
 # Manage tools in containers:
-$(HOST_PREFIX)/bin/docker:
+$(HOST_TARGET_DOCKER):
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_DOCKER)"
 	docker info
@@ -742,3 +749,13 @@ endef
 # otherwise approachable to developers who might not have significant familiarity with
 # Make. If you have good, pragmatic reasons to add use of further features, make the
 # case for them but avoid them if possible.
+
+
+### Maintainer targets:
+#
+# Recipes not used during the usual course of development.
+
+.PHONY: bootstrap-project
+bootstrap-project:
+# Reproduce an isolated, clean build in a Docker image to reproduce build issues:
+	$(MAKE) -e -C "./build-host/" build
