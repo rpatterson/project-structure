@@ -59,13 +59,17 @@ services:
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
       - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
       - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      # Share local SSH authentication to repository remotes
+      # Share local SSH authentication to repository remotes:
       - "~/.ssh/:/home/runner/.ssh/"
+      - "${SSH_AUTH_SOCK}:${SSH_AUTH_SOCK}"
+      - "~/.gnupg/:/home/runner/.gnupg/"
+      - "/run/user/1000/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
+      SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:?Must have ssh-agent running with VCS remote keys loaded}"
       # DEBUG: "true"
     working_dir: "${CHECKOUT_DIR:-.}"
     command: >-

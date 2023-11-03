@@ -34,6 +34,13 @@ build: ./Dockerfile
 	docker pull "$(DOCKER_IMAGE):build-host" || true
 	docker buildx build --pull --load \
 	    --build-arg "BUILDKIT_INLINE_CACHE=1" \
+	    --build-arg "USER_SIGNINGKEY=$$(
+	        git config "user.signingkey" ||
+	        gpg --with-colons --keyid-format long --list-secret-keys "$$(
+	            git config "user.email"
+	        )" |
+	        sed -En 's|^ssb:([^:]*:){3}([^:]*):([^:]*:){5}:[^:]*[sS][^:]*:.*|\2!|p'
+	    )" \
 	    --cache-from "$(DOCKER_IMAGE):build-host" \
 	    --tag "$(DOCKER_IMAGE):build-host" \
 	    "./"
