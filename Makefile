@@ -179,13 +179,27 @@ TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
 
 # Values used to build Docker images:
 DOCKER_FILE=./Dockerfile
-export DOCKER_BUILD_ARGS=
+export DOCKER_BUILD_TARGET=user
+DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
-export DOCKER_VARIANT=
-DOCKER_VARIANT_PREFIX=
-ifneq ($(DOCKER_VARIANT),)
-DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
+DOCKER_VARIANT_OS_DEFAULT=debian
+DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
+DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
+# TEMPLATE: Update for the project language:
+DOCKER_VARIANT_LANGUAGE_DEFAULT=
+DOCKER_VARIANT_LANGUAGES=$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
+DOCKER_VARIANT_LANGUAGE=$(firstword $(DOCKER_VARIANT_LANGUAGES))
+# Build all image variants in parallel:
+ifeq ($(DOCKER_VARIANT_LANGUAGES),)
+DOCKER_VARIANTS=$(DOCKER_VARIANT_OSES)
+DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)
+export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)
+else
+DOCKER_VARIANTS=$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
+    $(DOCKER_VARIANT_OSES:%=%-$(language)))
+DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)-$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
+export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)-$(DOCKER_VARIANT_LANGUAGE)
 endif
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
@@ -237,13 +251,13 @@ all: build
 
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
-start: build-docker ./.env.~out~
+start: ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: build-docker ./.env.~out~
+run: ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
 	docker compose down
 	docker compose up
 
@@ -260,7 +274,7 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 .PHONY: build-pkgs
 ## Ensure the built package is current.
 build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
-		./var-docker/log/build-devel.log
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    true "TEMPLATE: Always specific to the project type"
 
@@ -296,10 +310,14 @@ build-date:
 
 .PHONY: build-docker
 ## Set up for development in Docker containers.
-build-docker: build-pkgs ./var-docker/log/build-user.log
+build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
+.PHONY: $(DOCKER_VARIANTS:%=build-docker-%)
+$(DOCKER_VARIANTS:%=build-docker-%): build-pkgs
+	$(MAKE) "$(@:build-docker-%=./var-docker/log/%/build-devel.log)" \
+	    "$(@:build-docker-%=./var-docker/log/%/build-user.log)"
 
 .PHONY: build-docker-tags
-## Print the list of image tags for the current registry and variant.
+## Print the list of tags for this image variant in all registries.
 build-docker-tags:
 	$(MAKE) -e $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 
@@ -307,26 +325,45 @@ build-docker-tags:
 ## Print the list of image tags for the current registry and variant.
 $(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
 	test -e "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
-	docker_image=$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
+	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
+	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
+# Print the fully qualified variant tag with all components:
+	echo "$${docker_image}:$${target_variant}-$(DOCKER_BRANCH_TAG)"
+# Print only the branch tag if this image variant is the default variant:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	echo "$${docker_image}:$(DOCKER_BRANCH_TAG)"
+endif
+# Print any other unqualified or default tags only for images built from the `main`
+# branch.  Users can count on these to be stable:
 ifeq ($(VCS_BRANCH),main)
-# Update tags users depend on to be stable from the `main` branch:
-	echo $${docker_image}:$(DOCKER_VARIANT)
-	VERSION=$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)
-	major_version=$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')
-	minor_version=$$(
-	    echo $${VERSION} | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
-	)
+# Print only the variant with no qualifier for the branch:
+	echo "$${docker_image}:$${target_variant}"
+# Print tags qualified by the major and minor versions so that users can avoid breaking
+# changes:
+	VERSION="$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)"
+	major_version="$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')"
+	minor_version="$$(
+	    echo "$${VERSION}" | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
+	)"
 	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
 	then
-	    echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
+	    echo "$${docker_image}:$${target_variant}-v$${minor_version}"
 	fi
 	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
 	then
-	    echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
+	    echo "$${docker_image}:$${target_variant}-v$${major_version}"
 	fi
-ifeq ($(DOCKER_VARIANT),)
-	echo $${docker_image}:latest
+# Print the rest of the unqualified tags only for the default variant:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:v$${minor_version}"
+	fi
+	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:v$${major_version}"
+	fi
+	echo "$${docker_image}:latest"
 endif
 endif
 
@@ -340,18 +377,13 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 	docker pull "buildpack-deps"
 # Assemble the tags for all the variant permutations:
 	$(MAKE) "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
-	docker_build_args=""
+	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
 	for image_tag in $$(
 	    $(MAKE) -e --no-print-directory build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
 	done
-ifeq ($(DOCKER_VARIANT),)
-	docker_build_args+=" --target user"
-else
-	docker_build_args+=" --target $(DOCKER_VARIANT)"
-endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
@@ -372,6 +404,33 @@ test: test-lint test-docker
 ## Run the full suite of tests and coverage checks.
 test-code:
 	true "TEMPLATE: Always specific to the project type"
+
+.PHONY: test-debug
+## Run tests directly on the system and start the debugger on errors or failures.
+test-debug:
+	true "TEMPLATE: Always specific to the project type"
+
+.PHONY: test-docker
+## Run the full suite of tests, coverage checks, and code linters in all variants.
+test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
+.PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define test_docker_template=
+test-docker-$(1): $$(HOST_TARGET_DOCKER) ./var-docker/log/$(1)/build-devel.log
+	docker_run_args="--rm"
+	if test ! -t 0
+	then
+# No fancy output when running in parallel
+	    docker_run_args+=" -T"
+	fi
+# Test that the end-user image can run commands:
+	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
+# Run from the development Docker container for consistency:
+	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
+	    make -e test-code
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
@@ -474,11 +533,6 @@ test-lint-prose-write-good: ./var/log/npm-install.log
 ## Lint prose in all files tracked in VCS with alex.
 test-lint-prose-alex: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
-
-.PHONY: test-debug
-## Run tests directly on the system and start the debugger on errors or failures.
-test-debug:
-	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in containers.
@@ -596,16 +650,15 @@ release-docker: $(HOST_TARGET_DOCKER) build-docker \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 # Build other platforms in emulation and rely on the layer cache for bundling the
 # native images built before into the manifests:
-	DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --push"
+	export DOCKER_BUILD_ARGS="--push"
 ifneq ($(DOCKER_PLATFORMS),)
 	DOCKER_BUILD_ARGS+=" --platform $(subst $(EMPTY) ,$(COMMA),$(DOCKER_PLATFORMS))"
 else
 endif
-	export DOCKER_BUILD_ARGS
+# Push the development manifest and images:
+	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
 # Push the end-user manifest and images:
 	$(MAKE) -e build-docker-build
-# Push the development manifest and images:
-	$(MAKE) -e DOCKER_VARIANT="devel" build-docker-build
 # Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version:
 ifeq ($(VCS_BRANCH),main)
 	$(MAKE) -e "./var/log/docker-login-DOCKER.log"
@@ -616,8 +669,8 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: $(VCS_RELEASE_FETCH_TARGETS) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log ./var-docker/log/build-devel.log \
-		./.env.~out~
+		./var/log/npm-install.log \
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log ./.env.~out~
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -783,10 +836,11 @@ clean:
 
 # Build Docker container images.
 # Build the development image:
-./var-docker/log/build-devel.log: ./Dockerfile ./.dockerignore ./bin/entrypoint.sh \
-		./docker-compose.yml ./docker-compose.override.yml \
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log): ./Dockerfile ./.dockerignore \
+		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
 		./var/log/docker-compose-network.log ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
+	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
@@ -796,16 +850,19 @@ ifeq ($(DOCKER_BUILD_PULL),true)
 	)" | tee -a "$(@)"
 	exit
 endif
-	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
-	    build-docker-build | tee -a "$(@)"
+	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$(@)"
+# Initialize volumes contents:
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	    true "TEMPLATE: Always specific to the project type"
 # Build the end-user image:
-./var-docker/log/build-user.log: ./var-docker/log/build-devel.log ./Dockerfile \
-		./.dockerignore ./bin/entrypoint.sh
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log): ./Dockerfile ./.dockerignore \
+		./bin/entrypoint.sh
 	true DEBUG Updated prereqs: $(?)
+	export DOCKER_VARIANT="$(@:var-docker/log/%/build-user.log=%)"
 # Build the user image after building all required artifacts:
 	mkdir -pv "$(dir $(@))"
-	$(MAKE) -e DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --load" \
-	    build-docker-build >>"$(@)"
+# TEMPLATE: Pass the build package for the project type as a build argument:
+	$(MAKE) -e build-docker-build | tee -a "$(@)"
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"

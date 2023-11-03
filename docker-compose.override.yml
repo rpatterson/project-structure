@@ -10,7 +10,8 @@ version: "3.8"
 services:
   # Configuration specific to development:
   project-structure:
-    image: "${DOCKER_USER:?}/project-structure:${DOCKER_BRANCH_TAG:-develop}"
+    image: "${DOCKER_USER:?}/project-structure\
+      :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
       context: "${CHECKOUT_DIR:-.}/"
@@ -22,7 +23,8 @@ services:
 
   # Container for use by developers:
   project-structure-devel:
-    image: "${DOCKER_USER:?}/project-structure:devel-${DOCKER_BRANCH_TAG:-develop}"
+    image: "${DOCKER_USER:?}/project-structure\
+      :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-devel"
     profiles:
       - "test"
