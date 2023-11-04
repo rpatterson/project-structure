@@ -395,6 +395,22 @@ test-clean:
 	    false
 	fi
 
+.PHONY: test-worktree-%
+## Build then run all tests from a new checkout in a clean container.
+test-worktree-%: ./.env.~out~
+	$(MAKE) -e -C "./build-host/" build
+	if git worktree list --porcelain | grep \
+	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
+	then
+	    git worktree remove "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	fi
+	git worktree add -B "$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	cp -v "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
+	docker compose run --workdir \
+	    "$(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    --rm -T build-host
+
 
 ### Release Targets:
 #
@@ -586,7 +602,7 @@ clean:
 
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes:
-$(VCS_FETCH_TARGETS): ./.git/logs/HEAD
+$(VCS_FETCH_TARGETS):
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
 	then

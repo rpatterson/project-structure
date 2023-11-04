@@ -65,3 +65,6 @@ __pycache__
 # Explicit ignores for the Docker build context.
 .local
 **/.local
+
+# VCS artifacts:
+/worktrees

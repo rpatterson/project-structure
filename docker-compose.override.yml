@@ -73,4 +73,4 @@ services:
       # DEBUG: "true"
     working_dir: "${CHECKOUT_DIR:-.}"
     command: >-
-      make -e -j release-all
+      make -e -O -j release-all
