@@ -784,8 +784,8 @@ clean:
 # Build Docker container images.
 # Build the development image:
 ./var-docker/log/build-devel.log: ./Dockerfile ./.dockerignore ./bin/entrypoint.sh \
-		./docker-compose.yml ./docker-compose.override.yml ./.env.~out~ \
-		./var-docker/log/rebuild.log $(HOST_TARGET_DOCKER) ./.cz.toml
+		./docker-compose.yml ./docker-compose.override.yml \
+		./var/log/docker-compose-network.log ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
@@ -793,24 +793,19 @@ ifeq ($(DOCKER_BUILD_PULL),true)
 	docker compose pull --quiet $(PROJECT_NAME)-devel
 	docker image ls --digests "$(
 	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
-	)" | tee -a "$(@)" "./var-docker/log/rebuild.log"
+	)" | tee -a "$(@)"
 	exit
 endif
 	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
 	    build-docker-build | tee -a "$(@)"
 # Build the end-user image:
 ./var-docker/log/build-user.log: ./var-docker/log/build-devel.log ./Dockerfile \
-		./.dockerignore ./bin/entrypoint.sh ./var-docker/log/rebuild.log
+		./.dockerignore ./bin/entrypoint.sh
 	true DEBUG Updated prereqs: $(?)
 # Build the user image after building all required artifacts:
 	mkdir -pv "$(dir $(@))"
 	$(MAKE) -e DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --load" \
 	    build-docker-build >>"$(@)"
-# Marker file used to trigger the rebuild of the image.
-# Useful to workaround asynchronous timestamp issues when running jobs in parallel:
-./var-docker/log/rebuild.log:
-	mkdir -pv "$(dir $(@))"
-	date >>"$(@)"
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
