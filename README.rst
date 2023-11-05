@@ -119,6 +119,8 @@ have or better yet submit a PR with corrections.
 
      $ git grep "TEMPLATE"
 
+#. Update the project ``./logo.png`` and ``./logo.svg`` logo files.
+
 Lastly, remove this `Template usage`_ section and update the rest of this
 ``./README.rst`` for your project. When the template adds fixes and features, merge them
 into your project and repeat steps 3--5.
