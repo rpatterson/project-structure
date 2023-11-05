@@ -784,7 +784,9 @@ clean:
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
 	docker compose pull --quiet $(PROJECT_NAME)-devel
-	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
+	docker image ls --digests "$(
+	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
+	)" | tee -a "$(@)" "./var-docker/log/rebuild.log"
 	exit
 endif
 	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
