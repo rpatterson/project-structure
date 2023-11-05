@@ -317,8 +317,14 @@ ifeq ($(VCS_BRANCH),main)
 	minor_version=$$(
 	    echo $${VERSION} | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
 	)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
+	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
+	fi
+	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
+	fi
 ifeq ($(DOCKER_VARIANT),)
 	echo $${docker_image}:latest
 endif
