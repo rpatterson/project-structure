@@ -261,7 +261,8 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 ## Ensure the built package is current.
 build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
 		./var-docker/log/build-devel.log
-	true "TEMPLATE: Always specific to the project type"
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	    true "TEMPLATE: Always specific to the project type"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
