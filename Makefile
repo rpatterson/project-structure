@@ -1192,18 +1192,15 @@ ifneq ($(VCS_BRANCH),)
 	    tee -a "$(@)"
 	then
 # If the branch is only local, fall back to the pre-release branch:
-	    git fetch $${git_fetch_args} "$(VCS_REMOTE)" "develop" |&
-	        tee -a "$(@)"
+	    git fetch $${git_fetch_args} "$(VCS_REMOTE)" "develop" |& tee -a "$(@)"
 	fi
 ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
 # Fetch any upstream VCS data that forks need:
-	git fetch $${git_fetch_args} "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)" |&
-	    tee -a "$(@)"
+	git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)" |& tee -a "$(@)"
 endif
 ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
 ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-	git fetch $${git_fetch_args} "$(VCS_COMPARE_REMOTE)" "develop" |&
-	    tee -a "$(@)"
+	git fetch "$(VCS_COMPARE_REMOTE)" "develop" |& tee -a "$(@)"
 endif
 endif
 endif
