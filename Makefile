@@ -579,7 +579,7 @@ clean:
 
 
 # Create the Docker compose network a single time under parallel make:
-./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER)
+./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
