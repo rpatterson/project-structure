@@ -102,8 +102,8 @@ services:
     # example tables:
     command: >-
       -xeu -c '
-        grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
-        pandoc -f "rst" -t "gfm" | grep -Ev "^(\+-+\+|\|.*\|)$" >"./README.md"
+      grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
+      pandoc -f "rst" -t "gfm" | grep -Ev "^(\+-+\+|\|.*\|)$" >"./README.md"
       '
 
   docker-pushrm:
@@ -124,16 +124,6 @@ services:
       --short "Project structure foundation or template"
       --debug "${DOCKER_USER:-}/project-structure"
 
-  gitlab-release-cli:
-    image: "registry.gitlab.com/gitlab-org/release-cli:latest"
-    profiles:
-      - "release"
-    environment:
-      CI_JOB_TOKEN: "${CI_JOB_TOKEN:-}"
-    volumes:
-      - "./:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/"
-
   ## Containers for simulating CI/CD:
 
   build-host:
@@ -147,14 +137,18 @@ services:
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
       - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
       - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      # Share local SSH authentication to repository remotes
+      # Share local SSH authentication to repository remotes:
       - "~/.ssh/:/home/runner/.ssh/"
+      - "${SSH_AUTH_SOCK}:${SSH_AUTH_SOCK}"
+      - "~/.gnupg/:/home/runner/.gnupg/"
+      - "/run/user/1000/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
+      SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:?Must have ssh-agent running with VCS remote keys loaded}"
       # DEBUG: "true"
     working_dir: "${CHECKOUT_DIR:-.}"
     command: >-
-      make -e test-lint build-docker test-docker release
+      make -e -O -j release-all

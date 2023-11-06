@@ -18,22 +18,18 @@ __pycache__
 *$py.class
 **/*$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
-env
-build
-downloads
-lib
-lib64
-dist
-sdist
-var
+/env
+/build
+/downloads
+/lib
+/lib64
+/dist
+/sdist
+/var
 /var-*
 /node_modules
 /package-lock.json
-/README.md
 *.egg-info
 
 # Translations
@@ -43,14 +39,16 @@ var
 **/.pot
 
 # Sphinx documentation
-docs/_build
+/docs/_build
 
 # dotenv
 /.env
 
 # Linters:
 .tox
+**/.tox
 .mypy_cache
+**/.mypy_cache
 
 # Exclude downloaded styles from formatting and linting but include in VCS:
 /styles/*/*
@@ -67,5 +65,6 @@ docs/_build
 # Explicit ignores for the Docker build context.
 .local
 **/.local
-.gnupg
-**/.gnupg
+
+# VCS artifacts:
+/worktrees

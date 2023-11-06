@@ -4,10 +4,7 @@
 
 ## Container image in which to build, test, and release projects.
 
-# I *want* something to break to let me know if something changes in the latest version
-# of the base image changes something:
-# hadolint ignore=DL3007
-FROM docker:latest
+FROM docker:dind
 
 # Least volatile layers first:
 
@@ -73,9 +70,14 @@ RUN --mount=type=cache,target=/root/.cache,sharing=locked \
     echo 'nvm_get_arch() { nvm_echo x64-musl; }' >>"${HOME}/.nvm/nvm.sh" && \
 	. "${HOME}/.nvm/nvm.sh" || true && \
     nvm install "18" && \
+    mkdir -pv "${HOME}/.local/state/${PROJECT_NAME}/log/"
+
+# Configure the VCS client for the image user:
+ARG USER_SIGNINGKEY
+RUN --mount=type=cache,target=/root/.cache,sharing=locked \
     git config -f "${HOME}/.gitconfig" "user.name" "CI Runner" && \
     git config -f "${HOME}/.gitconfig" "user.email" \
     "runner@build-host.${PROJECT_NAMESPACE:-rpatterson}.localhost" && \
-    mkdir -pv "${HOME}/.local/state/${PROJECT_NAME}/log/"
+    git config --global user.signingkey "${USER_SIGNINGKEY}"
 
 COPY [ "./bin/init-job.sh",  "./bin/entrypoint.sh", "/usr/local/bin/" ]
