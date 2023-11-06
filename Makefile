@@ -182,29 +182,9 @@ VCS_COMPARE_BRANCH=main
 endif
 VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
-# Tolerate detached `HEAD`, such as during a rebase:
-VCS_FETCH_TARGETS=
-ifneq ($(VCS_BRANCH),)
-# Assemble the targets used to avoid redundant fetches during release tasks:
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)
-endif
-# Also fetch develop for merging back in the final release:
-VCS_RELEASE_FETCH_TARGETS=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifeq ($(VCS_BRANCH),main)
-VCS_RELEASE_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-endif
-endif
-endif
-ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
-endif
 # The sequence of branches from which to find closest existing build artifacts, such as
 # container images:
+ifneq ($(VCS_BRANCH),)
 VCS_BRANCHES=$(VCS_BRANCH)
 ifneq ($(VCS_BRANCH),main)
 ifneq ($(VCS_BRANCH),develop)
@@ -404,8 +384,8 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
-build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+build-pkgs: ./var/log/git-fetch.log \
+	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    true "TEMPLATE: Always specific to the project type"
 
@@ -738,7 +718,7 @@ test-lint-docker: ./var/log/docker-compose-network.log ./var/log/docker-login-DO
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: $(VCS_FETCH_TARGETS) $(HOME)/.local/bin/tox
+test-push: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 ifeq ($(CI),true)
 ifeq ($(VCS_COMPARE_BRANCH),main)
@@ -877,8 +857,7 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: $(VCS_RELEASE_FETCH_TARGETS) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log \
+release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log \
 		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log ./.env.~out~
 	if ! git diff --cached --exit-code
 	then
@@ -886,6 +865,10 @@ release-bump: $(VCS_RELEASE_FETCH_TARGETS) $(HOME)/.local/bin/tox \
 	    echo "CRITICAL: Cannot bump version with staged changes"
 	    false
 	fi
+ifeq ($(VCS_BRANCH),main)
+# Also fetch develop for merging back in the final release:
+	git fetch --tags "$(VCS_COMPARE_REMOTE)" "develop"
+endif
 # Update the local branch to the forthcoming version bump commit:
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 	exit_code=0
@@ -1009,8 +992,7 @@ devel-upgrade: $(HOME)/.local/bin/tox
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/log/gpg-import.log \
-		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
+devel-upgrade-branch: ./var/log/gpg-import.log ./var/log/git-fetch.log \
 		./var/log/git-remotes.log
 	if ! $(MAKE) -e "test-clean"
 	then
@@ -1060,9 +1042,9 @@ endif
 
 .PHONY: devel-merge
 ## Merge this branch with a suffix back into its un-suffixed upstream.
-devel-merge: ./var/log/git-remotes.log \
-		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
+devel-merge: ./var/log/git-remotes.log ./var/log/git-fetch.log
 	merge_rev="$$(git rev-parse HEAD)"
+	git fetch "$(VCS_REMOTE)" "$(VCS_MERGE_BRANCH)"
 	git switch -C "$(VCS_MERGE_BRANCH)" --track "$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)"
 	git merge --ff --gpg-sign -m \
 	    $$'Merge branch \'$(VCS_BRANCH)\' into $(VCS_MERGE_BRANCH)\n\n[ci merge]' \
@@ -1180,7 +1162,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	date | tee -a "$(@)"
 
 # Create the Docker compose network a single time under parallel make:
-./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER)
+./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
@@ -1196,22 +1178,36 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 ### Development Tools:
 
 # VCS configuration and integration:
-# Retrieve VCS data needed for versioning, tags, and releases, release notes:
-$(VCS_FETCH_TARGETS):
+# Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
+# it's own target to avoid redundant fetches during release tasks:
+./var/log/git-fetch.log:
+	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
 	then
 	    git_fetch_args+=" --unshallow"
 	fi
-	branch_path="$(@:var/git/refs/remotes/%=%)"
-	mkdir -pv "$(dir $(@))"
-	if ! git fetch $${git_fetch_args} "$${branch_path%%/*}" "$${branch_path#*/}" |&
+ifneq ($(VCS_BRANCH),)
+	if ! git fetch $${git_fetch_args} "$(VCS_REMOTE)" "$(VCS_BRANCH)" |&
 	    tee -a "$(@)"
 	then
-# If the local branch doesn't exist, fall back to the pre-release branch:
-	    git fetch $${git_fetch_args} "$${branch_path%%/*}" "develop" |&
+# If the branch is only local, fall back to the pre-release branch:
+	    git fetch $${git_fetch_args} "$(VCS_REMOTE)" "develop" |&
 	        tee -a "$(@)"
 	fi
+ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
+# Fetch any upstream VCS data that forks need:
+	git fetch $${git_fetch_args} "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)" |&
+	    tee -a "$(@)"
+endif
+ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+	git fetch $${git_fetch_args} "$(VCS_COMPARE_REMOTE)" "develop" |&
+	    tee -a "$(@)"
+endif
+endif
+endif
+	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
 ./var/log/git-ls-files.log: build-date
 	mkdir -pv "$(dir $(@))"
