@@ -201,7 +201,7 @@ all: build
 
 .PHONY: build
 ## Perform any necessary local setup common to most operations.
-build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_TARGET_DOCKER) \
+build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log
 
 .PHONY: build-pkgs
@@ -246,11 +246,12 @@ test-code:
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
-test-lint: $(HOST_TARGET_DOCKER) test-lint-code test-lint-docker test-lint-docs \
-		test-lint-prose test-lint-licenses
+test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
+		test-lint-licenses
+
 .PHONY: test-lint-licenses
 ## Lint copyright and license annotations for all files tracked in VCS.
-test-lint-licenses: $(HOST_TARGET_DOCKER)
+test-lint-licenses: ./var/log/docker-compose-network.log
 	docker compose run --rm -T "reuse"
 
 .PHONY: test-lint-code
@@ -308,21 +309,21 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 		test-lint-prose-write-good test-lint-prose-alex
 .PHONY: test-lint-prose-vale-markup
 ## Lint prose in all markup files tracked in VCS with Vale.
-test-lint-prose-vale-markup: $(HOST_TARGET_DOCKER)
+test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
 	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
-test-lint-prose-vale-code: $(HOST_TARGET_DOCKER)
+test-lint-prose-vale-code: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z \
 	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
 ## Lint source code files tracked in VCS but without extensions with Vale.
-test-lint-prose-vale-misc: $(HOST_TARGET_DOCKER)
+test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -352,7 +353,7 @@ test-debug:
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
+test-lint-docker: ./var/log/docker-compose-network.log
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- docker compose run -T hadolint hadolint
@@ -503,7 +504,7 @@ release-all: test-push test
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: $(HOST_TARGET_DOCKER) ./var/log/npm-install.log
+devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
@@ -593,6 +594,12 @@ clean:
 #
 # Recipes that make actual changes and create and update files for the target.
 
+
+# Create the Docker compose network a single time under parallel make:
+./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER)
+	mkdir -pv "$(dir $(@))"
+	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
+
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
 	$(call expand_template,$(<),$(@))
@@ -646,8 +653,8 @@ $(VCS_FETCH_TARGETS):
 	$(TOX_EXEC_BUILD_ARGS) -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini ./.env.~out~
-	$(MAKE) "$(HOST_TARGET_DOCKER)"
+./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
+	$(MAKE) "./var/log/docker-compose-network.log"
 	docker compose run --rm vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
