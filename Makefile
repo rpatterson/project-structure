@@ -547,7 +547,7 @@ test-docker: $(HOST_TARGET_DOCKER) build-docker
 	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) true
 # Run from the development Docker container for consistency:
 	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
-	    make -e test-local
+	    make -e test-code
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
