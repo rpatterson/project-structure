@@ -217,16 +217,32 @@ endif
 # Run Python tools in isolated environments managed by Tox:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
 TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build"
+TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
+    sphinx-lint doc8 restructuredtext-lint proselint
 
 # Values used to build Docker images:
 DOCKER_FILE=./Dockerfile
-export DOCKER_BUILD_ARGS=
+export DOCKER_BUILD_TARGET=user
+DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
-export DOCKER_VARIANT=
-DOCKER_VARIANT_PREFIX=
-ifneq ($(DOCKER_VARIANT),)
-DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
+DOCKER_VARIANT_OS_DEFAULT=debian
+DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
+DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
+# TEMPLATE: Update for the project language:
+DOCKER_VARIANT_LANGUAGE_DEFAULT=
+DOCKER_VARIANT_LANGUAGES=$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
+DOCKER_VARIANT_LANGUAGE=$(firstword $(DOCKER_VARIANT_LANGUAGES))
+# Build all image variants in parallel:
+ifeq ($(DOCKER_VARIANT_LANGUAGES),)
+DOCKER_VARIANTS=$(DOCKER_VARIANT_OSES)
+DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)
+export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)
+else
+DOCKER_VARIANTS=$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
+    $(DOCKER_VARIANT_OSES:%=%-$(language)))
+DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)-$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
+export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)-$(DOCKER_VARIANT_LANGUAGE)
 endif
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 GITLAB_CI=false
@@ -366,13 +382,13 @@ all: build
 
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
-start: build-docker ./.env.~out~
+start: ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: build-docker ./.env.~out~
+run: ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
 	docker compose down
 	docker compose up
 
@@ -383,14 +399,15 @@ run: build-docker ./.env.~out~
 
 .PHONY: build
 ## Set up everything for development from a checkout, local and in containers.
-build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_TARGET_DOCKER) \
+build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log build-docker
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
 build-pkgs: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
-		./var-docker/log/build-devel.log
-	true "TEMPLATE: Always specific to the project type"
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	    true "TEMPLATE: Always specific to the project type"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
@@ -424,10 +441,14 @@ build-date:
 
 .PHONY: build-docker
 ## Set up for development in Docker containers.
-build-docker: build-pkgs ./var-docker/log/build-user.log
+build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
+.PHONY: $(DOCKER_VARIANTS:%=build-docker-%)
+$(DOCKER_VARIANTS:%=build-docker-%): build-pkgs
+	$(MAKE) "$(@:build-docker-%=./var-docker/log/%/build-devel.log)" \
+	    "$(@:build-docker-%=./var-docker/log/%/build-user.log)"
 
 .PHONY: build-docker-tags
-## Print the list of image tags for the current registry and variant.
+## Print the list of tags for this image variant in all registries.
 build-docker-tags:
 	$(MAKE) -e $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 
@@ -435,28 +456,45 @@ build-docker-tags:
 ## Print the list of image tags for the current registry and variant.
 $(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
 	test -e "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
-	docker_image=$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
-ifeq ($(VCS_BRANCH),main)
-# Update tags users depend on to be stable from the `main` branch:
-	VERSION=$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)
-	major_version=$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')
-	minor_version=$$(
-	    echo $${VERSION} | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
-	)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)
+	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
+	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
+# Print the fully qualified variant tag with all components:
+	echo "$${docker_image}:$${target_variant}-$(DOCKER_BRANCH_TAG)"
+# Print only the branch tag if this image variant is the default variant:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	echo "$${docker_image}:$(DOCKER_BRANCH_TAG)"
 endif
-# Use this variant as the default used for tags such as `latest`
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
+# Print any other unqualified or default tags only for images built from the `main`
+# branch.  Users can count on these to be stable:
 ifeq ($(VCS_BRANCH),main)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
-ifeq ($(DOCKER_VARIANT),)
-	echo $${docker_image}:latest
-else
-	echo $${docker_image}:$(DOCKER_VARIANT)
+# Print only the variant with no qualifier for the branch:
+	echo "$${docker_image}:$${target_variant}"
+# Print tags qualified by the major and minor versions so that users can avoid breaking
+# changes:
+	VERSION="$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)"
+	major_version="$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')"
+	minor_version="$$(
+	    echo "$${VERSION}" | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
+	)"
+	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:$${target_variant}-v$${minor_version}"
+	fi
+	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:$${target_variant}-v$${major_version}"
+	fi
+# Print the rest of the unqualified tags only for the default variant:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:v$${minor_version}"
+	fi
+	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:v$${major_version}"
+	fi
+	echo "$${docker_image}:latest"
 endif
 endif
 
@@ -493,18 +531,13 @@ endif
 endif
 # Assemble the tags for all the variant permutations:
 	$(MAKE) "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
-	docker_build_args=""
+	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
 	for image_tag in $$(
 	    $(MAKE) -e --no-print-directory build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
 	done
-ifeq ($(DOCKER_VARIANT),)
-	docker_build_args+=" --target user"
-else
-	docker_build_args+=" --target $(DOCKER_VARIANT)"
-endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
@@ -521,45 +554,118 @@ endif
 ## Run the full suite of tests, coverage checks, and linters.
 test: test-lint test-docker
 
-.PHONY: test-local
-## Run the full suite of tests, coverage checks, and linters on the local host.
-test-local:
+.PHONY: test-code
+## Run the full suite of tests and coverage checks.
+test-code:
 	true "TEMPLATE: Always specific to the project type"
+
+.PHONY: test-debug
+## Run tests directly on the system and start the debugger on errors or failures.
+test-debug:
+	true "TEMPLATE: Always specific to the project type"
+
+.PHONY: test-docker
+## Run the full suite of tests, coverage checks, and code linters in all variants.
+test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
+.PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define test_docker_template=
+test-docker-$(1): $$(HOST_TARGET_DOCKER) ./var-docker/log/$(1)/build-devel.log
+	docker_run_args="--rm"
+	if test ! -t 0
+	then
+# No fancy output when running in parallel
+	    docker_run_args+=" -T"
+	fi
+# Test that the end-user image can run commands:
+	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
+# Run from the development Docker container for consistency:
+	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
+	    make -e test-code
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
-test-lint: $(HOST_TARGET_DOCKER) test-lint-code test-lint-docker test-lint-docs \
-		test-lint-prose
-# Lint copyright and licensing:
+test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
+		test-lint-licenses
+
+.PHONY: test-lint-licenses
+## Lint copyright and license annotations for all files tracked in VCS.
+test-lint-licenses: ./var/log/docker-compose-network.log
 	docker compose run --rm -T "reuse"
 
 .PHONY: test-lint-code
 ## Lint source code for errors, style, and other issues.
-test-lint-code: ./var/log/npm-install.log
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:code
+test-lint-code: test-lint-code-prettier
+.PHONY: test-lint-code-prettier
+## Lint source code for formatting with Prettier.
+test-lint-code-prettier: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run lint:prettier
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: $(HOME)/.local/bin/tox
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-docs.sh'
+test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
+		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
+		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+# TODO: Audit what checks all tools perform and remove redundant tools.
+.PHONY: test-lint-docs-rstcheck
+## Lint documentation for formatting errors and other issues with rstcheck.
+test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
+# Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
+# `.. include:: ../README.rst` directive breaks `$ rstcheck`:
+#     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
+# Also exclude `./NEWS*.rst` because it's duplicate headings cause:
+#     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
+.PHONY: test-lint-docs-sphinx-build
+## Test that the documentation can build successfully with sphinx-build.
+test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-linkcheck
+## Test the documentation for broken links.
+test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-lint
+## Test the documentation for formatting errors with sphinx-lint.
+test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' | xargs -r -0 -- \
+	    "$(<:%/.tox-info.json=%/bin/sphinx-lint)" -e "all" -d "line-too-long"
+.PHONY: test-lint-docs-doc8
+## Test the documentation for formatting errors with doc8.
+test-lint-docs-doc8: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
+.PHONY: test-lint-docs-restructuredtext-lint
+## Test the documentation for formatting errors with restructuredtext-lint.
+test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
-## Lint prose text for spelling, grammar, and style
-test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log
-# Lint all markup files tracked in VCS with Vale:
+## Lint prose text for spelling, grammar, and style.
+test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
+		test-lint-prose-vale-misc test-lint-prose-proselint \
+		test-lint-prose-write-good test-lint-prose-alex
+.PHONY: test-lint-prose-vale-markup
+## Lint prose in all markup files tracked in VCS with Vale.
+test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
 	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
-# Lint all source code files tracked in VCS with Vale:
+.PHONY: test-lint-prose-vale-code
+## Lint comment prose in all source code files tracked in VCS with Vale.
+test-lint-prose-vale-code: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z \
 	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
-# Lint source code files tracked in VCS but without extensions with Vale:
+.PHONY: test-lint-prose-vale-misc
+## Lint source code files tracked in VCS but without extensions with Vale.
+test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -567,15 +673,20 @@ test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 	            docker compose run --rm -T vale --config="./styles/code.ini" \
 	                --ext=".pl"
 	    done
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-prose.sh'
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:prose
-
-.PHONY: test-debug
-## Run tests directly on the system and start the debugger on errors or failures.
-test-debug:
-	true "TEMPLATE: Always specific to the project type"
+.PHONY: test-lint-prose-proselint
+## Lint prose in all markup files tracked in VCS with proselint.
+test-lint-prose-proselint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
+	    --config "./.proselintrc.json"
+.PHONY: test-lint-prose-write-good
+## Lint prose in all files tracked in VCS with write-good.
+test-lint-prose-write-good: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:write-good"
+.PHONY: test-lint-prose-alex
+## Lint prose in all files tracked in VCS with alex.
+test-lint-prose-alex: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:alex"
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in containers.
@@ -590,7 +701,7 @@ test-docker: $(HOST_TARGET_DOCKER) build-docker
 	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) true
 # Run from the development Docker container for consistency:
 	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
-	    make -e test-local
+	    make -e test-code
 # Upload any build or test artifacts to CI/CD providers
 ifeq ($(GITLAB_CI),true)
 ifneq ($(CODECOV_TOKEN),)
@@ -607,11 +718,10 @@ endif
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: $(HOST_TARGET_DOCKER) ./.env.~out~ ./var/log/docker-login-DOCKER.log
+test-lint-docker: ./var/log/docker-compose-network.log ./var/log/docker-login-DOCKER.log
 	docker compose pull --quiet hadolint
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) hadolint
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) hadolint \
-	    hadolint "./build-host/Dockerfile"
+	git ls-files -z '*Dockerfile*' |
+	    xargs -0 -- docker compose run -T hadolint hadolint
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
@@ -670,6 +780,22 @@ test-clean:
 	    false
 	fi
 
+.PHONY: test-worktree-%
+## Build then run all tests from a new checkout in a clean container.
+test-worktree-%: ./.env.~out~
+	$(MAKE) -e -C "./build-host/" build
+	if git worktree list --porcelain | grep \
+	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
+	then
+	    git worktree remove "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	fi
+	git worktree add -B "$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	cp -v "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
+	docker compose run --workdir \
+	    "$(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    --rm -T build-host
+
 
 ### Release Targets:
 #
@@ -714,22 +840,34 @@ endif
 
 .PHONY: release-docker
 ## Publish all container images to all container registries.
-release-docker: $(HOST_TARGET_DOCKER) build-docker \
-		$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
+.PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define release_docker_template=
+release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
+		./var-docker/log/$(1)/build-user.log \
+		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
 # Build other platforms in emulation and rely on the layer cache for bundling the
 # native images built before into the manifests:
-	DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --push"
-ifneq ($(DOCKER_PLATFORMS),)
-	DOCKER_BUILD_ARGS+=" --platform $(subst $(EMPTY) ,$(COMMA),$(DOCKER_PLATFORMS))"
-else
+	export DOCKER_BUILD_ARGS="--push"
+ifneq ($$(DOCKER_PLATFORMS),)
+	DOCKER_BUILD_ARGS+=" --platform \
+	$$(subst $$(EMPTY) ,$$(COMMA),$$(DOCKER_PLATFORMS))"
 endif
-	export DOCKER_BUILD_ARGS
-# Push the end-user manifest and images:
-	$(MAKE) -e build-docker-build
 # Push the development manifest and images:
-	$(MAKE) -e DOCKER_VARIANT="devel" build-docker-build
-# Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version:
+	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
+# Push the end-user manifest and images:
+	$$(MAKE) -e build-docker-build
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
+.PHONY: release-docker-readme
+## Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version.
+release-docker-readme: ./var/log/docker-compose-network.log \
+		$(DOCKER_VARIANTS:%=release-docker-%)
+# Only for final releases:
 ifeq ($(VCS_BRANCH),main)
 	$(MAKE) -e "./var/log/docker-login-DOCKER.log"
 	docker compose pull --quiet pandoc docker-pushrm
@@ -739,8 +877,8 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: $(VCS_RELEASE_FETCH_TARGETS) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log ./var-docker/log/build-devel.log \
-		./.env.~out~
+		./var/log/npm-install.log \
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log ./.env.~out~
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -820,6 +958,15 @@ ifeq ($(CI),true)
 	git push --no-verify "$(VCS_REMOTE)" "HEAD:$(VCS_BRANCH)"
 endif
 
+.PHONY: release-all
+## Run the whole release process, end to end.
+release-all: test-push test
+# Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
+# running as much of the process as possible with `$ make -j`:
+	$(MAKE) release-bump
+	$(MAKE) release
+	$(MAKE) test-clean
+
 
 ### Development Targets:
 #
@@ -827,7 +974,7 @@ endif
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: $(HOST_TARGET_DOCKER) ./var/log/npm-install.log
+devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
@@ -944,32 +1091,33 @@ clean:
 
 # Build Docker container images.
 # Build the development image:
-./var-docker/log/build-devel.log: ./Dockerfile ./.dockerignore ./bin/entrypoint.sh \
-		./docker-compose.yml ./docker-compose.override.yml ./.env.~out~ \
-		./var-docker/log/rebuild.log $(HOST_TARGET_DOCKER) ./.cz.toml
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log): ./Dockerfile ./.dockerignore \
+		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
+		./var/log/docker-compose-network.log ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
+	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
 	docker compose pull --quiet $(PROJECT_NAME)-devel
-	date | tee -a "$(@)" "./var-docker/log/rebuild.log"
+	docker image ls --digests "$(
+	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
+	)" | tee -a "$(@)"
 	exit
 endif
-	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
-	    build-docker-build | tee -a "$(@)"
+	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$(@)"
+# Initialize volumes contents:
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	    true "TEMPLATE: Always specific to the project type"
 # Build the end-user image:
-./var-docker/log/build-user.log: ./var-docker/log/build-devel.log ./Dockerfile \
-		./.dockerignore ./bin/entrypoint.sh ./var-docker/log/rebuild.log
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log): ./Dockerfile ./.dockerignore \
+		./bin/entrypoint.sh
 	true DEBUG Updated prereqs: $(?)
+	export DOCKER_VARIANT="$(@:var-docker/log/%/build-user.log=%)"
 # Build the user image after building all required artifacts:
 	mkdir -pv "$(dir $(@))"
-	$(MAKE) -e DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --load" \
-	    build-docker-build >>"$(@)"
-# Marker file used to trigger the rebuild of the image.
-# Useful to workaround asynchronous timestamp issues when running jobs in parallel:
-./var-docker/log/rebuild.log:
-	mkdir -pv "$(dir $(@))"
-	date >>"$(@)"
+# TEMPLATE: Pass the build package for the project type as a build argument:
+	$(MAKE) -e build-docker-build | tee -a "$(@)"
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
@@ -1028,6 +1176,11 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	fi
 	date | tee -a "$(@)"
 
+# Create the Docker compose network a single time under parallel make:
+./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER)
+	mkdir -pv "$(dir $(@))"
+	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
+
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
 	$(call expand_template,$(<),$(@))
@@ -1041,7 +1194,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes:
-$(VCS_FETCH_TARGETS): ./.git/logs/HEAD
+$(VCS_FETCH_TARGETS):
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
 	then
@@ -1117,8 +1270,8 @@ endif
 	$(TOX_EXEC_BUILD_ARGS) -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini ./.env.~out~
-	$(MAKE) "$(HOST_TARGET_DOCKER)"
+./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
+	$(MAKE) "./var/log/docker-compose-network.log"
 	docker compose run --rm vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
@@ -1147,15 +1300,18 @@ $(HOME)/.nvm/nvm.sh:
 	    | bash
 
 # Manage Python tools:
-$(HOME)/.local/bin/tox:
-	$(MAKE) "$(HOME)/.local/bin/pipx"
+./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini ./requirements/build.txt.in
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
-$(HOME)/.local/bin/pipx:
-	$(MAKE) "$(HOST_PREFIX)/bin/pip3"
+	touch "$(@)"
+$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 # https://pypa.github.io/pipx/installation/#install-pipx
 	pip3 install --user "pipx"
 	python3 -m pipx ensurepath
+	touch "$(@)"
 $(HOST_PREFIX)/bin/pip3:
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"

@@ -10,9 +10,8 @@ version: "3.8"
 services:
   # Configuration specific to development:
   project-structure:
-    image: "\
-      ${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson\
-      /project-structure:${DOCKER_BRANCH_TAG:-develop}"
+    image: "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson\
+      /project-structure:user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
       context: "${CHECKOUT_DIR:-.}/"
@@ -24,9 +23,8 @@ services:
 
   # Container for use by developers:
   project-structure-devel:
-    image: "\
-      ${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson\
-      /project-structure:devel-${DOCKER_BRANCH_TAG:-develop}"
+    image: "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson\
+      /project-structure:devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-devel"
     profiles:
       - "test"
@@ -106,8 +104,8 @@ services:
     # example tables:
     command: >-
       -xeu -c '
-        grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
-        pandoc -f "rst" -t "gfm" | grep -Ev "^(\+-+\+|\|.*\|)$" >"./README.md"
+      grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
+      pandoc -f "rst" -t "gfm" | grep -Ev "^(\+-+\+|\|.*\|)$" >"./README.md"
       '
 
   docker-pushrm:
@@ -154,17 +152,21 @@ services:
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
       - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
       - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      # Share local SSH authentication to repository remotes
+      # Share local SSH authentication to repository remotes:
       - "~/.ssh/:/home/runner/.ssh/"
+      - "${SSH_AUTH_SOCK}:${SSH_AUTH_SOCK}"
+      - "~/.gnupg/:/home/runner/.gnupg/"
+      - "/run/user/1000/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
+      SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:?Must have ssh-agent running with VCS remote keys loaded}"
       # DEBUG: "true"
     working_dir: "${CHECKOUT_DIR:-.}"
     command: >-
-      make -e test-lint build-docker test-docker release
+      make -e -O -j release-all
 
   gitlab-runner:
     profiles:
