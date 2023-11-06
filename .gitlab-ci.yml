@@ -84,8 +84,7 @@ build-test:
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-
-      init-job.sh entrypoint.sh make -e test-push test-lint build-docker test-docker release-docker
-      test-clean
+      init-job.sh entrypoint.sh make -j -e release-all
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     # Upload build artifacts:
@@ -124,7 +123,7 @@ release:
         && $CI_PIPELINE_SOURCE != "schedule"
   script:
     - >-
-      init-job.sh entrypoint.sh make -e release-pkgs test-clean
+      init-job.sh entrypoint.sh make -j -e release-pkgs
   artifacts:
     paths:
       - "./dist/project?structure-*"
@@ -137,7 +136,7 @@ merge-upgrade:
         $CI_COMMIT_BRANCH =~ /^.+-upgrade$/
   script:
     - >-
-      init-job.sh entrypoint.sh make -e VCS_BRANCH_SUFFIX="upgrade" devel-merge
+      init-job.sh entrypoint.sh make -j -e VCS_BRANCH_SUFFIX="upgrade" devel-merge
 
 release-bump:
   stage: "release-bump"
@@ -161,7 +160,7 @@ release-bump:
         && $CI_PIPELINE_SOURCE != "schedule"
   script:
     - >-
-      init-job.sh entrypoint.sh make -e test-push release-bump
+      init-job.sh entrypoint.sh make -j -e release-bump
 
 # Workaround GitLab's handling of pipeline status when pushing both a branch and a tag:
 release-version:
@@ -200,4 +199,4 @@ scheduled:
         $CI_PIPELINE_SOURCE == "schedule"
   script:
     - >-
-      init-job.sh entrypoint.sh make -e $SCHEDULED_TARGETS
+      init-job.sh entrypoint.sh make -j -e $SCHEDULED_TARGETS

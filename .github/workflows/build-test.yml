@@ -86,8 +86,7 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
-          init-job.sh entrypoint.sh make -e
-          test-push test-lint build-docker test-docker test-clean
+          init-job.sh entrypoint.sh make -j -e release-all
 
       # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage

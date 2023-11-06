@@ -841,6 +841,7 @@ endif
 .PHONY: release-docker
 ## Publish all container images to all container registries.
 release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
+	$(MAKE) -e test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
@@ -957,14 +958,16 @@ ifeq ($(CI),true)
 # Also push the branch:
 	git push --no-verify "$(VCS_REMOTE)" "HEAD:$(VCS_BRANCH)"
 endif
+	$(MAKE) test-clean
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
 release-all: test-push test
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
-	$(MAKE) release-bump
-	$(MAKE) release
+ifeq ($(GITLAB_CI),true)
+	$(MAKE) release-docker
+endif
 	$(MAKE) test-clean
 
 
