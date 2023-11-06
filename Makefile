@@ -645,21 +645,34 @@ endif
 
 .PHONY: release-docker
 ## Publish all container images to all container registries.
-release-docker: $(HOST_TARGET_DOCKER) build-docker \
-		$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
+.PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define release_docker_template=
+release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
+		./var-docker/log/$(1)/build-user.log \
+		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
 # Build other platforms in emulation and rely on the layer cache for bundling the
 # native images built before into the manifests:
 	export DOCKER_BUILD_ARGS="--push"
-ifneq ($(DOCKER_PLATFORMS),)
-	DOCKER_BUILD_ARGS+=" --platform $(subst $(EMPTY) ,$(COMMA),$(DOCKER_PLATFORMS))"
-else
+ifneq ($$(DOCKER_PLATFORMS),)
+	DOCKER_BUILD_ARGS+=" --platform \
+	$$(subst $$(EMPTY) ,$$(COMMA),$$(DOCKER_PLATFORMS))"
 endif
 # Push the development manifest and images:
-	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
+	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
 # Push the end-user manifest and images:
-	$(MAKE) -e build-docker-build
-# Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version:
+	$$(MAKE) -e build-docker-build
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
+.PHONY: release-docker-readme
+## Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version.
+release-docker-readme: ./var/log/docker-compose-network.log \
+		$(DOCKER_VARIANTS:%=release-docker-%)
+# Only for final releases:
 ifeq ($(VCS_BRANCH),main)
 	$(MAKE) -e "./var/log/docker-login-DOCKER.log"
 	docker compose pull --quiet pandoc docker-pushrm
