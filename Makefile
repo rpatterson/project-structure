@@ -398,7 +398,8 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define test_docker_template=
-test-docker-$(1): $$(HOST_TARGET_DOCKER) ./var-docker/log/$(1)/build-devel.log
+test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
+		./var-docker/log/$(1)/build-devel.log
 	docker_run_args="--rm"
 	if test ! -t 0
 	then
