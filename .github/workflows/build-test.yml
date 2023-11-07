@@ -79,10 +79,10 @@ jobs:
           - "debian"
         # DOCKER_VARIANT_LANGUAGES: []
     name: >-
-      build-test ({{ matrix.DOCKER_VARIANT_OSES }})
+      build-test (${{ matrix.DOCKER_VARIANT_OSES }})
     # name: >-
     #   build-test
-    #   ({{ matrix.DOCKER_VARIANT_OSES }}-{{ matrix.DOCKER_VARIANT_LANGUAGES }})
+    #   (${{ matrix.DOCKER_VARIANT_OSES }}-${{ matrix.DOCKER_VARIANT_LANGUAGES }})
     steps:
       # Shared or common set up:
       - name: "Checkout source from VCS"
@@ -126,7 +126,7 @@ jobs:
       #   with:
       #     name: >-
       #       Test Suite Reports
-      #       ({{ matrix.DOCKER_VARIANT_OSES }}-{{ matrix.DOCKER_VARIANT_LANGUAGES }})
+      #       (${{ matrix.DOCKER_VARIANT_OSES }}-${{ matrix.DOCKER_VARIANT_LANGUAGES }})
       #     path: >-
       #       ./build/reports/*unit.xml
       #     reporter: "java-junit"
