@@ -435,7 +435,7 @@ build-docker-tags:
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 ## Print the list of image tags for the current registry and variant.
 $(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
-	test -e "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
+	test -e "./var/log/git-fetch.log"
 	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
 	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
 # Print the fully qualified variant tag with all components:
@@ -482,7 +482,7 @@ endif
 ## Run the actual commands used to build the Docker container image.
 build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
+		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
 # Workaround broken interactive session detection:
 	docker pull "buildpack-deps"
@@ -510,7 +510,7 @@ ifneq ($(VCS_BRANCH),main)
 endif
 endif
 # Assemble the tags for all the variant permutations:
-	$(MAKE) "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
+	$(MAKE) "./var/log/git-fetch.log"
 	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
 	for image_tag in $$(
 	    $(MAKE) -e --no-print-directory build-docker-tags
