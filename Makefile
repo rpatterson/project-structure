@@ -591,7 +591,7 @@ test-clean:
 
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
-test-worktree-%: ./.env.~out~
+test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	$(MAKE) -e -C "./build-host/" build
 	if git worktree list --porcelain | grep \
 	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
@@ -665,7 +665,7 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log ./.env.~out~
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -894,6 +894,8 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
 	mkdir -pv "$(dir $(@))"
+# Workaround broken interactive session detection:
+	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
 	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
