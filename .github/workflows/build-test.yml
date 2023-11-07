@@ -77,10 +77,12 @@ jobs:
       matrix:
         DOCKER_VARIANT_OSES:
           - "debian"
-        DOCKER_VARIANT_LANGUAGES: []
+        # DOCKER_VARIANT_LANGUAGES: []
     name: >-
-      build-test
-      ({{ matrix.DOCKER_VARIANT_OSES }}-{{ matrix.DOCKER_VARIANT_LANGUAGES }})
+      build-test ({{ matrix.DOCKER_VARIANT_OSES }})
+    # name: >-
+    #   build-test
+    #   ({{ matrix.DOCKER_VARIANT_OSES }}-{{ matrix.DOCKER_VARIANT_LANGUAGES }})
     steps:
       # Shared or common set up:
       - name: "Checkout source from VCS"
