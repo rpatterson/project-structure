@@ -791,9 +791,8 @@ release: release-pkgs release-docker
 
 .PHONY: release-pkgs
 ## Publish installable packages if conventional commits require a release.
-release-pkgs: $(HOST_TARGET_DOCKER) ./var/log/git-remotes.log \
-		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) ./.env.~out~ \
-		$(HOST_PREFIX)/bin/gh
+release-pkgs: ./var/log/docker-compose-network.log ./var/log/git-remotes.log \
+		./var/log/git-fetch.log $(HOST_PREFIX)/bin/gh
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 # Import the private signing key from CI secrets
@@ -1552,7 +1551,7 @@ endef
 
 .PHONY: pull-docker
 ## Pull an existing image best to use as a cache for building new images
-pull-docker: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) $(HOST_TARGET_DOCKER)
+pull-docker: ./var/log/git-fetch.log $(HOST_TARGET_DOCKER)
 	export VERSION=$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)
 	for vcs_branch in $(VCS_BRANCHES)
 	do
