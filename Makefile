@@ -1120,7 +1120,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    grep -q '^ *Endpoint: *multi-platform *'
 	then
 	    (
-	        docker buildx create --use "multi-platform" || true
+	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
 ./var/log/docker-login-DOCKER.log:
