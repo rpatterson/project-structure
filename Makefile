@@ -581,6 +581,8 @@ clean:
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
 	mkdir -pv "$(dir $(@))"
+# Workaround broken interactive session detection:
+	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
 	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
