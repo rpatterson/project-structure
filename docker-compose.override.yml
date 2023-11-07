@@ -56,7 +56,7 @@ services:
       context: "./build-host/"
       args:
         BUILDKIT_INLINE_CACHE: "1"
-        USER_SIGNINGKEY: "${USER_SIGNINGKEY}"
+        USER_SIGNINGKEY: "${USER_SIGNINGKEY:-}"
       cache_from:
         - "${DOCKER_USER:-}/project-structure:build-host"
     privileged: true
