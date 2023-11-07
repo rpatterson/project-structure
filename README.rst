@@ -140,6 +140,10 @@ have or better yet submit a PR with corrections.
 
      $ git grep "TEMPLATE"
 
+#. Update the project ``./logo.png`` and ``./logo.svg`` logo files.
+
+#. Update `the project Matrix room`_.
+
 Lastly, remove this `Template usage`_ section and update the rest of this
 ``./README.rst`` for your project. When the template adds fixes and features, merge them
 into your project and repeat steps 3--5.
@@ -173,9 +177,9 @@ Install by using any tool for installing standard Python 3 distributions such as
 Contributing
 ****************************************************************************************
 
-`GitLab hosts this project`_ and `mirrors it to GitHub`_ but use GitLab for reporting
-issues, submitting pull or merge requests and any other development or maintenance
-activity. See `the contributing documentation`_ for more details on how to get started
+`GitLab hosts this project`_ and `mirrors it to GitHub`_. Use GitLab for `reporting
+issues`_ or `submitting pull or merge requests`_. Join `the project Matrix room`_ for
+discussion. See `the contributing documentation`_ for more details on how to get started
 with development.
 
 
@@ -219,3 +223,8 @@ References
    https://gitlab.com/rpatterson/project-structure
 .. _`mirrors it to GitHub`:
    https://github.com/rpatterson/project-structure
+.. _`reporting issues`: https://gitlab.com/rpatterson/project-structure/-/issues/new
+.. _`submitting pull or merge requests`:
+   https://gitlab.com/rpatterson/project-structure/-/merge_requests/new
+.. _`the project Matrix room`:
+   https://matrix.to/#/#rpatterson_project-structure:matrix.org

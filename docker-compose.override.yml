@@ -8,6 +8,19 @@
 version: "3.8"
 
 services:
+  # https://github.com/hadolint/hadolint#how-to-use
+  hadolint:
+    image: "ghcr.io/hadolint/hadolint"
+    profiles:
+      - "test"
+    environment:
+      TZ: "${TZ:-Etc/UTC}"
+    volumes:
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/"
+    command: >-
+      hadolint "./Dockerfile"
+
   reuse:
     image: "docker.io/fsfe/reuse:latest-debian"
     profiles:
@@ -33,17 +46,38 @@ services:
     command: >-
       .
 
-  pandoc:
-    image: "docker.io/pandoc/core"
+  ## Containers for simulating CI/CD:
+
+  build-host:
+    image: "${DOCKER_USER:-}/project-structure:build-host"
     profiles:
-      - "release"
-    user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
+      - "ci"
+    build:
+      context: "./build-host/"
+      args:
+        BUILDKIT_INLINE_CACHE: "1"
+        USER_SIGNINGKEY: "${USER_SIGNINGKEY:-}"
+      cache_from:
+        - "${DOCKER_USER:-}/project-structure:build-host"
+    privileged: true
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
-    entrypoint: "ash"
-    # Strip reStructuredText directives unsupported in Markdown:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
+      - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
+      - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
+      # Share local SSH authentication to repository remotes:
+      - "~/.ssh/:/home/runner/.ssh/"
+      - "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}\
+        :${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
+      - "~/.gnupg/:/home/runner/.gnupg/"
+      - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
+    env_file: "./.env"
+    environment:
+      TZ: "${TZ:-Etc/UTC}"
+      PUID: "${PUID:-1000}"
+      PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
+      SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
+      # DEBUG: "true"
+    working_dir: "${CHECKOUT_DIR:-.}"
     command: >-
-      -xeu -c '
-        grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
-        pandoc -f "rst" -t "markdown" -o "./README.md"
-      '
+      make -O -j -e release-all

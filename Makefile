@@ -15,6 +15,7 @@ export PROJECT_NAMESPACE=rpatterson
 export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
 NPM_SCOPE=rpattersonnet
+export DOCKER_USER=merpatterson
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
@@ -69,6 +70,11 @@ HOST_PKG_NAMES_PIP=py3-pip
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
+# Detect Docker command-line baked into the build-host image:
+HOST_TARGET_DOCKER:=$(shell which docker)
+ifeq ($(HOST_TARGET_DOCKER),)
+HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
+endif
 
 # Values derived from the environment:
 USER_NAME:=$(shell id -u -n)
@@ -166,28 +172,6 @@ VCS_COMPARE_BRANCH=main
 endif
 VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
-# Tolerate detached `HEAD`, such as during a rebase:
-VCS_FETCH_TARGETS=
-ifneq ($(VCS_BRANCH),)
-# Assemble the targets used to avoid redundant fetches during release tasks:
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)
-endif
-# Also fetch develop for merging back in the final release:
-VCS_RELEASE_FETCH_TARGETS=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifeq ($(VCS_BRANCH),main)
-VCS_RELEASE_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-endif
-endif
-endif
-ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
-endif
-endif
 
 # Run Python tools in isolated environments managed by Tox:
 # Values used to run Tox:
@@ -201,6 +185,8 @@ endif
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
 TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_DEFAULT_ENV)"
 TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build"
+TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
+    sphinx-lint doc8 restructuredtext-lint proselint
 PIP_COMPILE_EXTRA=
 
 # Values used for publishing releases:
@@ -248,7 +234,7 @@ all: build
 
 .PHONY: build
 ## Perform any necessary local setup common to most operations.
-build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_PREFIX)/bin/docker \
+build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log \
 		$(PYTHON_ENVS:%=./.tox/%/bin/pip-compile)
 	$(MAKE) -e -j $(PYTHON_ENVS:%=build-requirements-%)
@@ -279,8 +265,8 @@ endif
 	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)"
 
 .PHONY: build-pkgs
-## Update the built package for use outside tox.
-build-pkgs: $(HOME)/.local/bin/tox ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
+## Ensure the built package is current.
+build-pkgs: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 # Defined as a .PHONY recipe so that more than one target can depend on this as a
 # pre-requisite and it runs one time:
 	rm -vf ./dist/*
@@ -316,42 +302,93 @@ build-date:
 
 .PHONY: test
 ## Run the full suite of tests, coverage checks, and linters.
-test: $(HOME)/.local/bin/tox test-lint $(PYTHON_ENVS:%=build-requirements-%)
+test: test-lint test-code
+
+.PHONY: test-code
+## Run the full suite of tests and coverage checks.
+test-code: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=build-requirements-%)
 	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
-test-lint: $(HOST_PREFIX)/bin/docker test-lint-code test-lint-docs test-lint-prose
-# Lint copyright and licensing:
+test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
+		test-lint-licenses
+
+.PHONY: test-lint-licenses
+## Lint copyright and license annotations for all files tracked in VCS.
+test-lint-licenses: ./var/log/docker-compose-network.log
 	docker compose run --rm -T "reuse"
 
 .PHONY: test-lint-code
 ## Lint source code for errors, style, and other issues.
-test-lint-code: ./var/log/npm-install.log
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:code
+test-lint-code: test-lint-code-prettier
+.PHONY: test-lint-code-prettier
+## Lint source code for formatting with Prettier.
+test-lint-code-prettier: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run lint:prettier
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: $(HOME)/.local/bin/tox ./requirements/$(PYTHON_HOST_ENV)/build.txt
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-docs.sh'
+test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
+		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
+		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+# TODO: Audit what checks all tools perform and remove redundant tools.
+.PHONY: test-lint-docs-rstcheck
+## Lint documentation for formatting errors and other issues with rstcheck.
+test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
+# Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
+# `.. include:: ../README.rst` directive breaks `$ rstcheck`:
+#     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
+# Also exclude `./NEWS*.rst` because it's duplicate headings cause:
+#     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
+.PHONY: test-lint-docs-sphinx-build
+## Test that the documentation can build successfully with sphinx-build.
+test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-linkcheck
+## Test the documentation for broken links.
+test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-lint
+## Test the documentation for formatting errors with sphinx-lint.
+test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' | xargs -r -0 -- \
+	    "$(<:%/.tox-info.json=%/bin/sphinx-lint)" -e "all" -d "line-too-long"
+.PHONY: test-lint-docs-doc8
+## Test the documentation for formatting errors with doc8.
+test-lint-docs-doc8: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
+.PHONY: test-lint-docs-restructuredtext-lint
+## Test the documentation for formatting errors with restructuredtext-lint.
+test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
-## Lint prose text for spelling, grammar, and style
-test-lint-prose: $(HOST_PREFIX)/bin/docker $(HOME)/.local/bin/tox \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt ./var/log/npm-install.log
-# Lint all markup files tracked in VCS with Vale:
+## Lint prose text for spelling, grammar, and style.
+test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
+		test-lint-prose-vale-misc test-lint-prose-proselint \
+		test-lint-prose-write-good test-lint-prose-alex
+.PHONY: test-lint-prose-vale-markup
+## Lint prose in all markup files tracked in VCS with Vale.
+test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
 	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
-# Lint all source code files tracked in VCS with Vale:
+.PHONY: test-lint-prose-vale-code
+## Lint comment prose in all source code files tracked in VCS with Vale.
+test-lint-prose-vale-code: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z \
 	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
-# Lint source code files tracked in VCS but without extensions with Vale:
+.PHONY: test-lint-prose-vale-misc
+## Lint source code files tracked in VCS but without extensions with Vale.
+test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -359,19 +396,36 @@ test-lint-prose: $(HOST_PREFIX)/bin/docker $(HOME)/.local/bin/tox \
 	            docker compose run --rm -T vale --config="./styles/code.ini" \
 	                --ext=".pl"
 	    done
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-prose.sh'
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:prose
+.PHONY: test-lint-prose-proselint
+## Lint prose in all markup files tracked in VCS with proselint.
+test-lint-prose-proselint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
+	    --config "./.proselintrc.json"
+.PHONY: test-lint-prose-write-good
+## Lint prose in all files tracked in VCS with write-good.
+test-lint-prose-write-good: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:write-good"
+.PHONY: test-lint-prose-alex
+## Lint prose in all files tracked in VCS with alex.
+test-lint-prose-alex: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:alex"
 
 .PHONY: test-debug
 ## Run tests directly on the system and start the debugger on errors or failures.
 test-debug: $(HOME)/.local/bin/tox
 	$(TOX_EXEC_ARGS) -- pytest --pdb
 
+.PHONY: test-lint-docker
+## Check the style and content of the `./Dockerfile*` files
+test-lint-docker: ./var/log/docker-compose-network.log
+	docker compose pull --quiet hadolint
+	git ls-files -z '*Dockerfile*' |
+	    xargs -0 -- docker compose run -T hadolint hadolint
+
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: $(VCS_FETCH_TARGETS) $(HOME)/.local/bin/tox
+test-push: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -407,6 +461,22 @@ test-clean:
 	    false
 	fi
 
+.PHONY: test-worktree-%
+## Build then run all tests from a new checkout in a clean container.
+test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
+	$(MAKE) -e -C "./build-host/" build
+	if git worktree list --porcelain | grep \
+	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
+	then
+	    git worktree remove "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	fi
+	git worktree add -B "$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	cp -v "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
+	docker compose run --workdir \
+	    "$(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    --rm -T build-host
+
 
 ### Release Targets:
 #
@@ -430,14 +500,17 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: $(VCS_RELEASE_FETCH_TARGETS) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log
+release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
 	    echo "CRITICAL: Cannot bump version with staged changes"
 	    false
 	fi
+ifeq ($(VCS_BRANCH),main)
+# Also fetch develop for merging back in the final release:
+	git fetch --tags "$(VCS_COMPARE_REMOTE)" "develop"
+endif
 # Update the local branch to the forthcoming version bump commit:
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 	exit_code=0
@@ -487,6 +560,15 @@ ifeq ($(VCS_BRANCH),main)
 	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
+	$(MAKE) test-clean
+
+.PHONY: release-all
+## Run the whole release process, end to end.
+release-all: test-push test
+# Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
+# running as much of the process as possible with `$ make -j`:
+	$(MAKE) release
+	$(MAKE) test-clean
 
 
 ### Development Targets:
@@ -495,7 +577,8 @@ endif
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: $(HOST_PREFIX)/bin/docker ./var/log/npm-install.log $(HOME)/.local/bin/tox
+devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
+		$(HOME)/.local/bin/tox
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
 	    ':!newsfragments/*' ':!NEWS*.rst' ':!styles/*/meta.json' \
@@ -538,7 +621,7 @@ devel-upgrade: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=./.tox/%/bin/pip-compile)
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
+devel-upgrade-branch: ./var/log/git-fetch.log
 	if ! $(MAKE) -e "test-clean"
 	then
 	    set +x
@@ -569,8 +652,9 @@ devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 
 .PHONY: devel-merge
 ## Merge this branch with a suffix back into its un-suffixed upstream.
-devel-merge: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
+devel-merge: ./var/log/git-fetch.log
 	merge_rev="$$(git rev-parse HEAD)"
+	git fetch "$(VCS_REMOTE)" "$(VCS_MERGE_BRANCH)"
 	git switch -C "$(VCS_MERGE_BRANCH)" --track "$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)"
 	git merge --ff --gpg-sign -m \
 	    $$'Merge branch \'$(VCS_BRANCH)\' into $(VCS_MERGE_BRANCH)\n\n[ci merge]' \
@@ -584,6 +668,7 @@ devel-merge: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
 .PHONY: clean
 ## Restore the checkout to an initial clone state.
 clean:
+	docker compose down --remove-orphans --rmi "all" -v || true
 	$(TOX_EXEC_BUILD_ARGS) -- pre-commit uninstall \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
@@ -622,34 +707,48 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	$(TOX_EXEC_BUILD_ARGS) -- cz init
 
+# Create the Docker compose network a single time under parallel make:
+./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
+	mkdir -pv "$(dir $(@))"
+# Workaround broken interactive session detection:
+	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
+	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
+
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
 	$(call expand_template,$(<),$(@))
-
-./README.md: README.rst
-	$(MAKE) "$(HOST_PREFIX)/bin/docker"
-	docker compose run --rm "pandoc"
 
 
 ### Development Tools:
 
 # VCS configuration and integration:
-# Retrieve VCS data needed for versioning, tags, and releases, release notes:
-$(VCS_FETCH_TARGETS): ./.git/logs/HEAD
+# Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
+# it's own target to avoid redundant fetches during release tasks:
+./var/log/git-fetch.log:
+	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
 	then
 	    git_fetch_args+=" --unshallow"
 	fi
-	branch_path="$(@:var/git/refs/remotes/%=%)"
-	mkdir -pv "$(dir $(@))"
-	if ! git fetch $${git_fetch_args} "$${branch_path%%/*}" "$${branch_path#*/}" |&
+ifneq ($(VCS_BRANCH),)
+	if ! git fetch $${git_fetch_args} "$(VCS_REMOTE)" "$(VCS_BRANCH)" |&
 	    tee -a "$(@)"
 	then
-# If the local branch doesn't exist, fall back to the pre-release branch:
-	    git fetch $${git_fetch_args} "$${branch_path%%/*}" "develop" |&
-	        tee -a "$(@)"
+# If the branch is only local, fall back to the pre-release branch:
+	    git fetch $${git_fetch_args} "$(VCS_REMOTE)" "develop" |& tee -a "$(@)"
 	fi
+ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
+# Fetch any upstream VCS data that forks need:
+	git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)" |& tee -a "$(@)"
+endif
+ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+	git fetch "$(VCS_COMPARE_REMOTE)" "develop" |& tee -a "$(@)"
+endif
+endif
+endif
+	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
 ./var/log/git-ls-files.log: build-date
 	mkdir -pv "$(dir $(@))"
@@ -679,8 +778,8 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	$(TOX_EXEC_BUILD_ARGS) -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini ./.env.~out~
-	$(MAKE) "$(HOST_PREFIX)/bin/docker"
+./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
+	$(MAKE) "./var/log/docker-compose-network.log"
 	docker compose run --rm vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
@@ -709,6 +808,7 @@ $(HOME)/.nvm/nvm.sh:
 	    | bash
 
 # Manage Python tools:
+
 # Targets used as pre-requisites to ensure virtual environments managed by tox have been
 # created so other targets can use them directly to save Tox's startup time when they
 # don't need Tox's logic about when to update/recreate them, e.g.:
@@ -717,21 +817,27 @@ $(HOME)/.nvm/nvm.sh:
 $(PYTHON_ALL_ENVS:%=./.tox/%/bin/pip-compile):
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/bin/pip-compile=%)" --notest
-$(HOME)/.local/bin/tox:
-	$(MAKE) "$(HOME)/.local/bin/pipx"
+
+./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_HOST_ENV)/build.txt
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+
+$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
-$(HOME)/.local/bin/pipx:
-	$(MAKE) "$(HOST_PREFIX)/bin/pip3"
+	touch "$(@)"
+$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 # https://pypa.github.io/pipx/installation/#install-pipx
 	pip3 install --user "pipx"
 	python3 -m pipx ensurepath
+	touch "$(@)"
 $(HOST_PREFIX)/bin/pip3:
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
 
 # Manage tools in containers:
-$(HOST_PREFIX)/bin/docker:
+$(HOST_TARGET_DOCKER):
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_DOCKER)"
 	docker info
@@ -761,9 +867,6 @@ $(STATE_DIR)/log/host-update.log:
 #
 # Snippets used several times, including in different recipes:
 # https://www.gnu.org/software/make/manual/html_node/Call-Function.html
-
-# Return the most recent built package:
-current_pkg=$(shell ls -t ./dist/*$(1) | head -n 1)
 
 # Have to use a placeholder `*.~out~` target instead of the real expanded template
 # because targets can't disable `.DELETE_ON_ERROR` on a per-target basis.
@@ -884,3 +987,13 @@ endef
 # otherwise approachable to developers who might not have significant familiarity with
 # Make. If you have good, pragmatic reasons to add use of further features, make the
 # case for them but avoid them if possible.
+
+
+### Maintainer targets:
+#
+# Recipes not used during the usual course of development.
+
+.PHONY: bootstrap-project
+bootstrap-project:
+# Reproduce an isolated, clean build in a Docker image to reproduce build issues:
+	$(MAKE) -e -C "./build-host/" build

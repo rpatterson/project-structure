@@ -4,21 +4,21 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Run prose linters implemented in Python.
+# Wrapper for running the Dockerfile linter in a container.
 
 set -eu -o pipefail
 shopt -s inherit_errexit
-if test "${DEBUG:=false}" = "true"
+if test -n "${DEBUG:=}"
 then
     # Echo commands for easier debugging
-    set -x
     PS4='$0:$LINENO+'
+    set -x
 fi
 
 
 main() {
-    set -x
-    git ls-files -z '*.rst' | xargs -r -0 -- proselint --config "./.proselintrc.json"
+    # Delegate to the container
+    exec docker compose run --rm hadolint "$@"
 }
 
 
