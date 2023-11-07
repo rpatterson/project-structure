@@ -14,10 +14,14 @@ services:
       /project-structure:user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
-      context: "${CHECKOUT_DIR:-.}/"
+      context: "./"
       target: "user"
       args:
+        BUILDKIT_INLINE_CACHE: "1"
         VERSION: "${VERSION:-}"
+      cache_from:
+        - "${DOCKER_USER:?}/project-structure\
+          :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
 
@@ -29,10 +33,14 @@ services:
     profiles:
       - "test"
     build:
-      context: "${CHECKOUT_DIR:-.}/"
+      context: "./"
       target: "devel"
       args:
+        BUILDKIT_INLINE_CACHE: "1"
         VERSION: "${VERSION:-}"
+      cache_from:
+        - "${DOCKER_USER:?}/project-structure\
+          :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:
@@ -145,7 +153,13 @@ services:
       :build-host"
     profiles:
       - "ci"
-    build: "${CHECKOUT_DIR:-.}/build-host/"
+    build:
+      context: "./build-host/"
+      args:
+        BUILDKIT_INLINE_CACHE: "1"
+        USER_SIGNINGKEY: "${USER_SIGNINGKEY}"
+      cache_from:
+        - "${DOCKER_USER:-}/project-structure:build-host"
     privileged: true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"

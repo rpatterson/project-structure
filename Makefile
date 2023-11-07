@@ -362,13 +362,15 @@ all: build
 
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
-start: ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
+start: $(HOST_TARGET_DOCKER) \
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
+run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) \
+		./.env.~out~
 	docker compose down
 	docker compose up
 
@@ -554,7 +556,8 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define test_docker_template=
-test-docker-$(1): $$(HOST_TARGET_DOCKER) ./var-docker/log/$(1)/build-devel.log
+test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
+		./var-docker/log/$(1)/build-devel.log
 	docker_run_args="--rm"
 	if test ! -t 0
 	then
@@ -765,7 +768,7 @@ test-clean:
 
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
-test-worktree-%: ./.env.~out~
+test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	$(MAKE) -e -C "./build-host/" build
 	if git worktree list --porcelain | grep \
 	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
@@ -860,7 +863,7 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log ./.env.~out~
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -1121,7 +1124,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    ) |& tee -a "$(@)"
 	fi
 ./var/log/docker-login-DOCKER.log:
-	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
+	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"
 	then
@@ -1135,7 +1138,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # TEMPLATE: Add a cleanup rule for the GitLab container registry under the project
 # settings.
 ./var/log/docker-login-GITLAB.log:
-	$(MAKE) "./.env.~out~"
+	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${CI_REGISTRY_PASSWORD}"
 	then
@@ -1150,7 +1153,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # TEMPLATE: Connect the GitHub container registry to the repository by using the
 # `Connect` button at the bottom of the container registry's web UI.
 ./var/log/docker-login-GITHUB.log:
-	$(MAKE) "./.env.~out~"
+	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${PROJECT_GITHUB_PAT}"
 	then
@@ -1166,6 +1169,8 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
 	mkdir -pv "$(dir $(@))"
+# Workaround broken interactive session detection:
+	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
 	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
