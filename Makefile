@@ -376,7 +376,7 @@ test-clean:
 
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
-test-worktree-%: ./.env.~out~
+test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	$(MAKE) -e -C "./build-host/" build
 	if git worktree list --porcelain | grep \
 	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
@@ -408,8 +408,7 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log
+release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
