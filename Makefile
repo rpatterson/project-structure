@@ -442,7 +442,10 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
 	echo "$${docker_image}:$${target_variant}-$(DOCKER_BRANCH_TAG)"
 # Print only the branch tag if this image variant is the default variant:
 ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	echo "$${docker_image}:$(DOCKER_BUILD_TARGET)-$(DOCKER_BRANCH_TAG)"
+ifeq ($(DOCKER_BUILD_TARGET),user)
 	echo "$${docker_image}:$(DOCKER_BRANCH_TAG)"
+endif
 endif
 # Print any other unqualified or default tags only for images built from the `main`
 # branch.  Users can count on these to be stable:
