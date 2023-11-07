@@ -81,6 +81,11 @@ build-test:
         )
         && $CI_PIPELINE_SOURCE != "schedule"
   interruptible: true
+  parallel:
+    matrix:
+      - DOCKER_VARIANT_OSES:
+          - "debian"
+      - DOCKER_VARIANT_LANGUAGES: []
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-

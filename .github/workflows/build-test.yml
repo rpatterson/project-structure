@@ -73,7 +73,14 @@ jobs:
     permissions:
       packages: "write"
       checks: "write"
-    name: "build-test"
+    strategy:
+      matrix:
+        DOCKER_VARIANT_OSES:
+          - "debian"
+        DOCKER_VARIANT_LANGUAGES: []
+    name: >-
+      build-test
+      ({{ matrix.DOCKER_VARIANT_OSES }}-{{ matrix.DOCKER_VARIANT_LANGUAGES }})
     steps:
       # Shared or common set up:
       - name: "Checkout source from VCS"
@@ -115,7 +122,9 @@ jobs:
       #       )
       #     )
       #   with:
-      #     name: "Test Suite Reports"
+      #     name: >-
+      #       Test Suite Reports
+      #       ({{ matrix.DOCKER_VARIANT_OSES }}-{{ matrix.DOCKER_VARIANT_LANGUAGES }})
       #     path: >-
       #       ./build/reports/*unit.xml
       #     reporter: "java-junit"
