@@ -295,13 +295,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) \
+run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -391,10 +391,13 @@ build-date:
 ## Set up for development in Docker containers.
 build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-%)
-$(DOCKER_VARIANTS:%=build-docker-%): build-pkgs
-	$(MAKE) PYTHON_WHEEL="$(call current_pkg,.whl)" \
-	    "$(@:build-docker-%=./var-docker/log/%/build-devel.log)" \
-	    "$(@:build-docker-%=./var-docker/log/%/build-user.log)"
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define build_docker_template=
+build-docker-$(1): build-pkgs ./var-docker/log/$(1)/build-devel.log \
+		./var-docker/log/$(1)/build-user.log
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
 .PHONY: build-docker-tags
 ## Print the list of tags for this image variant in all registries.
@@ -456,6 +459,20 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
+ifeq ($(DOCKER_BUILD_PULL),true)
+# Pull the image and simulate building it here:
+ifneq ($(DOCKER_BUILD_TARGET),base)
+	target="devel"
+else
+	target="$(DOCKER_BUILD_TARGET)"
+endif
+	docker image pull --quiet "$(DOCKER_IMAGE)\
+	:$${target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
+	docker image ls --digests "$(
+	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
+	)" | tee -a "$(@)"
+	exit
+endif
 	export PYTHON_ENV="$${DOCKER_VARIANT##*-}"
 	export PYTHON_MINOR="$$(
 	    echo $${PYTHON_ENV} | sed -nE -e 's|py([0-9])([0-9]+)|\1.\2|p'
@@ -465,14 +482,16 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 # Assemble the tags for all the variant permutations:
 	$(MAKE) "./var/log/git-fetch.log"
 	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
+ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
 	    $(MAKE) -e --no-print-directory build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
 	done
+endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
-	docker buildx build $(DOCKER_BUILD_ARGS) \
+	docker buildx build --progress plain $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
 	    --build-arg PYTHON_MINOR="$(PYTHON_MINOR)" \
 	    --build-arg PYTHON_ENV="$(PYTHON_ENV)" \
@@ -513,8 +532,6 @@ test-debug: $(HOME)/.local/bin/tox
 ## Run the full suite of tests, coverage checks, and code linters in all variants.
 test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
-# Need to use `$(eval $(call))` to reference the variant in the target *and*
-# prerequisite:
 define test_docker_template=
 test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
 		./var-docker/log/$(1)/build-devel.log
@@ -787,8 +804,6 @@ endif
 release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
 	$(MAKE) -e test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
-# Need to use `$(eval $(call))` to reference the variant in the target *and*
-# prerequisite:
 define release_docker_template=
 release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
 		./var-docker/log/$(1)/build-user.log \
@@ -813,8 +828,7 @@ endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
 .PHONY: release-docker-readme
 ## Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version.
-release-docker-readme: ./var/log/docker-compose-network.log \
-		$(DOCKER_VARIANTS:%=release-docker-%)
+release-docker-readme: ./var/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
 	if TEST "$${PYTHON_ENV}" = "$(PYTHON_HOST_ENV)"
@@ -1058,45 +1072,53 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 ## Docker real targets:
 
 # Build Docker container images.
-# Build the development image:
-$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log): ./Dockerfile ./.dockerignore \
-		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
-		./var/log/docker-compose-network.log ./.cz.toml ./pyproject.toml \
-		./setup.cfg
+# Build the shared base image:
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
+		./bin/entrypoint.sh ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$(dir $(@))"
+	$(MAKE) -e DOCKER_BUILD_TARGET="base" build-docker-build | tee -a "$(@)"
+# Build the development image:
+define build_docker_devel_template=
+./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
+		./var-docker/log/$(1)/build-base.log
+	true DEBUG Updated prereqs: $$(?)
+	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-devel.log=%)"
+	mkdir -pv "$$(dir $$(@))"
+	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$$(@)"
 ifeq ($(DOCKER_BUILD_PULL),true)
-# Pull the development image and simulate building it here:
-	docker compose pull --quiet $(PROJECT_NAME)-devel
-	docker image ls --digests "$(
-	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
-	)" | tee -a "$(@)"
 # Ensure the virtualenv in the volume is also current:
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
 	    tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
-	exit
-endif
-	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$(@)"
+else
 # Initialize volumes contents.  Also update the pinned/frozen versions, if needed, using
 # the container.  If changed, then the container image might need re-building to ensure
 # it's current and correct:
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
 	    make -e PYTHON_MINORS="$(PYTHON_MINOR)" build-requirements-$(PYTHON_ENV)
 	$(MAKE) -e "$(@)"
-# Build the end-user image:
-$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log): ./Dockerfile ./.dockerignore \
-		./bin/entrypoint.sh
-	true DEBUG Updated prereqs: $(?)
-	export DOCKER_VARIANT="$(@:var-docker/log/%/build-user.log=%)"
-ifeq ($(PYTHON_WHEEL),)
-	$(MAKE) -e "build-pkgs"
-	PYTHON_WHEEL="$$(ls -t ./dist/*.whl | head -n 1)"
 endif
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval \
+    $(call build_docker_devel_template,$(variant))))
+# Build the end-user image:
+define build_docker_user_template=
+./var-docker/log/$(1)/build-user.log: ./Dockerfile ./var-docker/log/$(1)/build-base.log
+	true DEBUG Updated prereqs: $$(?)
+	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
+	mkdir -pv "$$(dir $$(@))"
 # Build the user image after building all required artifacts:
-	mkdir -pv "$(dir $(@))"
-	$(MAKE) -e DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) \
-	--build-arg PYTHON_WHEEL=$${PYTHON_WHEEL}" build-docker-build | tee -a "$(@)"
+ifeq ($$(PYTHON_WHEEL),)
+	$$(MAKE) -e "build-pkgs"
+	PYTHON_WHEEL="$$$$(ls -t ./dist/*.whl | head -n 1)"
+endif
+	$$(MAKE) -e DOCKER_BUILD_ARGS="$$(DOCKER_BUILD_ARGS) \
+	--build-arg PYTHON_WHEEL=$$$${PYTHON_WHEEL}" build-docker-build |
+	    tee -a "$$(@)"
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval \
+    $(call build_docker_user_template,$(variant))))
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
