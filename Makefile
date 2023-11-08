@@ -228,13 +228,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) \
+run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -293,7 +293,7 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): build-pkgs ./var-docker/log/$(1)/build-devel.log) \
+build-docker-$(1): build-pkgs ./var-docker/log/$(1)/build-devel.log \
 		./var-docker/log/$(1)/build-user.log
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
