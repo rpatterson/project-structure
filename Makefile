@@ -366,7 +366,7 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 	    docker_build_args+=" --tag $${image_tag}"
 	done
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
-	docker buildx build $(DOCKER_BUILD_ARGS) \
+	docker buildx build --progress plain $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
 	    --build-arg VERSION="$$(
 	        tox exec -e "build" -qq -- cz version --project
