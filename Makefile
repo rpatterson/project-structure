@@ -315,28 +315,29 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 ## Set up everything for development from a checkout, local and in containers.
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log build-docker \
-		$(PYTHON_ENVS:%=./.tox/%/bin/pip-compile)
-	$(MAKE) -e $(PYTHON_ENVS:%=build-requirements-%)
+		$(PYTHON_ENVS:%=build-requirements-%)
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
-$(PYTHON_ENVS:%=build-requirements-%):
-# Avoid parallel tox recreations stomping on each other
-	$(MAKE) -e "$(@:build-requirements-%=./.tox/%/bin/pip-compile)"
-	targets="./requirements/$(@:build-requirements-%=%)/user.txt \
-	    $(PYTHON_EXTRAS:%=./requirements/$(@:build-requirements-%=%)/%.txt) \
-	    ./requirements/$(@:build-requirements-%=%)/build.txt"
+define build_requirements_template=
+build-requirements-$(1):
 # Workaround race conditions in pip's HTTP file cache:
 # https://github.com/pypa/pip/issues/6970#issuecomment-527678672
-	$(MAKE) -e -j $${targets} ||
-	    $(MAKE) -e -j $${targets} ||
-	    $(MAKE) -e -j $${targets}
+	targets="./requirements/$(1)/user.txt \
+	$$(PYTHON_EXTRAS:%=./requirements/$(1)/%.txt) \
+	./requirements/$(1)/build.txt"
+	$$(MAKE) -e $$$${targets} || $$(MAKE) -e $$$${targets} ||
+	    $$(MAKE) -e $$$${targets}
+endef
+$(foreach python_env,$(PYTHON_ENVS),$(eval \
+    $(call build_requirements_template,$(python_env))))
 
 .PHONY: build-requirements-compile
 ## Compile the requirements for one Python version and one type/extra.
 build-requirements-compile:
 	$(MAKE) -e "./.tox/$(PYTHON_ENV)/bin/pip-compile"
-	pip_compile_opts="--resolver backtracking --strip-extras $(PIP_COMPILE_ARGS)"
+	pip_compile_opts="--strip-extras --generate-hashes --allow-unsafe \
+	$(PIP_COMPILE_ARGS)"
 ifneq ($(PIP_COMPILE_EXTRA),)
 	pip_compile_opts+=" --extra $(PIP_COMPILE_EXTRA)"
 endif
@@ -956,17 +957,25 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 	    "./tests/$(PYTHON_PROJECT_PACKAGE)tests/"
 
 .PHONY: devel-upgrade
+## Update requirements, dependencies, and other external versions tracked in VCS.
+devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
+.PHONY: devel-upgrade-requirements
 ## Update all locked or frozen dependencies to their most recent available versions.
-devel-upgrade: $(HOME)/.local/bin/tox $(HOST_TARGET_DOCKER) ./.env.~out~ build-docker
+devel-upgrade-requirements:
 	touch "./setup.cfg" "./requirements/build.txt.in"
 # Ensure the network is create first to avoid race conditions
 	docker compose create $(PROJECT_NAME)-devel
-	$(MAKE) -e -j PIP_COMPILE_ARGS="--upgrade" \
+	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
 	    DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
 	    $(PYTHON_MINORS:%=build-docker-requirements-%)
-# Update VCS integration from remotes to the most recent tag:
+.PHONY: devel-upgrade-pre-commit
+## Update VCS hooks from remotes to the most recent tag.
+devel-upgrade-pre-commit: $(HOME)/.local/bin/tox \
+		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox exec -e "build" -- pre-commit autoupdate
-# Update the Vale style rule definitions:
+.PHONY: devel-upgrade-vale
+## Update the Vale style rule definitions.
+devel-upgrade-vale:
 	touch "./.vale.ini" "./styles/code.ini"
 	$(MAKE) "./var/log/vale-rule-levels.log"
 
@@ -1038,27 +1047,33 @@ clean:
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
-python_combine_requirements=$(PYTHON_ENVS:%=./requirements/%/$(1).txt)
-$(foreach extra,$(PYTHON_EXTRAS),$(call python_combine_requirements,$(extra))): \
-		./pyproject.toml ./setup.cfg ./tox.ini
-	true DEBUG Updated prereqs: $(?)
-	extra_basename="$$(basename "$(@)")"
-	$(MAKE) -e PYTHON_ENV="$$(basename "$$(dirname "$(@)")")" \
-	    PIP_COMPILE_EXTRA="$${extra_basename%.txt}" \
-	    PIP_COMPILE_SRC="$(<)" PIP_COMPILE_OUT="$(@)" \
+define build_requirements_user_template=
+./requirements/$(1)/user.txt: ./setup.cfg ./.tox/$(1)/bin/pip-compile
+	true DEBUG Updated prereqs: $$(?)
+	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/user.txt=%)" \
+	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
+endef
+$(foreach python_env,$(PYTHON_ENVS),$(eval \
+    $(call build_requirements_user_template,$(python_env))))
+define build_requirements_extra_template=
+./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/$(1)/bin/pip-compile
+	true DEBUG Updated prereqs: $$(?)
+	extra_basename="$$$$(basename "$$(@)")"
+	$$(MAKE) -e PYTHON_ENV="$$$$(basename "$$$$(dirname "$$(@)")")" \
+	    PIP_COMPILE_EXTRA="$$$${extra_basename%.txt}" \
+	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" \
 	    build-requirements-compile
-	mkdir -pv "./var/log/"
-	touch "./var/log/rebuild.log"
-$(PYTHON_ENVS:%=./requirements/%/user.txt): ./pyproject.toml ./setup.cfg ./tox.ini
-	true DEBUG Updated prereqs: $(?)
-	$(MAKE) -e PYTHON_ENV="$(@:requirements/%/user.txt=%)" PIP_COMPILE_SRC="$(<)" \
-	    PIP_COMPILE_OUT="$(@)" build-requirements-compile
-	mkdir -pv "./var/log/"
-	touch "./var/log/rebuild.log"
-$(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
-	true DEBUG Updated prereqs: $(?)
-	$(MAKE) -e PYTHON_ENV="$(@:requirements/%/build.txt=%)" PIP_COMPILE_SRC="$(<)" \
-	    PIP_COMPILE_OUT="$(@)" build-requirements-compile
+endef
+$(foreach python_env,$(PYTHON_ENVS),$(foreach extra,$(PYTHON_EXTRAS),\
+    $(eval $(call build_requirements_extra_template,$(python_env),$(extra)))))
+define build_requirements_build_template=
+./requirements/$(1)/build.txt: ./requirements/build.txt.in ./.tox/$(1)/bin/pip-compile
+	true DEBUG Updated prereqs: $$(?)
+	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/build.txt=%)" \
+	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
+endef
+$(foreach python_env,$(PYTHON_ENVS),$(eval \
+    $(call build_requirements_build_template,$(python_env))))
 
 # Set up release publishing authentication, useful in automation such as CI:
 ~/.pypirc.~out~: ./home/.pypirc.in
