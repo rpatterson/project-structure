@@ -358,17 +358,33 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
+ifeq ($(DOCKER_BUILD_PULL),true)
+# Pull the image and simulate building it here:
+ifneq ($(DOCKER_BUILD_TARGET),base)
+	target="devel"
+else
+	target="$(DOCKER_BUILD_TARGET)"
+endif
+	docker image pull --quiet "$(DOCKER_IMAGE)\
+	:$${target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
+	docker image ls --digests "$(
+	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
+	)" | tee -a "$(@)"
+	exit
+endif
 # Workaround broken interactive session detection:
 	docker pull "buildpack-deps"
 # Assemble the tags for all the variant permutations:
 	$(MAKE) "./var/log/git-fetch.log"
 	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
+ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
 	    $(MAKE) -e --no-print-directory build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
 	done
+endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build --progress plain $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
@@ -835,33 +851,37 @@ clean:
 
 # Build Docker container images.
 # Build the development image:
-$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log): ./Dockerfile ./.dockerignore \
-		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
-		./var/log/docker-compose-network.log ./.cz.toml
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
+		./bin/entrypoint.sh ./.cz.toml
 	true DEBUG Updated prereqs: $(?)
 	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$(dir $(@))"
-ifeq ($(DOCKER_BUILD_PULL),true)
-# Pull the development image and simulate building it here:
-	docker compose pull --quiet $(PROJECT_NAME)-devel
-	docker image ls --digests "$(
-	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
-	)" | tee -a "$(@)"
-	exit
-endif
-	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$(@)"
+	$(MAKE) -e DOCKER_BUILD_TARGET="base" build-docker-build | tee -a "$(@)"
+define build_docker_devel_template=
+./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
+		./var-docker/log/$(1)/build-base.log
+	true DEBUG Updated prereqs: $$(?)
+	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-devel.log=%)"
+	mkdir -pv "$$(dir $$(@))"
+	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$$(@)"
 # Initialize volumes contents:
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	    true "TEMPLATE: Always specific to the project type"
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval \
+    $(call build_docker_devel_template,$(variant))))
 # Build the end-user image:
-$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log): ./Dockerfile ./.dockerignore \
-		./bin/entrypoint.sh
-	true DEBUG Updated prereqs: $(?)
-	export DOCKER_VARIANT="$(@:var-docker/log/%/build-user.log=%)"
+define build_docker_user_template=
+./var-docker/log/$(1)/build-user.log: ./Dockerfile ./var-docker/log/$(1)/build-base.log
+	true DEBUG Updated prereqs: $$(?)
+	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
 # Build the user image after building all required artifacts:
-	mkdir -pv "$(dir $(@))"
+	mkdir -pv "$$(dir $$(@))"
 # TEMPLATE: Pass the build package for the project type as a build argument:
-	$(MAKE) -e build-docker-build | tee -a "$(@)"
+	$$(MAKE) -e build-docker-build | tee -a "$$(@)"
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval \
+    $(call build_docker_user_template,$(variant))))
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
