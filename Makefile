@@ -290,9 +290,13 @@ build-date:
 ## Set up for development in Docker containers.
 build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-%)
-$(DOCKER_VARIANTS:%=build-docker-%): build-pkgs
-	$(MAKE) "$(@:build-docker-%=./var-docker/log/%/build-devel.log)" \
-	    "$(@:build-docker-%=./var-docker/log/%/build-user.log)"
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define build_docker_template=
+build-docker-$(1): build-pkgs ./var-docker/log/$(1)/build-devel.log) \
+		./var-docker/log/$(1)/build-user.log
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
 .PHONY: build-docker-tags
 ## Print the list of tags for this image variant in all registries.
@@ -395,8 +399,6 @@ test-debug:
 ## Run the full suite of tests, coverage checks, and code linters in all variants.
 test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
-# Need to use `$(eval $(call))` to reference the variant in the target *and*
-# prerequisite:
 define test_docker_template=
 test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
 		./var-docker/log/$(1)/build-devel.log
@@ -630,8 +632,6 @@ endif
 release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
 	$(MAKE) -e test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
-# Need to use `$(eval $(call))` to reference the variant in the target *and*
-# prerequisite:
 define release_docker_template=
 release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
 		./var-docker/log/$(1)/build-user.log \
