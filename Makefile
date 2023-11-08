@@ -653,8 +653,7 @@ endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
 .PHONY: release-docker-readme
 ## Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version.
-release-docker-readme: ./var/log/docker-compose-network.log \
-		$(DOCKER_VARIANTS:%=release-docker-%)
+release-docker-readme: ./var/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
 	$(MAKE) -e "./var/log/docker-login-DOCKER.log"
