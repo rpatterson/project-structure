@@ -67,7 +67,7 @@ importlib-metadata==6.8.0
     #   keyring
     #   sphinx
     #   twine
-importlib-resources==6.1.0
+importlib-resources==6.1.1
     # via towncrier
 incremental==22.10.0
     # via towncrier

@@ -179,7 +179,7 @@ tomli==2.0.1
     #   pyproject-hooks
 tomlkit==0.12.2
     # via pylint
-trove-classifiers==2023.10.18
+trove-classifiers==2023.11.7
     # via pyroma
 typing-extensions==4.8.0
     # via

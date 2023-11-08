@@ -111,16 +111,6 @@ celerybeat-schedule
 .mypy_cache
 **/.mypy_cache
 
-# virtualenv
-venv
-ENV
-
-# Spyder project settings
-.spyderproject
-
-# Rope project settings
-.ropeproject
-
 # Exclude downloaded styles from formatting and linting but include in VCS:
 /styles/*/*
 
@@ -139,3 +129,13 @@ ENV
 
 # VCS artifacts:
 /worktrees
+
+# virtualenv
+venv
+ENV
+
+# Spyder project settings
+.spyderproject
+
+# Rope project settings
+.ropeproject

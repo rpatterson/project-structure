@@ -315,7 +315,8 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 ## Set up everything for development from a checkout, local and in containers.
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log build-docker \
-		$(PYTHON_ENVS:%=build-requirements-%)
+		$(PYTHON_ENVS:%=./.tox/%/bin/pip-compile)
+	$(MAKE) -e $(PYTHON_ENVS:%=build-requirements-%)
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
@@ -772,12 +773,12 @@ release-pkgs: $(HOME)/.local/bin/tox ~/.pypirc.~out~
 ifeq ($(RELEASE_PUBLISH),true)
 	$(MAKE) -e build-pkgs
 # https://twine.readthedocs.io/en/latest/#using-twine
-	$(TOX_EXEC_BUILD_ARGS) -- twine check \
-	    ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
+	tox exec -e "build" -- \
+	    twine check ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
 # The VCS remote should reflect the release before publishing the release to ensure that
-# a published release is never *not* reflected in VCS.
+# a published release is never *not* reflected in VCS:
 	$(MAKE) -e test-clean
-	$(TOX_EXEC_BUILD_ARGS) -- twine upload -s -r "$(PYPI_REPO)" \
+	tox exec -e "build" -- twine upload -s -r "$(PYPI_REPO)" \
 	    ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
 endif
 
@@ -1052,7 +1053,7 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 # Capture any project initialization tasks for reference. Not actually usable.
 ./pyproject.toml:
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	$(TOX_EXEC_BUILD_ARGS) -- cz init
+	tox exec -e "build" -- cz init
 
 ## Docker real targets:
 
@@ -1238,10 +1239,12 @@ $(HOME)/.nvm/nvm.sh:
 $(PYTHON_ALL_ENVS:%=./.tox/%/bin/pip-compile):
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/bin/pip-compile=%)" --notest
+
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
+
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
