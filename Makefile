@@ -332,7 +332,7 @@ test-debug:
 test-lint-docker: ./var/log/docker-compose-network.log
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
-	    xargs -0 -- docker compose run -T hadolint hadolint
+	    xargs -0 -- docker compose run --rm -T hadolint hadolint
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
@@ -648,7 +648,7 @@ endif
 # Update style rule definitions from the remotes:
 ./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
 	$(MAKE) "./var/log/docker-compose-network.log"
-	docker compose run --rm vale sync
+	docker compose run --rm -T vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
 # Editor and IDE support and integration:
