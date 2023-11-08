@@ -11,32 +11,40 @@ services:
   # Configuration specific to development:
   project-structure:
     image: "${DOCKER_USER:?}/project-structure\
-      :${PYTHON_ENV:-py311}-${DOCKER_BRANCH_TAG:-develop}"
+      :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
-      context: "${CHECKOUT_DIR:-.}/"
+      context: "./"
       target: "user"
       args:
+        BUILDKIT_INLINE_CACHE: "1"
         PYTHON_MINOR: "${PYTHON_MINOR:-3.11}"
         PYTHON_ENV: "${PYTHON_ENV:-py311}"
         VERSION: "${VERSION:-}"
+      cache_from:
+        - "${DOCKER_USER:?}/project-structure\
+          :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
 
   # Container for use by developers:
   project-structure-devel:
     image: "${DOCKER_USER:?}/project-structure\
-      :devel-${PYTHON_ENV:-py311}-${DOCKER_BRANCH_TAG:-develop}"
+      :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-devel"
     profiles:
       - "test"
     build:
-      context: "${CHECKOUT_DIR:-.}/"
+      context: "./"
       target: "devel"
       args:
+        BUILDKIT_INLINE_CACHE: "1"
         PYTHON_MINOR: "${PYTHON_MINOR:-3.11}"
         PYTHON_ENV: "${PYTHON_ENV:-py311}"
         VERSION: "${VERSION:-}"
+      cache_from:
+        - "${DOCKER_USER:?}/project-structure\
+          :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:
@@ -114,8 +122,8 @@ services:
     # example tables:
     command: >-
       -xeu -c '
-        grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
-        pandoc -f "rst" -t "gfm" | grep -Ev "^(\+-+\+|\|.*\|)$" >"./README.md"
+      grep -Ev "^ *\.\. +(contents)::.*" "./README.rst" |
+      pandoc -f "rst" -t "gfm" | grep -Ev "^(\+-+\+|\|.*\|)$" >"./README.md"
       '
 
   docker-pushrm:
@@ -136,37 +144,38 @@ services:
       --short "Project structure foundation or template"
       --debug "${DOCKER_USER:-}/project-structure"
 
-  gitlab-release-cli:
-    image: "registry.gitlab.com/gitlab-org/release-cli:latest"
-    profiles:
-      - "release"
-    environment:
-      CI_JOB_TOKEN: "${CI_JOB_TOKEN:-}"
-    volumes:
-      - "./:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/"
-
   ## Containers for simulating CI/CD:
 
   build-host:
     image: "${DOCKER_USER:-}/project-structure:build-host"
     profiles:
       - "ci"
-    build: "${CHECKOUT_DIR:-.}/build-host/"
+    build:
+      context: "./build-host/"
+      args:
+        BUILDKIT_INLINE_CACHE: "1"
+        USER_SIGNINGKEY: "${USER_SIGNINGKEY:-}"
+      cache_from:
+        - "${DOCKER_USER:-}/project-structure:build-host"
     privileged: true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
       - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
       - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      # Share local SSH authentication to repository remotes
+      # Share local SSH authentication to repository remotes:
       - "~/.ssh/:/home/runner/.ssh/"
+      - "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}\
+        :${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
+      - "~/.gnupg/:/home/runner/.gnupg/"
+      - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
+      SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       # DEBUG: "true"
     working_dir: "${CHECKOUT_DIR:-.}"
     command: >-
-      make -e test-lint build-docker test-docker release
+      make -j -O -e release-all

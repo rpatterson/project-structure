@@ -20,21 +20,21 @@ __pycache__
 
 # Distribution / packaging
 .Python
-env
-build
-downloads
-lib
-lib64
-sdist
-var
+/env
+/build
+/downloads
+/lib
+/lib64
+/dist
+/sdist
+/var
+/var-*
 develop-eggs
 eggs
 .eggs
 parts
-/var-*
 /node_modules
 /package-lock.json
-/README.md
 *.egg-info
 **/*.egg-info
 .installed.cfg
@@ -88,7 +88,7 @@ instance
 .scrapy
 
 # Sphinx documentation
-docs/_build
+/docs/_build
 
 # PyBuilder
 target
@@ -107,6 +107,7 @@ celerybeat-schedule
 
 # Linters:
 .tox
+**/.tox
 .mypy_cache
 **/.mypy_cache
 
@@ -135,5 +136,6 @@ ENV
 # Explicit ignores for the Docker build context.
 .local
 **/.local
-.gnupg
-**/.gnupg
+
+# VCS artifacts:
+/worktrees

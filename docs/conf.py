@@ -41,8 +41,13 @@ linkcheck_anchors_ignore = [
     "^!",
     # Tolerate links to source code lines in VCS provider web UIs:
     "^L[0-9]+",
+    # Links to Matrix chat rooms:
+    "^/#.+:.+",
 ]
-linkcheck_ignore = ["https://liberapay.com/.*"]
+linkcheck_ignore = [
+    "https://liberapay.com/.*",
+    "https://gitlab.com/.*/new",
+]
 
 # -- Extension options -------------------------------------------------------
 ogp_site_url = 'http://project-structure.readthedocs.io/'

@@ -189,28 +189,6 @@ VCS_COMPARE_BRANCH=main
 endif
 VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
-# Tolerate detached `HEAD`, such as during a rebase:
-VCS_FETCH_TARGETS=
-ifneq ($(VCS_BRANCH),)
-# Assemble the targets used to avoid redundant fetches during release tasks:
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)
-endif
-# Also fetch develop for merging back in the final release:
-VCS_RELEASE_FETCH_TARGETS=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
-ifeq ($(VCS_BRANCH),main)
-VCS_RELEASE_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_COMPARE_REMOTE)/develop
-endif
-endif
-endif
-ifneq ($(VCS_MERGE_BRANCH),$(VCS_BRANCH))
-VCS_FETCH_TARGETS+=./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
-endif
-endif
 
 # Run Python tools in isolated environments managed by Tox:
 # Values used to run Tox:
@@ -227,18 +205,33 @@ export TOX_RUN_ARGS
 # without Tox's startup time:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
 TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_DEFAULT_ENV)"
-TOX_EXEC_BUILD_ARGS=tox exec $(TOX_EXEC_OPTS) -e "build"
+TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
+    sphinx-lint doc8 restructuredtext-lint proselint
 PIP_COMPILE_EXTRA=
 
 # Values used to build Docker images:
 DOCKER_FILE=./Dockerfile
-export DOCKER_BUILD_ARGS=
+export DOCKER_BUILD_TARGET=user
+DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
-export DOCKER_VARIANT=
-DOCKER_VARIANT_PREFIX=
-ifneq ($(DOCKER_VARIANT),)
-DOCKER_VARIANT_PREFIX=$(DOCKER_VARIANT)-
+DOCKER_VARIANT_OS_DEFAULT=debian
+DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
+DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
+# TEMPLATE: Update for the project language:
+DOCKER_VARIANT_LANGUAGE_DEFAULT=$(PYTHON_DEFAULT_ENV)
+DOCKER_VARIANT_LANGUAGES=$(PYTHON_ENVS)
+DOCKER_VARIANT_LANGUAGE=$(PYTHON_ENV)
+# Build all image variants in parallel:
+ifeq ($(DOCKER_VARIANT_LANGUAGES),)
+DOCKER_VARIANTS=$(DOCKER_VARIANT_OSES)
+DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)
+export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)
+else
+DOCKER_VARIANTS=$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
+    $(DOCKER_VARIANT_OSES:%=%-$(language)))
+DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)-$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
+export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)-$(DOCKER_VARIANT_LANGUAGE)
 endif
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
@@ -301,13 +294,15 @@ all: build
 
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
-start: build-docker-$(PYTHON_MINOR) ./.env.~out~
+start: $(HOST_TARGET_DOCKER) \
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: build-docker ./.env.~out~
+run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log) \
+		./.env.~out~
 	docker compose down
 	docker compose up
 
@@ -318,10 +313,9 @@ run: build-docker ./.env.~out~
 
 .PHONY: build
 ## Set up everything for development from a checkout, local and in containers.
-build: ./.git/hooks/pre-commit ./.env.~out~ $(HOST_TARGET_DOCKER) \
+build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log build-docker \
-		$(PYTHON_ENVS:%=./.tox/%/bin/pip-compile)
-	$(MAKE) -e -j $(PYTHON_ENVS:%=build-requirements-%)
+		$(PYTHON_ENVS:%=build-requirements-%)
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
@@ -349,10 +343,9 @@ endif
 	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)"
 
 .PHONY: build-pkgs
-## Update the built package for use outside tox.
-build-pkgs: $(HOST_TARGET_DOCKER) \
-		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
-		./var-docker/$(PYTHON_ENV)/log/build-devel.log
+## Ensure the built package is current.
+build-pkgs: ./var/log/git-fetch.log ./var/log/docker-compose-network.log \
+	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 # Defined as a .PHONY recipe so that more than one target can depend on this as a
 # pre-requisite and it runs one time:
 	rm -vf ./dist/*
@@ -395,54 +388,63 @@ build-date:
 
 .PHONY: build-docker
 ## Set up for development in Docker containers.
-build-docker: $(HOME)/.local/bin/tox build-pkgs \
-		./var-docker/$(PYTHON_ENV)/log/build-user.log
-	tox run $(TOX_EXEC_OPTS) --notest -e "build"
-	$(MAKE) -e -j PYTHON_WHEEL="$(call current_pkg,.whl)" \
-	    DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --progress plain" \
-	    $(PYTHON_MINORS:%=build-docker-%)
-
-.PHONY: $(PYTHON_MINORS:%=build-docker-%)
-## Set up for development in a Docker container for one Python version.
-$(PYTHON_MINORS:%=build-docker-%):
-	$(MAKE) -e \
-	    PYTHON_MINORS="$(@:build-docker-%=%)" \
-	    PYTHON_MINOR="$(@:build-docker-%=%)" \
-	    PYTHON_ENV="py$(subst .,,$(@:build-docker-%=%))" \
-	    "./var-docker/py$(subst .,,$(@:build-docker-%=%))/log/build-user.log"
+build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
+.PHONY: $(DOCKER_VARIANTS:%=build-docker-%)
+$(DOCKER_VARIANTS:%=build-docker-%): build-pkgs
+	$(MAKE) PYTHON_WHEEL="$(call current_pkg,.whl)" \
+	    "$(@:build-docker-%=./var-docker/log/%/build-devel.log)" \
+	    "$(@:build-docker-%=./var-docker/log/%/build-user.log)"
 
 .PHONY: build-docker-tags
-## Print the list of image tags for the current registry and variant.
+## Print the list of tags for this image variant in all registries.
 build-docker-tags:
 	$(MAKE) -e $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 ## Print the list of image tags for the current registry and variant.
 $(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
-	test -e "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
-	docker_image=$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)
-ifeq ($(VCS_BRANCH),main)
-# Update tags users depend on to be stable from the `main` branch:
-	VERSION=$$($(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project)
-	major_version=$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')
-	minor_version=$$(
-	    echo $${VERSION} | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
-	)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-v$${minor_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-v$${major_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)
+	test -e "./var/log/git-fetch.log"
+	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
+	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
+# Print the fully qualified variant tag with all components:
+	echo "$${docker_image}:$${target_variant}-$(DOCKER_BRANCH_TAG)"
+# Print only the branch tag if this image variant is the default variant:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	echo "$${docker_image}:$(DOCKER_BUILD_TARGET)-$(DOCKER_BRANCH_TAG)"
+ifeq ($(DOCKER_BUILD_TARGET),user)
+	echo "$${docker_image}:$(DOCKER_BRANCH_TAG)"
 endif
-ifeq ($(PYTHON_MINOR),$(PYTHON_HOST_MINOR))
-# Use this variant as the default used for tags such as `latest`
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)$(DOCKER_BRANCH_TAG)
+# Print any other unqualified or default tags only for images built from the `main`
+# branch.  Users can count on these to be stable:
 ifeq ($(VCS_BRANCH),main)
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${minor_version}
-	echo $${docker_image}:$(DOCKER_VARIANT_PREFIX)v$${major_version}
-ifeq ($(DOCKER_VARIANT),)
-	echo $${docker_image}:latest
-else
-	echo $${docker_image}:$(DOCKER_VARIANT)
+# Print only the variant with no qualifier for the branch:
+	echo "$${docker_image}:$${target_variant}"
+# Print tags qualified by the major and minor versions so that users can avoid breaking
+# changes:
+	VERSION="$$(tox exec -e "build" -qq -- cz version --project)"
+	major_version="$$(echo $${VERSION} | sed -nE 's|([0-9]+).*|\1|p')"
+	minor_version="$$(
+	    echo "$${VERSION}" | sed -nE 's|([0-9]+\.[0-9]+).*|\1|p'
+	)"
+	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:$${target_variant}-v$${minor_version}"
+	fi
+	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:$${target_variant}-v$${major_version}"
+	fi
+# Print the rest of the unqualified tags only for the default variant:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:v$${minor_version}"
+	fi
+	if test "v$${major_version}" != "$(DOCKER_BRANCH_TAG)"
+	then
+	    echo "$${docker_image}:v$${major_version}"
+	fi
+	echo "$${docker_image}:latest"
 endif
 endif
 endif
@@ -451,31 +453,30 @@ endif
 ## Run the actual commands used to build the Docker container image.
 build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH) \
+		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
+	export PYTHON_ENV="$${DOCKER_VARIANT##*-}"
+	export PYTHON_MINOR="$$(
+	    echo $${PYTHON_ENV} | sed -nE -e 's|py([0-9])([0-9]+)|\1.\2|p'
+	)"
 # Workaround broken interactive session detection:
 	docker pull "python:$(PYTHON_MINOR)"
 # Assemble the tags for all the variant permutations:
-	$(MAKE) "./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)"
-	docker_build_args=""
+	$(MAKE) "./var/log/git-fetch.log"
+	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
 	for image_tag in $$(
 	    $(MAKE) -e --no-print-directory build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
 	done
-ifeq ($(DOCKER_VARIANT),)
-	docker_build_args+=" --target user"
-else
-	docker_build_args+=" --target $(DOCKER_VARIANT)"
-endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
 	    --build-arg PYTHON_MINOR="$(PYTHON_MINOR)" \
 	    --build-arg PYTHON_ENV="$(PYTHON_ENV)" \
 	    --build-arg VERSION="$$(
-	        $(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project
+	        tox exec -e "build" -qq -- cz version --project
 	    )" $${docker_build_args} --file "$(<)" "./"
 
 .PHONY: $(PYTHON_MINORS:%=build-docker-requirements-%)
@@ -497,45 +498,119 @@ $(PYTHON_MINORS:%=build-docker-requirements-%): ./.env.~out~
 ## Run the full suite of tests, coverage checks, and linters.
 test: test-lint test-docker
 
-.PHONY: test-local
-## Run the full suite of tests, coverage checks, and linters on the local host.
-test-local: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=build-requirements-%)
+.PHONY: test-code
+## Run the full suite of tests and coverage checks.
+test-code: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=build-requirements-%)
 	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
+
+.PHONY: test-debug
+## Run tests directly on the system and start the debugger on errors or failures.
+test-debug: $(HOME)/.local/bin/tox
+	$(TOX_EXEC_ARGS) -- pytest --pdb
+
+.PHONY: test-docker
+## Run the full suite of tests, coverage checks, and code linters in all variants.
+test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
+.PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define test_docker_template=
+test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
+		./var-docker/log/$(1)/build-devel.log
+	docker_run_args="--rm"
+	if test ! -t 0
+	then
+# No fancy output when running in parallel
+	    docker_run_args+=" -T"
+	fi
+# Test that the end-user image can run commands:
+	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
+# Run from the development Docker container for consistency:
+	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
+	    make -e test-code
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
-test-lint: $(HOST_TARGET_DOCKER) test-lint-code test-lint-docker test-lint-docs \
-		test-lint-prose
-# Lint copyright and licensing:
+test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
+		test-lint-licenses
+
+.PHONY: test-lint-licenses
+## Lint copyright and license annotations for all files tracked in VCS.
+test-lint-licenses: ./var/log/docker-compose-network.log
 	docker compose run --rm -T "reuse"
 
 .PHONY: test-lint-code
 ## Lint source code for errors, style, and other issues.
-test-lint-code: ./var/log/npm-install.log
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:code
+test-lint-code: test-lint-code-prettier
+.PHONY: test-lint-code-prettier
+## Lint source code for formatting with Prettier.
+test-lint-code-prettier: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run lint:prettier
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: $(HOME)/.local/bin/tox ./requirements/$(PYTHON_HOST_ENV)/build.txt
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-docs.sh'
+test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
+		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
+		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+# TODO: Audit what checks all tools perform and remove redundant tools.
+.PHONY: test-lint-docs-rstcheck
+## Lint documentation for formatting errors and other issues with rstcheck.
+test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
+# Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
+# `.. include:: ../README.rst` directive breaks `$ rstcheck`:
+#     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
+# Also exclude `./NEWS*.rst` because it's duplicate headings cause:
+#     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
+.PHONY: test-lint-docs-sphinx-build
+## Test that the documentation can build successfully with sphinx-build.
+test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-linkcheck
+## Test the documentation for broken links.
+test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
+.PHONY: test-lint-docs-sphinx-lint
+## Test the documentation for formatting errors with sphinx-lint.
+test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' | xargs -r -0 -- \
+	    "$(<:%/.tox-info.json=%/bin/sphinx-lint)" -e "all" -d "line-too-long"
+.PHONY: test-lint-docs-doc8
+## Test the documentation for formatting errors with doc8.
+test-lint-docs-doc8: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
+.PHONY: test-lint-docs-restructuredtext-lint
+## Test the documentation for formatting errors with restructuredtext-lint.
+test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
-## Lint prose text for spelling, grammar, and style
-test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt ./var/log/npm-install.log
-# Lint all markup files tracked in VCS with Vale:
+## Lint prose text for spelling, grammar, and style.
+test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
+		test-lint-prose-vale-misc test-lint-prose-proselint \
+		test-lint-prose-write-good test-lint-prose-alex
+.PHONY: test-lint-prose-vale-markup
+## Lint prose in all markup files tracked in VCS with Vale.
+test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
 	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
-# Lint all source code files tracked in VCS with Vale:
+.PHONY: test-lint-prose-vale-code
+## Lint comment prose in all source code files tracked in VCS with Vale.
+test-lint-prose-vale-code: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z \
 	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
-# Lint source code files tracked in VCS but without extensions with Vale:
+.PHONY: test-lint-prose-vale-misc
+## Lint source code files tracked in VCS but without extensions with Vale.
+test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -543,15 +618,20 @@ test-lint-prose: $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
 	            docker compose run --rm -T vale --config="./styles/code.ini" \
 	                --ext=".pl"
 	    done
-# Run linters implemented in Python:
-	tox -e build -x 'testenv:build.commands=bin/test-lint-prose.sh'
-# Run linters implemented in JavaScript:
-	~/.nvm/nvm-exec npm run lint:prose
-
-.PHONY: test-debug
-## Run tests directly on the system and start the debugger on errors or failures.
-test-debug: $(HOME)/.local/bin/tox
-	$(TOX_EXEC_ARGS) -- pytest --pdb
+.PHONY: test-lint-prose-proselint
+## Lint prose in all markup files tracked in VCS with proselint.
+test-lint-prose-proselint: ./.tox/build/.tox-info.json
+	git ls-files -z '*.rst' |
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
+	    --config "./.proselintrc.json"
+.PHONY: test-lint-prose-write-good
+## Lint prose in all files tracked in VCS with write-good.
+test-lint-prose-write-good: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:write-good"
+.PHONY: test-lint-prose-alex
+## Lint prose in all files tracked in VCS with alex.
+test-lint-prose-alex: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm run "lint:alex"
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in containers.
@@ -586,16 +666,16 @@ test-docker-pyminor: $(HOST_TARGET_DOCKER) build-docker-$(PYTHON_MINOR)
 # Run from the development Docker container for consistency:
 	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
 	    make -e PYTHON_MINORS="$(PYTHON_MINORS)" PYTHON_WHEEL="$(PYTHON_WHEEL)" \
-	        test-local
+	        test-code
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: $(HOST_TARGET_DOCKER) ./.env.~out~ ./var/log/docker-login-DOCKER.log
+test-lint-docker: ./var/log/docker-compose-network.log \
+		./var/log/docker-login-DOCKER.log \
+		$(PYTHON_MINORS:%=test-lint-docker-volumes-%)
 	docker compose pull --quiet hadolint
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) hadolint
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) hadolint \
-	    hadolint "./build-host/Dockerfile"
-	$(MAKE) -e -j $(PYTHON_MINORS:%=test-lint-docker-volumes-%)
+	git ls-files -z '*Dockerfile*' |
+	    xargs -0 -- docker compose run -T hadolint hadolint
 .PHONY: $(PYTHON_MINORS:%=test-lint-docker-volumes-%)
 ## Prevent Docker volumes owned by `root` for one Python version.
 $(PYTHON_MINORS:%=test-lint-docker-volumes-%):
@@ -606,7 +686,7 @@ $(PYTHON_MINORS:%=test-lint-docker-volumes-%):
 	    test-lint-docker-volumes
 .PHONY: test-lint-docker-volumes
 ## Prevent Docker volumes owned by `root`.
-test-lint-docker-volumes: $(HOST_TARGET_DOCKER) ./.env.~out~
+test-lint-docker-volumes: ./var/log/docker-compose-network.log
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
@@ -623,7 +703,7 @@ test-lint-docker-volumes: $(HOST_TARGET_DOCKER) ./.env.~out~
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: $(VCS_FETCH_TARGETS) $(HOME)/.local/bin/tox
+test-push: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -632,9 +712,9 @@ test-push: $(VCS_FETCH_TARGETS) $(HOME)/.local/bin/tox
 	fi
 	exit_code=0
 	(
-	    $(TOX_EXEC_BUILD_ARGS) -- \
+	    tox exec -e "build" -- \
 	        cz check --rev-range "$${vcs_compare_rev}..HEAD" &&
-	    $(TOX_EXEC_BUILD_ARGS) -- \
+	    tox exec -e "build" -- \
 	        python ./bin/cz-check-bump.py --compare-ref "$${vcs_compare_rev}"
 	) || exit_code=$$?
 	if (( $$exit_code == 3 || $$exit_code == 21 ))
@@ -644,7 +724,7 @@ test-push: $(VCS_FETCH_TARGETS) $(HOME)/.local/bin/tox
 	then
 	    exit $$exit_code
 	else
-	    $(TOX_EXEC_BUILD_ARGS) -- \
+	    tox exec -e "build" -- \
 	        towncrier check --compare-with "$${vcs_compare_rev}"
 	fi
 
@@ -658,6 +738,22 @@ test-clean:
 	    echo "WARNING: Checkout is not clean."
 	    false
 	fi
+
+.PHONY: test-worktree-%
+## Build then run all tests from a new checkout in a clean container.
+test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
+	$(MAKE) -e -C "./build-host/" build
+	if git worktree list --porcelain | grep \
+	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
+	then
+	    git worktree remove "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	fi
+	git worktree add -B "$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	cp -v "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
+	docker compose run --workdir \
+	    "$(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
+	    --rm -T build-host
 
 
 ### Release Targets:
@@ -687,34 +783,38 @@ endif
 
 .PHONY: release-docker
 ## Publish all container images to all container registries.
-release-docker: $(HOST_TARGET_DOCKER) build-docker \
-		$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
-	$(MAKE) -e -j DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
-	    $(PYTHON_MINORS:%=release-docker-%)
-
-.PHONY: $(PYTHON_MINORS:%=release-docker-%)
-## Publish the container images for one Python version to all container registries.
-$(PYTHON_MINORS:%=release-docker-%): \
-		$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
-	export PYTHON_ENV="py$(subst .,,$(@:release-docker-%=%))"
+release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
+	$(MAKE) -e test-clean
+.PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
+# Need to use `$(eval $(call))` to reference the variant in the target *and*
+# prerequisite:
+define release_docker_template=
+release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
+		./var-docker/log/$(1)/build-user.log \
+		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
 # Build other platforms in emulation and rely on the layer cache for bundling the
 # native images built before into the manifests:
-	DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --push"
-ifneq ($(DOCKER_PLATFORMS),)
-	DOCKER_BUILD_ARGS+=" --platform $(subst $(EMPTY) ,$(COMMA),$(DOCKER_PLATFORMS))"
-else
+	export DOCKER_BUILD_ARGS="--push"
+ifneq ($$(DOCKER_PLATFORMS),)
+	DOCKER_BUILD_ARGS+=" --platform \
+	$$(subst $$(EMPTY) ,$$(COMMA),$$(DOCKER_PLATFORMS))"
 endif
 	export DOCKER_BUILD_ARGS
-# Push the end-user manifest and images:
-	PYTHON_WHEEL="$$(ls -t ./dist/*.whl | head -n 1)"
-	$(MAKE) -e DOCKER_BUILD_ARGS="$${DOCKER_BUILD_ARGS}\
-	    --build-arg PYTHON_WHEEL=$${PYTHON_WHEEL}" build-docker-build
 # Push the development manifest and images:
-	$(MAKE) -e DOCKER_VARIANT="devel" build-docker-build
-# Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version
-# using the official/canonical Python version:
+	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
+# Push the end-user manifest and images:
+	PYTHON_WHEEL="$$$$(ls -t ./dist/*.whl | head -n 1)"
+	$$(MAKE) -e DOCKER_BUILD_ARGS="$$$${DOCKER_BUILD_ARGS}\
+	    --build-arg PYTHON_WHEEL=$$$${PYTHON_WHEEL}" build-docker-build
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
+.PHONY: release-docker-readme
+## Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version.
+release-docker-readme: ./var/log/docker-compose-network.log \
+		$(DOCKER_VARIANTS:%=release-docker-%)
+# Only for final releases:
 ifeq ($(VCS_BRANCH),main)
 	if TEST "$${PYTHON_ENV}" = "$(PYTHON_HOST_ENV)"
 	then
@@ -726,28 +826,31 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: $(VCS_RELEASE_FETCH_TARGETS) $(HOME)/.local/bin/tox \
-		./var/log/npm-install.log \
-		./var-docker/$(PYTHON_ENV)/log/build-devel.log ./.env.~out~
+release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log \
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
 	    echo "CRITICAL: Cannot bump version with staged changes"
 	    false
 	fi
+ifeq ($(VCS_BRANCH),main)
+# Also fetch develop for merging back in the final release:
+	git fetch --tags "$(VCS_COMPARE_REMOTE)" "develop"
+endif
 # Update the local branch to the forthcoming version bump commit:
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 	exit_code=0
 	if test "$(VCS_BRANCH)" = "main" &&
-	    $(TOX_EXEC_BUILD_ARGS) -- python ./bin/get-base-version.py $$(
-	        $(TOX_EXEC_BUILD_ARGS) -qq -- cz version --project
+	    tox exec -e "build" -- python ./bin/get-base-version.py $$(
+	        tox exec -e "build" -qq -- cz version --project
 	    )
 	then
 # Make a final release from the last pre-release:
 	    true
 	else
 # Do the conventional commits require a release?:
-	    $(TOX_EXEC_BUILD_ARGS) -- python ./bin/cz-check-bump.py || exit_code=$$?
+	    tox exec -e "build" -- python ./bin/cz-check-bump.py || exit_code=$$?
 	    if (( $$exit_code == 3 || $$exit_code == 21 ))
 	    then
 # No commits require a release:
@@ -764,20 +867,20 @@ ifneq ($(VCS_BRANCH),main)
 endif
 # Build and stage the release notes:
 	next_version=$$(
-	    $(TOX_EXEC_BUILD_ARGS) -qq -- cz bump $${cz_bump_args} --yes --dry-run |
+	    tox exec -e "build" -qq -- cz bump $${cz_bump_args} --yes --dry-run |
 	    sed -nE 's|.* ([^ ]+) *→ *([^ ]+).*|\2|p;q'
 	) || true
 # Assemble the release notes for this next version:
-	$(TOX_EXEC_BUILD_ARGS) -qq -- \
+	tox exec -e "build" -qq -- \
 	    towncrier build --version "$${next_version}" --draft --yes \
 	    >"./NEWS-VERSION.rst"
 	git add -- "./NEWS-VERSION.rst"
-	$(TOX_EXEC_BUILD_ARGS) -- towncrier build --version "$${next_version}" --yes
+	tox exec -e "build" -- towncrier build --version "$${next_version}" --yes
 # Bump the version in the NPM package metadata:
 	~/.nvm/nvm-exec npm --no-git-tag-version version "$${next_version}"
 	git add -- "./package*.json"
 # Increment the version in VCS
-	$(TOX_EXEC_BUILD_ARGS) -- cz bump $${cz_bump_args}
+	tox exec -e "build" -- cz bump $${cz_bump_args}
 # Ensure the container image reflects the version bump without updating the requirements
 # again:
 	touch \
@@ -790,6 +893,15 @@ ifeq ($(VCS_BRANCH),main)
 	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
+	$(MAKE) test-clean
+
+.PHONY: release-all
+## Run the whole release process, end to end.
+release-all: test-push test
+# Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
+# running as much of the process as possible with `$ make -j`:
+	$(MAKE) release
+	$(MAKE) test-clean
 
 
 ### Development Targets:
@@ -798,7 +910,8 @@ endif
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: $(HOST_TARGET_DOCKER) ./var/log/npm-install.log $(HOME)/.local/bin/tox
+devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
+		$(HOME)/.local/bin/tox
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
 	    ':!newsfragments/*' ':!NEWS*.rst' ':!styles/*/meta.json' \
@@ -837,14 +950,14 @@ devel-upgrade: $(HOME)/.local/bin/tox $(HOST_TARGET_DOCKER) ./.env.~out~ build-d
 	    DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
 	    $(PYTHON_MINORS:%=build-docker-requirements-%)
 # Update VCS integration from remotes to the most recent tag:
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit autoupdate
+	tox exec -e "build" -- pre-commit autoupdate
 # Update the Vale style rule definitions:
 	touch "./.vale.ini" "./styles/code.ini"
 	$(MAKE) "./var/log/vale-rule-levels.log"
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
+devel-upgrade-branch: ./var/log/git-fetch.log
 	if ! $(MAKE) -e "test-clean"
 	then
 	    set +x
@@ -876,8 +989,9 @@ devel-upgrade-branch: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_BRANCH)
 
 .PHONY: devel-merge
 ## Merge this branch with a suffix back into its un-suffixed upstream.
-devel-merge: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
+devel-merge: ./var/log/git-fetch.log
 	merge_rev="$$(git rev-parse HEAD)"
+	git fetch "$(VCS_REMOTE)" "$(VCS_MERGE_BRANCH)"
 	git switch -C "$(VCS_MERGE_BRANCH)" --track "$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)"
 	git merge --ff --gpg-sign -m \
 	    $$'Merge branch \'$(VCS_BRANCH)\' into $(VCS_MERGE_BRANCH)\n\n[ci merge]' \
@@ -892,10 +1006,10 @@ devel-merge: ./var/git/refs/remotes/$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)
 ## Restore the checkout to an initial clone state.
 clean:
 	docker compose down --remove-orphans --rmi "all" -v || true
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit uninstall \
+	tox exec -e "build" -- pre-commit uninstall \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit clean || true
+	tox exec -e "build" -- pre-commit clean || true
 	git clean -dfx -e "/var" -e "var-docker/" -e "/.env" -e "*~"
 	git clean -dfx "./var-docker/py*/.tox/" \
 	    "./var-docker/py*/project_structure.egg-info/"
@@ -944,47 +1058,44 @@ $(PYTHON_ENVS:%=./requirements/%/build.txt): ./requirements/build.txt.in
 
 # Build Docker container images.
 # Build the development image:
-./var-docker/$(PYTHON_ENV)/log/build-devel.log: ./Dockerfile ./.dockerignore \
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log): ./Dockerfile ./.dockerignore \
 		./bin/entrypoint.sh ./docker-compose.yml ./docker-compose.override.yml \
-		./.env.~out~ ./var-docker/$(PYTHON_ENV)/log/rebuild.log \
-		$(HOST_TARGET_DOCKER) ./pyproject.toml ./setup.cfg ./.cz.toml
+		./var/log/docker-compose-network.log ./.cz.toml ./pyproject.toml \
+		./setup.cfg
 	true DEBUG Updated prereqs: $(?)
+	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$(dir $(@))"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the development image and simulate building it here:
 	docker compose pull --quiet $(PROJECT_NAME)-devel
-	date | tee -a "$(@)" "./var-docker/$(PYTHON_ENV)/log/rebuild.log"
+	docker image ls --digests "$(
+	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
+	)" | tee -a "$(@)"
 # Ensure the virtualenv in the volume is also current:
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
 	    tox run $(TOX_EXEC_OPTS) -e "$(PYTHON_ENV)" --notest
 	exit
 endif
-	$(MAKE) -e DOCKER_VARIANT="devel" DOCKER_BUILD_ARGS="--load" \
-	    build-docker-build | tee -a "$(@)"
-# Update the pinned/frozen versions, if needed, using the container.  If changed, then
-# the container image might need re-building to ensure it's current and correct.
+	$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$(@)"
+# Initialize volumes contents.  Also update the pinned/frozen versions, if needed, using
+# the container.  If changed, then the container image might need re-building to ensure
+# it's current and correct:
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
 	    make -e PYTHON_MINORS="$(PYTHON_MINOR)" build-requirements-$(PYTHON_ENV)
 	$(MAKE) -e "$(@)"
 # Build the end-user image:
-./var-docker/$(PYTHON_ENV)/log/build-user.log: \
-		./var-docker/$(PYTHON_ENV)/log/build-devel.log ./Dockerfile \
-		./.dockerignore ./bin/entrypoint.sh \
-		./var-docker/$(PYTHON_ENV)/log/rebuild.log
+$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log): ./Dockerfile ./.dockerignore \
+		./bin/entrypoint.sh
 	true DEBUG Updated prereqs: $(?)
+	export DOCKER_VARIANT="$(@:var-docker/log/%/build-user.log=%)"
 ifeq ($(PYTHON_WHEEL),)
 	$(MAKE) -e "build-pkgs"
 	PYTHON_WHEEL="$$(ls -t ./dist/*.whl | head -n 1)"
 endif
 # Build the user image after building all required artifacts:
 	mkdir -pv "$(dir $(@))"
-	$(MAKE) -e DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --load \
-	--build-arg PYTHON_WHEEL=$${PYTHON_WHEEL}" build-docker-build >>"$(@)"
-# Marker file used to trigger the rebuild of the image.
-# Useful to workaround asynchronous timestamp issues when running jobs in parallel:
-./var-docker/$(PYTHON_ENV)/log/rebuild.log:
-	mkdir -pv "$(dir $(@))"
-	date >>"$(@)"
+	$(MAKE) -e DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) \
+	--build-arg PYTHON_WHEEL=$${PYTHON_WHEEL}" build-docker-build | tee -a "$(@)"
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
@@ -997,11 +1108,11 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    grep -q '^ *Endpoint: *multi-platform *'
 	then
 	    (
-	        docker buildx create --use "multi-platform" || true
+	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
 ./var/log/docker-login-DOCKER.log:
-	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
+	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"
 	then
@@ -1012,6 +1123,13 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    false
 	fi
 	date | tee -a "$(@)"
+
+# Create the Docker compose network a single time under parallel make:
+./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
+	mkdir -pv "$(dir $(@))"
+# Workaround broken interactive session detection:
+	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
+	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
@@ -1025,22 +1143,33 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 ### Development Tools:
 
 # VCS configuration and integration:
-# Retrieve VCS data needed for versioning, tags, and releases, release notes:
-$(VCS_FETCH_TARGETS): ./.git/logs/HEAD
+# Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
+# it's own target to avoid redundant fetches during release tasks:
+./var/log/git-fetch.log:
+	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
 	then
 	    git_fetch_args+=" --unshallow"
 	fi
-	branch_path="$(@:var/git/refs/remotes/%=%)"
-	mkdir -pv "$(dir $(@))"
-	if ! git fetch $${git_fetch_args} "$${branch_path%%/*}" "$${branch_path#*/}" |&
+ifneq ($(VCS_BRANCH),)
+	if ! git fetch $${git_fetch_args} "$(VCS_REMOTE)" "$(VCS_BRANCH)" |&
 	    tee -a "$(@)"
 	then
-# If the local branch doesn't exist, fall back to the pre-release branch:
-	    git fetch $${git_fetch_args} "$${branch_path%%/*}" "develop" |&
-	        tee -a "$(@)"
+# If the branch is only local, fall back to the pre-release branch:
+	    git fetch $${git_fetch_args} "$(VCS_REMOTE)" "develop" |& tee -a "$(@)"
 	fi
+ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH))
+# Fetch any upstream VCS data that forks need:
+	git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)" |& tee -a "$(@)"
+endif
+ifneq ($(VCS_REMOTE)/$(VCS_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+ifneq ($(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH),$(VCS_COMPARE_REMOTE)/develop)
+	git fetch "$(VCS_COMPARE_REMOTE)" "develop" |& tee -a "$(@)"
+endif
+endif
+endif
+	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
 ./var/log/git-ls-files.log: build-date
 	mkdir -pv "$(dir $(@))"
@@ -1052,7 +1181,7 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 	mv -v "$(@).~new~" "$(@)"
 ./.git/hooks/pre-commit:
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	$(TOX_EXEC_BUILD_ARGS) -- pre-commit install \
+	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
 
 # Prose linting:
@@ -1060,18 +1189,18 @@ $(VCS_FETCH_TARGETS): ./.git/logs/HEAD
 ./var/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
 		./var/log/git-ls-files.log
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	$(TOX_EXEC_BUILD_ARGS) -- python "$(<)" "./styles/code.ini" "./.vale.ini"
+	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
 ./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	$(TOX_EXEC_BUILD_ARGS) -- python ./bin/vale-set-rule-levels.py
-	$(TOX_EXEC_BUILD_ARGS) -- python ./bin/vale-set-rule-levels.py \
+	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
+	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini ./.env.~out~
-	$(MAKE) "$(HOST_TARGET_DOCKER)"
+./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
+	$(MAKE) "./var/log/docker-compose-network.log"
 	docker compose run --rm vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
@@ -1100,6 +1229,7 @@ $(HOME)/.nvm/nvm.sh:
 	    | bash
 
 # Manage Python tools:
+
 # Targets used as pre-requisites to ensure virtual environments managed by tox have been
 # created so other targets can use them directly to save Tox's startup time when they
 # don't need Tox's logic about when to update/recreate them, e.g.:
@@ -1108,15 +1238,19 @@ $(HOME)/.nvm/nvm.sh:
 $(PYTHON_ALL_ENVS:%=./.tox/%/bin/pip-compile):
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/bin/pip-compile=%)" --notest
-$(HOME)/.local/bin/tox:
-	$(MAKE) "$(HOME)/.local/bin/pipx"
+./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_HOST_ENV)/build.txt
+	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
-$(HOME)/.local/bin/pipx:
-	$(MAKE) "$(HOST_TARGET_PIP)"
+	touch "$(@)"
+$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 # https://pypa.github.io/pipx/installation/#install-pipx
 	pip3 install --user "pipx"
 	python3 -m pipx ensurepath
+	touch "$(@)"
 $(HOST_TARGET_PIP):
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
