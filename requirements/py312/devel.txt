@@ -16,7 +16,7 @@ autopep8==2.0.4
     # via project-structure (pyproject.toml)
 bandit==1.7.5
     # via prospector
-black==23.10.1
+black==23.11.0
     # via project-structure (pyproject.toml)
 build==1.0.3
     # via
@@ -82,7 +82,7 @@ packaging==23.2
     #   requirements-detector
 pathspec==0.11.2
     # via black
-pbr==5.11.1
+pbr==6.0.0
     # via stevedore
 pep8==1.7.1
     # via flake8
@@ -130,7 +130,7 @@ pylint-plugin-utils==0.7
     #   pylint-flask
 pyproject-hooks==1.0.0
     # via build
-pyright==1.1.334
+pyright==1.1.335
     # via prospector
 pyroma==4.2
     # via prospector

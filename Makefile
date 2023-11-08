@@ -676,7 +676,7 @@ test-lint-docker: ./var/log/docker-compose-network.log \
 		$(PYTHON_MINORS:%=test-lint-docker-volumes-%)
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
-	    xargs -0 -- docker compose run -T hadolint hadolint
+	    xargs -0 -- docker compose run --rm -T hadolint hadolint
 .PHONY: $(PYTHON_MINORS:%=test-lint-docker-volumes-%)
 ## Prevent Docker volumes owned by `root` for one Python version.
 $(PYTHON_MINORS:%=test-lint-docker-volumes-%):
@@ -1202,7 +1202,7 @@ endif
 # Update style rule definitions from the remotes:
 ./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
 	$(MAKE) "./var/log/docker-compose-network.log"
-	docker compose run --rm vale sync
+	docker compose run --rm -T vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
 # Editor and IDE support and integration:

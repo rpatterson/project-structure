@@ -99,7 +99,7 @@ packaging==23.2
     # via
     #   commitizen
     #   sphinx
-pbr==5.11.1
+pbr==6.0.0
     # via stevedore
 pkginfo==1.9.6
     # via twine
@@ -207,7 +207,7 @@ tomlkit==0.12.2
     # via commitizen
 tornado==6.3.3
     # via livereload
-towncrier==23.10.0
+towncrier==23.11.0
     # via -r requirements/build.txt.in
 twine==4.0.2
     # via -r requirements/build.txt.in
