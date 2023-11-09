@@ -652,41 +652,6 @@ test-lint-prose-write-good: ./var/log/npm-install.log
 test-lint-prose-alex: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
 
-.PHONY: test-docker
-## Run the full suite of tests, coverage checks, and code linters in containers.
-test-docker: $(HOME)/.local/bin/tox build-pkgs
-	tox run $(TOX_EXEC_OPTS) --notest -e "build"
-	$(MAKE) -e -j PYTHON_WHEEL="$(call current_pkg,.whl)" \
-	    DOCKER_BUILD_ARGS="$(DOCKER_BUILD_ARGS) --progress plain" \
-	    DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
-	    $(PYTHON_MINORS:%=test-docker-%)
-
-.PHONY: $(PYTHON_MINORS:%=test-docker-%)
-## Run the full suite of tests inside a docker container for one Python version.
-$(PYTHON_MINORS:%=test-docker-%):
-	$(MAKE) -e \
-	    PYTHON_MINORS="$(@:test-docker-%=%)" \
-	    PYTHON_MINOR="$(@:test-docker-%=%)" \
-	    PYTHON_ENV="py$(subst .,,$(@:test-docker-%=%))" \
-	    test-docker-pyminor
-
-.PHONY: test-docker-pyminor
-## Run the full suite of tests inside a docker container for this Python version.
-test-docker-pyminor: $(HOST_TARGET_DOCKER) build-docker-$(PYTHON_MINOR)
-	docker_run_args="--rm"
-	if test ! -t 0
-	then
-# No fancy output when running in parallel
-	    docker_run_args+=" -T"
-	fi
-# Ensure the dist/package has been correctly installed in the image
-	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) python -c \
-	    'import $(PYTHON_PROJECT_PACKAGE); print($(PYTHON_PROJECT_PACKAGE))'
-# Run from the development Docker container for consistency:
-	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
-	    make -e PYTHON_MINORS="$(PYTHON_MINORS)" PYTHON_WHEEL="$(PYTHON_WHEEL)" \
-	        test-code
-
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
 test-lint-docker: ./var/log/docker-compose-network.log \
@@ -1096,8 +1061,7 @@ $(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
 	$(MAKE) -e DOCKER_BUILD_TARGET="base" build-docker-build | tee -a "$(@)"
 # Build the development image:
 define build_docker_devel_template=
-./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log
+./var-docker/log/$(1)/build-devel.log: ./Dockerfile ./var-docker/log/$(1)/build-base.log
 	true DEBUG Updated prereqs: $$(?)
 	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$$(dir $$(@))"
