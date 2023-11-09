@@ -810,16 +810,13 @@ release: release-pkgs release-docker
 
 .PHONY: release-pkgs
 ## Publish installable packages if conventional commits require a release.
-release-pkgs: ./var/log/docker-compose-network.log ./var/log/git-remotes.log \
-		./var/log/git-fetch.log $(HOST_PREFIX)/bin/gh
+release-pkgs: build-pkgs ./var/log/docker-compose-network.log ./var/log/git-fetch.log \
+		$(HOST_PREFIX)/bin/gh
+	$(MAKE) -e test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 # Import the private signing key from CI secrets
 	$(MAKE) -e "./var/log/gpg-import.log"
-# Bump the version and build the final release packages:
-	$(MAKE) -e build-pkgs
-# Ensure VCS has captured all the effects of building the release:
-	$(MAKE) -e test-clean
 	true "TEMPLATE: Always specific to the project type"
 	export VERSION=$$(tox exec -e "build" -qq -- cz version --project)
 # Create a GitLab release
@@ -875,7 +872,8 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log \
+release-bump: ./var/log/git-fetch.log ./var/log/git-remotes.log $(HOME)/.local/bin/tox \
+		./var/log/npm-install.log \
 		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	if ! git diff --cached --exit-code
 	then
@@ -1010,14 +1008,8 @@ devel-upgrade: $(HOME)/.local/bin/tox
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/log/gpg-import.log ./var/log/git-fetch.log \
+devel-upgrade-branch: ./var/log/git-fetch.log test-clean ./var/log/gpg-import.log \
 		./var/log/git-remotes.log
-	if ! $(MAKE) -e "test-clean"
-	then
-	    set +x
-	    echo "ERROR: Can't upgrade with uncommitted changes."
-	    exit 1
-	fi
 	remote_branch_exists=false
 	if git fetch "$(VCS_REMOTE)" "$(VCS_BRANCH)-upgrade"
 	then
@@ -1184,7 +1176,8 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	date | tee -a "$(@)"
 
 # Create the Docker compose network a single time under parallel make:
-./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
+./var/log/docker-compose-network.log:
+	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
@@ -1204,7 +1197,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log:
+./var/log/git-fetch.log: ./var/log/git-remotes.log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -1290,8 +1283,8 @@ endif
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
-	$(MAKE) "./var/log/docker-compose-network.log"
+./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
+		./styles/code.ini
 	docker compose run --rm -T vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
