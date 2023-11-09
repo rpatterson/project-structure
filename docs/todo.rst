@@ -112,3 +112,7 @@ Nice to have
    platform-specific bugs.
 
 #. ``py``: Create new branches for different frameworks, e.g.: Flask, Pyramid, Django.
+
+#. ``py-docker``: Build requirements for each ``$(DOCKER_PLATFORMS)`` as requirements
+   may differ between ``platform.machine()`` using `Environment Markers
+   <https://peps.python.org/pep-0496/#strings>`_.
