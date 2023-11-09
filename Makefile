@@ -635,11 +635,10 @@ release: release-pkgs release-docker
 
 .PHONY: release-pkgs
 ## Publish installable packages if conventional commits require a release.
-release-pkgs:
+release-pkgs: build-pkgs
+	$(MAKE) -e test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
-	$(MAKE) -e build-pkgs
-	$(MAKE) -e test-clean
 	true "TEMPLATE: Always specific to the project type"
 endif
 
@@ -789,13 +788,7 @@ devel-upgrade: $(HOME)/.local/bin/tox
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/log/git-fetch.log
-	if ! $(MAKE) -e "test-clean"
-	then
-	    set +x
-	    echo "ERROR: Can't upgrade with uncommitted changes."
-	    exit 1
-	fi
+devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	now=$$(date -u)
 	$(MAKE) -e DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" \
 	    devel-upgrade
@@ -911,7 +904,8 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	date | tee -a "$(@)"
 
 # Create the Docker compose network a single time under parallel make:
-./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
+./var/log/docker-compose-network.log:
+	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
@@ -985,8 +979,8 @@ endif
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
-	$(MAKE) "./var/log/docker-compose-network.log"
+./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
+		./styles/code.ini
 	docker compose run --rm -T vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
