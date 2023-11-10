@@ -40,7 +40,8 @@ SHELL:=bash
 .DELETE_ON_ERROR:
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
-PS1?=$$
+export PS1?=$$
+export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
 
