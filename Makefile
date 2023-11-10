@@ -197,9 +197,9 @@ build-docs-watch: $(HOME)/.local/bin/tox
 
 .PHONY: build-docs-%
 # Render the documentation into a specific format.
-build-docs-%: $(HOME)/.local/bin/tox
-	tox exec -e "build" -- sphinx-build -b "$(@:build-docs-%=%)" -W \
-	    "./docs/" "./build/docs/"
+build-docs-%: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
+	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -240,9 +240,9 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
-		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
-		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+test-lint-docs: test-lint-docs-rstcheck build-docs-html build-docs-linkcheck
+		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
+		test-lint-docs-restructuredtext-lint
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
@@ -254,14 +254,6 @@ test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
 #     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
 	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
-.PHONY: test-lint-docs-sphinx-build
-## Test that the documentation can build successfully with sphinx-build.
-test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
-.PHONY: test-lint-docs-sphinx-linkcheck
-## Test the documentation for broken links.
-test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
