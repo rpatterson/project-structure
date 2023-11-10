@@ -42,6 +42,8 @@ suppress_warnings = ['epub.unknown_project_files']
 
 html_theme = 'alabaster'
 html_static_path = ['_static']
+html_logo = './_static/logo-120.png'
+html_favicon = './_static/favicon.ico'
 
 # -- Linter options ----------------------------------------------------------
 # Disallow redirects:
@@ -65,6 +67,7 @@ ogp_site_url = 'http://project-structure.readthedocs.io/'
 ogp_image = './_static/logo.png'
 
 # -- Other formats -----------------------------------------------------------
+latex_logo = './_static/logo.svg'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-applehelp_bundle_id
 applehelp_bundle_id = 'net.rpatterson.project-structure'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-applehelp_disable_external_tools

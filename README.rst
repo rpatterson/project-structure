@@ -2,6 +2,9 @@
 ..
 .. SPDX-License-Identifier: MIT
 
+.. image:: ./docs/_static/logo-120.png
+.. include-above-contents-start
+
 ########################################################################################
 Project Structure
 ########################################################################################
@@ -62,9 +65,9 @@ variants. Real projects can also merge those changes.
 .. _`Organize source by feature`:
    https://www.seancdavis.com/posts/organize-components-by-keeping-related-files-close/
 
-.. include-end-before
+.. include-above-contents-end
 .. contents:: Table of Contents
-.. include-start-after
+.. include-below-contents-start
 
 
 ****************************************************************************************
@@ -123,7 +126,10 @@ have or better yet submit a PR with corrections.
 
      $ git grep "TEMPLATE"
 
-#. Update the project ``./logo.png`` and ``./logo.svg`` logo files.
+#. Update the project logo images::
+
+     $ git ls-files 'logo*.png' '**/logo*.png' 'logo*.svg' '**/logo*.svg' \
+     'docs/_static/favicon.ico'
 
 #. Update `the project Matrix room`_.
 
