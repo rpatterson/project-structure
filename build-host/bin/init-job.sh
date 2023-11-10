@@ -91,6 +91,9 @@ main() {
 	fi
     fi
 
+    # Update some targets for each job run:
+    date | tee -a "./var/log/job-date.log"
+
     # Delegate to the rest of `argv`:
     exec "$@"
 }
