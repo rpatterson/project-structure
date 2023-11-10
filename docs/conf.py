@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
+import commitizen
+import commitizen.providers
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -13,7 +16,12 @@
 project = 'Project Structure'
 copyright = '2023, Ross Patterson'
 author = 'Ross Patterson'
-release = '0.0.0'
+# https://www.sphinx-doc.org/en/master/_modules/sphinx/builders/epub3.html
+cz_provider = commitizen.providers.get_provider(commitizen.config.read_cfg())
+release = cz_provider.get_version()
+cz_scheme = commitizen.version_schemes.get_version_scheme(cz_provider.config)
+major, minor, patch = cz_scheme(release).release
+version = f"{major}.{minor}"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
