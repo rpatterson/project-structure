@@ -470,9 +470,10 @@ endif
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
-release-all: test-push test
+release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
+	$(MAKE) test-push test
 	$(MAKE) release
 	$(MAKE) test-clean
 
@@ -587,7 +588,7 @@ clean:
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log:
+./var/log/git-fetch.log: ./var/log/job-date.log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -627,6 +628,10 @@ endif
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
+
+# Use as a prerequisite to update those targets for each CI/CD run:
+./var/log/job-date.log:
+	date | tee -a "$(@)"
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
