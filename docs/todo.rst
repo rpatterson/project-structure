@@ -64,3 +64,6 @@ Nice to have
    <https://unibeautify.com/docs/beautifier-stylelint>`_ supported by ``UniBeautify``:
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
    - `js-beautify <https://www.npmjs.com/package/js-beautify>`_
+
+#. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
+   ./build/docs/latex/ && make)``.

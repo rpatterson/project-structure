@@ -40,6 +40,7 @@ includes:
   push
 - Targets that automate releases
 - Targets that automate dependency upgrades
+- Documentation built by `Sphinx`_ with `useful Sphinx extensions`_
 - `Organize source by feature`_, for example ``\./src/foo/(template|view|model)\..*``,
   rather than by source type, for example
   ``\./src/(templates|views|models)/foo\..*``.
@@ -55,6 +56,9 @@ variants. Real projects can also merge those changes.
    https://gitlab.com/rpatterson/project-structure/-/blob/main/.pre-commit-config.yaml
 .. _`conventional commits`: https://www.conventionalcommits.org
 .. _`Towncrier`: https://towncrier.readthedocs.io/en/stable/
+.. _`Sphinx`: https://www.sphinx-doc.org/en/master/
+.. _`useful Sphinx extensions`:
+   https://www.sphinx-doc.org/en/master/usage/extensions/index.html
 .. _`Organize source by feature`:
    https://www.seancdavis.com/posts/organize-components-by-keeping-related-files-close/
 

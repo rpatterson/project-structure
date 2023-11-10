@@ -28,12 +28,14 @@ version = f"{major}.{minor}"
 
 extensions = [
     'sphinx.ext.duration',
+    'sphinx.ext.imgconverter',
     'sphinx_copybutton',
     'sphinxext.opengraph',
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
+suppress_warnings = ['epub.unknown_project_files']
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -54,8 +56,16 @@ linkcheck_anchors_ignore = [
 ]
 linkcheck_ignore = [
     "https://liberapay.com/.*",
-    "https://gitlab.com/.*/new",
+    "https://gitlab.com/.*/(new|edit)",
+    "https://github.com/.*/settings",
 ]
 
 # -- Extension options -------------------------------------------------------
 ogp_site_url = 'http://project-structure.readthedocs.io/'
+ogp_image = './_static/logo.png'
+
+# -- Other formats -----------------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-applehelp_bundle_id
+applehelp_bundle_id = 'net.rpatterson.project-structure'
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-applehelp_disable_external_tools
+applehelp_disable_external_tools = True

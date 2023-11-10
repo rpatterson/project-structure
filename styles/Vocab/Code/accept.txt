@@ -50,3 +50,4 @@ via
 INFO
 NEWS
 PUID
+man

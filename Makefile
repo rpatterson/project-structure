@@ -154,14 +154,21 @@ else ifeq ($(VCS_BRANCH),develop)
 RELEASE_PUBLISH=true
 endif
 
+# https://www.sphinx-doc.org/en/master/usage/builders/index.html
+# Run these Sphinx builders to test the correctness of the documentation:
+# <!--alex disable gals-man-->
+DOCS_SPHINX_DEFAULT_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
+    latex man texinfo text gettext linkcheck xml pseudoxml
+# <!--alex enable gals-man-->
+# These builders report false warnings or failures:
+DOCS_SPHINX_ALL_BUILDERS=$(DOCS_SPHINX_DEFAULT_BUILDERS) doctest devhelp
+
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
 include $(wildcard .env)
 
 # Finished with `$(shell)`, echo recipe commands going forward
 .SHELLFLAGS+= -x
-
-# <!--alex disable hooks-->
 
 
 ### Top-level targets:
@@ -177,8 +184,10 @@ all: build
 
 .PHONY: build
 ## Perform any necessary local setup common to most operations.
+# <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log
+# <!--alex enable hooks-->
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
@@ -187,7 +196,7 @@ build-pkgs: ./var/log/git-fetch.log
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: build-docs-html
+build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
@@ -195,9 +204,9 @@ build-docs-watch: $(HOME)/.local/bin/tox
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: build-docs-%
+.PHONY: $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%)
 # Render the documentation into a specific format.
-build-docs-%: ./.tox/build/.tox-info.json
+$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 
@@ -240,7 +249,7 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck build-docs-html build-docs-linkcheck
+test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
 		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
 		test-lint-docs-restructuredtext-lint
 # TODO: Audit what checks all tools perform and remove redundant tools.
@@ -612,7 +621,9 @@ endif
 	    exit
 	fi
 	mv -v "$(@).~new~" "$(@)"
+# <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
+# <!--alex enable hooks-->
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
