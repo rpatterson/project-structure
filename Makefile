@@ -613,18 +613,19 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	$(MAKE) -e -C "./build-host/" build
-	if git worktree list --porcelain | grep \
-	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
+	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	worktree_path="$(CHECKOUT_DIR)/worktrees/$${worktree_branch}"
+	if git worktree list --porcelain | grep "^worktree $${worktree_path}\$$"
 	then
-	    git worktree remove "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	    git worktree remove "$${worktree_path}"
 	fi
-	git worktree add -B "$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
-	    "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	cp -v "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
-	docker compose run --workdir \
-	    "$(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
-	    --rm -T build-host
+	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
+	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
+	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
+	    "./.env.~out~"
+	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
+	$(MAKE) -e -C "./build-host/" build
+	docker compose run --rm -T build-host
 
 
 ### Release Targets:
