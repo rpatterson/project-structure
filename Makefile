@@ -544,7 +544,8 @@ test-debug: $(HOME)/.local/bin/tox
 test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
 define test_docker_template=
-test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
+test-docker-$(1): ./var/log/docker-compose-network.log \
+		./var-docker/log/$(1)/build-user.log \
 		./var-docker/log/$(1)/build-devel.log
 	docker_run_args="--rm"
 	if test ! -t 0
@@ -653,6 +654,21 @@ test-lint-prose-write-good: ./var/log/npm-install.log
 ## Lint prose in all files tracked in VCS with alex.
 test-lint-prose-alex: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
+
+.PHONY: test-docker
+## Run the full suite of tests, coverage checks, and code linters in containers.
+test-docker: ./var/log/docker-compose-network.log build-docker
+	docker_run_args="--rm"
+	if test ! -t 0
+	then
+# No fancy output when running in parallel
+	    docker_run_args+=" -T"
+	fi
+# Test that the end-user image can run commands:
+	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) true
+# Run from the development Docker container for consistency:
+	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
+	    make -e test-code
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
@@ -1111,7 +1127,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
-./var/log/docker-login-DOCKER.log:
+./var/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"

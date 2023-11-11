@@ -27,7 +27,7 @@ Project Structure foundation or template
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
 
-     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure?sort=semver&logo=docker
+     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main
           :alt: Docker Hub image version
           :target: https://hub.docker.com/r/merpatterson/project-structure
        .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
