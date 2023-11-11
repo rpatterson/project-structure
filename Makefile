@@ -1273,7 +1273,7 @@ $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
 	touch "$(@)"
-$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
+$(HOME)/.local/bin/pipx: $(HOST_TARGET_PIP)
 # https://pypa.github.io/pipx/installation/#install-pipx
 	pip3 install --user "pipx"
 	python3 -m pipx ensurepath
