@@ -660,10 +660,11 @@ release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
 # Build other platforms in emulation and rely on the layer cache for bundling the
 # native images built before into the manifests:
 	export DOCKER_BUILD_ARGS="--push"
-ifneq ($$(DOCKER_PLATFORMS),)
-	DOCKER_BUILD_ARGS+=" --platform \
+	if test "$$(DOCKER_PLATFORMS)" != ""
+	then
+	    DOCKER_BUILD_ARGS+=" --platform \
 	$$(subst $$(EMPTY) ,$$(COMMA),$$(DOCKER_PLATFORMS))"
-endif
+	fi
 # Push the development manifest and images:
 	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
 # Push the end-user manifest and images:
