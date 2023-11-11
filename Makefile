@@ -972,6 +972,7 @@ endif
 
 # Use as a prerequisite to update those targets for each CI/CD run:
 ./var/log/job-date.log:
+	mkdir -pv "$(dir $(@))"
 	date | tee -a "$(@)"
 
 # Prose linting:
