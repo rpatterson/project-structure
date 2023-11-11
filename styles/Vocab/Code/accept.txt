@@ -50,6 +50,7 @@ via
 INFO
 NEWS
 PUID
+man
 noqa
 nosec
 pragma

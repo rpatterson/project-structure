@@ -56,6 +56,7 @@ RUN \
     "py3-pip" \
     "gnupg" \
     "curl" \
+    "imagemagick" \
     "github-cli" \
     && rm -rf /var/cache/apk/*
 

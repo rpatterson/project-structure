@@ -42,7 +42,8 @@ SHELL:=bash
 .DELETE_ON_ERROR:
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
-PS1?=$$
+export PS1?=$$
+export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
 
@@ -84,10 +85,21 @@ ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
+export PUID:=$(shell id -u)
+export PGID:=$(shell id -g)
 export CHECKOUT_DIR=$(PWD)
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
 STATE_DIR=$(HOME)/.local/state/$(PROJECT_NAME)
+TZ=Etc/UTC
+ifneq ("$(wildcard /usr/share/zoneinfo/)","")
+TZ:=$(shell \
+  realpath --relative-to=/usr/share/zoneinfo/ \
+  $(firstword $(realpath /private/etc/localtime /etc/localtime)) \
+)
+endif
+export TZ
+export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
 # Use the same Python version tox would as a default.
@@ -210,14 +222,21 @@ export PYPI_PASSWORD
 TEST_PYPI_PASSWORD=
 export TEST_PYPI_PASSWORD
 
+# https://www.sphinx-doc.org/en/master/usage/builders/index.html
+# Run these Sphinx builders to test the correctness of the documentation:
+# <!--alex disable gals-man-->
+DOCS_SPHINX_DEFAULT_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
+    latex man texinfo text gettext linkcheck xml pseudoxml
+# <!--alex enable gals-man-->
+# These builders report false warnings or failures:
+DOCS_SPHINX_ALL_BUILDERS=$(DOCS_SPHINX_DEFAULT_BUILDERS) doctest devhelp
+
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
 include $(wildcard .env)
 
 # Finished with `$(shell)`, echo recipe commands going forward
 .SHELLFLAGS+= -x
-
-# <!--alex disable hooks-->
 
 
 ### Top-level targets:
@@ -233,9 +252,11 @@ all: build
 
 .PHONY: build
 ## Perform any necessary local setup common to most operations.
+# <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log \
 		$(PYTHON_ENVS:%=build-requirements-%)
+# <!--alex enable hooks-->
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
@@ -276,7 +297,7 @@ build-pkgs: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: build-docs-html
+build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
@@ -284,11 +305,11 @@ build-docs-watch: $(HOME)/.local/bin/tox
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: build-docs-%
+.PHONY: $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%)
 # Render the documentation into a specific format.
-build-docs-%: $(HOME)/.local/bin/tox
-	tox exec -e "build" -- sphinx-build -b "$(@:build-docs-%=%)" -W \
-	    "./docs/" "./build/docs/"
+$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
+	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -329,9 +350,9 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
-		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
-		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
+		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
+		test-lint-docs-restructuredtext-lint
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
@@ -343,14 +364,6 @@ test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
 #     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
 	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
-.PHONY: test-lint-docs-sphinx-build
-## Test that the documentation can build successfully with sphinx-build.
-test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
-.PHONY: test-lint-docs-sphinx-linkcheck
-## Test the documentation for broken links.
-test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
@@ -464,18 +477,19 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	$(MAKE) -e -C "./build-host/" build
-	if git worktree list --porcelain | grep \
-	    '^worktree $(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)$$'
+	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	worktree_path="$(CHECKOUT_DIR)/worktrees/$${worktree_branch}"
+	if git worktree list --porcelain | grep "^worktree $${worktree_path}\$$"
 	then
-	    git worktree remove "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	    git worktree remove "$${worktree_path}"
 	fi
-	git worktree add -B "$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
-	    "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	cp -v "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
-	docker compose run --workdir \
-	    "$(CHECKOUT_DIR)/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)" \
-	    --rm -T build-host
+	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
+	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
+	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
+	    "./.env.~out~"
+	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
+	$(MAKE) -e -C "./build-host/" build
+	docker compose run --rm -T build-host
 
 
 ### Release Targets:
@@ -485,10 +499,10 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 
 .PHONY: release
 ## Publish installable packages if conventional commits require a release.
-release: $(HOME)/.local/bin/tox ~/.pypirc.~out~
+release: build-pkgs $(HOME)/.local/bin/tox ~/.pypirc.~out~
+	$(MAKE) -e test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
-	$(MAKE) -e build-pkgs
 # https://twine.readthedocs.io/en/latest/#using-twine
 	tox exec -e "build" -- twine check ./.tox/.pkg/tmp/dist/*
 # The VCS remote should reflect the release before publishing the release to ensure that
@@ -564,9 +578,10 @@ endif
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
-release-all: test-push test
+release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
+	$(MAKE) test-push test
 	$(MAKE) release
 	$(MAKE) test-clean
 
@@ -616,7 +631,7 @@ devel-upgrade-requirements:
 	touch "./setup.cfg" "./requirements/build.txt.in"
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(PYTHON_ENVS:%=build-requirements-%)
 .PHONY: devel-upgrade-pre-commit
-## Update VCS hooks from remotes to the most recent tag.
+## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: $(HOME)/.local/bin/tox \
 		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox exec -e "build" -- pre-commit autoupdate
@@ -628,13 +643,7 @@ devel-upgrade-vale:
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/log/git-fetch.log
-	if ! $(MAKE) -e "test-clean"
-	then
-	    set +x
-	    echo "ERROR: Can't upgrade with uncommitted changes."
-	    exit 1
-	fi
+devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	now=$$(date -u)
 	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
 	if $(MAKE) -e "test-clean"
@@ -725,7 +734,8 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 	tox exec -e "build" -- cz init
 
 # Create the Docker compose network a single time under parallel make:
-./var/log/docker-compose-network.log: $(HOST_TARGET_DOCKER) ./.env.~out~
+./var/log/docker-compose-network.log:
+	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
@@ -741,7 +751,7 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log:
+./var/log/git-fetch.log: ./var/log/job-date.log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -775,10 +785,17 @@ endif
 	    exit
 	fi
 	mv -v "$(@).~new~" "$(@)"
+# <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
+# <!--alex enable hooks-->
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
+
+# Use as a prerequisite to update those targets for each CI/CD run:
+./var/log/job-date.log:
+	mkdir -pv "$(dir $(@))"
+	date | tee -a "$(@)"
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
@@ -795,8 +812,8 @@ endif
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./.vale.ini ./styles/code.ini
-	$(MAKE) "./var/log/docker-compose-network.log"
+./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
+		./styles/code.ini
 	docker compose run --rm -T vale sync
 	docker compose run --rm -T vale sync --config="./styles/code.ini"
 
