@@ -31,6 +31,11 @@ Required
 
 #. ``base``: Add an Open Collective badge.
 
+#. ``ci``: TEMPLATE: `GitLab Project avatar
+   <https://gitlab.com/rpatterson/project-structure/edit#js-general-project-settings>`_
+   and `GitHub Social Preview
+   <https://github.com/rpatterson/project-structure/settings>`_.
+
 
 ****************************************************************************************
 High priority
@@ -64,6 +69,9 @@ Nice to have
    <https://unibeautify.com/docs/beautifier-stylelint>`_ supported by ``UniBeautify``:
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
    - `js-beautify <https://www.npmjs.com/package/js-beautify>`_
+
+#. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
+   ./build/docs/latex/ && make)``.
 
 #. `Docker image build-time labels
    <https://specs.opencontainers.org/image-spec/annotations/?v=v1.0.1>`_::
