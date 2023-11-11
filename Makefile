@@ -42,7 +42,8 @@ SHELL:=bash
 .DELETE_ON_ERROR:
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
-PS1?=$$
+export PS1?=$$
+export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
 
@@ -342,14 +343,21 @@ CI_REGISTRY_PASSWORD=
 export CI_REGISTRY_PASSWORD
 GH_TOKEN=
 
+# https://www.sphinx-doc.org/en/master/usage/builders/index.html
+# Run these Sphinx builders to test the correctness of the documentation:
+# <!--alex disable gals-man-->
+DOCS_SPHINX_DEFAULT_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
+    latex man texinfo text gettext linkcheck xml pseudoxml
+# <!--alex enable gals-man-->
+# These builders report false warnings or failures:
+DOCS_SPHINX_ALL_BUILDERS=$(DOCS_SPHINX_DEFAULT_BUILDERS) doctest devhelp
+
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
 include $(wildcard .env)
 
 # Finished with `$(shell)`, echo recipe commands going forward
 .SHELLFLAGS+= -x
-
-# <!--alex disable hooks-->
 
 
 ### Top-level targets:
@@ -379,8 +387,10 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 
 .PHONY: build
 ## Set up everything for development from a checkout, local and in containers.
+# <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(HOME)/.local/bin/tox ./var/log/npm-install.log build-docker
+# <!--alex enable hooks-->
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
@@ -391,7 +401,7 @@ build-pkgs: ./var/log/git-fetch.log \
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: build-docs-html
+build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
@@ -399,11 +409,11 @@ build-docs-watch: $(HOME)/.local/bin/tox
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: build-docs-%
+.PHONY: $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%)
 # Render the documentation into a specific format.
-build-docs-%: $(HOME)/.local/bin/tox
-	tox exec -e "build" -- sphinx-build -b "$(@:build-docs-%=%)" -W \
-	    "./docs/" "./build/docs/"
+$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
+	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -572,7 +582,8 @@ test-debug:
 test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
 define test_docker_template=
-test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
+test-docker-$(1): ./var/log/docker-compose-network.log \
+		./var-docker/log/$(1)/build-user.log \
 		./var-docker/log/$(1)/build-devel.log
 	docker_run_args="--rm"
 	if test ! -t 0
@@ -608,9 +619,9 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck test-lint-docs-sphinx-build \
-		test-lint-docs-sphinx-linkcheck test-lint-docs-sphinx-lint \
-		test-lint-docs-doc8 test-lint-docs-restructuredtext-lint
+test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
+		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
+		test-lint-docs-restructuredtext-lint
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
@@ -622,14 +633,6 @@ test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
 #     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
 	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
-.PHONY: test-lint-docs-sphinx-build
-## Test that the documentation can build successfully with sphinx-build.
-test-lint-docs-sphinx-build: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "html" -W "./docs/" "./build/docs/"
-.PHONY: test-lint-docs-sphinx-linkcheck
-## Test the documentation for broken links.
-test-lint-docs-sphinx-linkcheck: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "linkcheck" -W "./docs/" "./build/docs/"
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
@@ -692,7 +695,7 @@ test-lint-prose-alex: ./var/log/npm-install.log
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in containers.
-test-docker: $(HOST_TARGET_DOCKER) build-docker
+test-docker: ./var/log/docker-compose-network.log build-docker
 	docker_run_args="--rm"
 	if test ! -t 0
 	then
@@ -961,9 +964,10 @@ endif
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
-release-all: test-push test
+release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
+	$(MAKE) test-push test
 ifeq ($(GITLAB_CI),true)
 	$(MAKE) release-docker
 endif
@@ -1132,7 +1136,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
-./var/log/docker-login-DOCKER.log:
+./var/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"
@@ -1146,7 +1150,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	date | tee -a "$(@)"
 # TEMPLATE: Add a cleanup rule for the GitLab container registry under the project
 # settings.
-./var/log/docker-login-GITLAB.log:
+./var/log/docker-login-GITLAB.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${CI_REGISTRY_PASSWORD}"
@@ -1161,7 +1165,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	date | tee -a "$(@)"
 # TEMPLATE: Connect the GitHub container registry to the repository by using the
 # `Connect` button at the bottom of the container registry's web UI.
-./var/log/docker-login-GITHUB.log:
+./var/log/docker-login-GITHUB.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${PROJECT_GITHUB_PAT}"
@@ -1197,7 +1201,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var/log/git-remotes.log
+./var/log/git-fetch.log: ./var/log/job-date.log ./var/log/git-remotes.log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -1231,12 +1235,14 @@ endif
 	    exit
 	fi
 	mv -v "$(@).~new~" "$(@)"
+# <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
+# <!--alex enable hooks-->
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
 # Initialize minimal VCS configuration, useful in automation such as CI:
-./var/log/git-remotes.log:
+./var/log/git-remotes.log: ./.env.~out~
 	mkdir -pv "$(dir $(@))"
 	set +x
 ifneq ($(VCS_REMOTE_PUSH_URL),)
@@ -1267,6 +1273,10 @@ endif
 	set -x
 # Fail fast if there's still no push access:
 	git push --no-verify "origin" "HEAD:$(VCS_BRANCH)" | tee -a "$(@)"
+
+# Use as a prerequisite to update those targets for each CI/CD run:
+./var/log/job-date.log:
+	date | tee -a "$(@)"
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
@@ -1393,7 +1403,7 @@ GPG_SIGNING_PRIVATE_KEY=
 #	gpg --batch --verify "$${gnupg_homedir}/test-sig.txt.gpg"
 # 6. Add the contents of this target as a `GPG_SIGNING_PRIVATE_KEY` secret in CI and the
 # passphrase for the signing subkey as a `GPG_PASSPHRASE` secret in CI
-./var/log/gpg-import.log: $(HOST_PREFIX)/bin/gpg
+./var/log/gpg-import.log: $(HOST_PREFIX)/bin/gpg ./.env.~out~
 # In each CI run, import the private signing key from the CI secrets
 	mkdir -pv "$(dir $(@))"
 ifneq ($(and $(GPG_SIGNING_PRIVATE_KEY),$(GPG_PASSPHRASE)),)

@@ -2,6 +2,9 @@
 ..
 .. SPDX-License-Identifier: MIT
 
+.. image:: ./docs/_static/logo-120.png
+.. include-above-contents-start
+
 ########################################################################################
 Project Structure
 ########################################################################################
@@ -41,7 +44,7 @@ Project Structure foundation or template
           :alt: GitHub repository stars
           :target: https://github.com/rpatterson/project-structure/
 
-     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure?sort=semver&logo=docker
+     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main
           :alt: Docker Hub image version
           :target: https://hub.docker.com/r/merpatterson/project-structure
        .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
@@ -81,6 +84,7 @@ includes:
   push
 - Targets that automate releases
 - Targets that automate dependency upgrades
+- Documentation built by `Sphinx`_ with `useful Sphinx extensions`_
 - Targets used for both local development and on CI/CD platforms
 - A `GitLab CI/CD`_ pipeline integrating those CI/CD recipes and targets
 - A `GitHub Actions`_ workflow integrating those CI/CD recipes and targets
@@ -100,14 +104,17 @@ variants. Real projects can also merge those changes.
    https://gitlab.com/rpatterson/project-structure/-/blob/main/.pre-commit-config.yaml
 .. _`conventional commits`: https://www.conventionalcommits.org
 .. _`Towncrier`: https://towncrier.readthedocs.io/en/stable/
+.. _`Sphinx`: https://www.sphinx-doc.org/en/master/
+.. _`useful Sphinx extensions`:
+   https://www.sphinx-doc.org/en/master/usage/extensions/index.html
 .. _`GitLab CI/CD`: https://docs.gitlab.com/ee/ci/
 .. _`GitHub Actions`: https://docs.github.com/en/actions
 .. _`Organize source by feature`:
    https://www.seancdavis.com/posts/organize-components-by-keeping-related-files-close/
 
-.. include-end-before
+.. include-above-contents-end
 .. contents:: Table of Contents
-.. include-start-after
+.. include-below-contents-start
 
 
 ****************************************************************************************
@@ -174,7 +181,10 @@ have or better yet submit a PR with corrections.
 
      $ git grep "TEMPLATE"
 
-#. Update the project ``./logo.png`` and ``./logo.svg`` logo files.
+#. Update the project logo images::
+
+     $ git ls-files 'logo*.png' '**/logo*.png' 'logo*.svg' '**/logo*.svg' \
+     'docs/_static/favicon.ico'
 
 #. Update `the project Matrix room`_.
 

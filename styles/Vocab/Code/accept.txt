@@ -52,6 +52,7 @@ via
 INFO
 NEWS
 PUID
+man
 junit
 failure
 [Cc]odecov
