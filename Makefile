@@ -426,7 +426,8 @@ test-debug:
 test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
 .PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
 define test_docker_template=
-test-docker-$(1): $$(HOST_TARGET_DOCKER)  ./var-docker/log/$(1)/build-user.log \
+test-docker-$(1): ./var/log/docker-compose-network.log \
+		./var-docker/log/$(1)/build-user.log \
 		./var-docker/log/$(1)/build-devel.log
 	docker_run_args="--rm"
 	if test ! -t 0
@@ -538,7 +539,7 @@ test-lint-prose-alex: ./var/log/npm-install.log
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in containers.
-test-docker: $(HOST_TARGET_DOCKER) build-docker
+test-docker: ./var/log/docker-compose-network.log build-docker
 	docker_run_args="--rm"
 	if test ! -t 0
 	then
@@ -893,7 +894,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
-./var/log/docker-login-DOCKER.log:
+./var/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"
