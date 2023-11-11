@@ -1201,7 +1201,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var/log/job-date.log ./var/log/git-remotes.log
+./var/log/git-fetch.log: ./var/log/job-date.log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -1276,6 +1276,7 @@ endif
 
 # Use as a prerequisite to update those targets for each CI/CD run:
 ./var/log/job-date.log:
+	mkdir -pv "$(dir $(@))"
 	date | tee -a "$(@)"
 
 # Prose linting:
