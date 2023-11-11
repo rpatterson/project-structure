@@ -364,9 +364,10 @@ build-pkgs: ./var/log/git-fetch.log ./var/log/docker-compose-network.log \
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	    tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only
+	    tox run -e "$(PYTHON_DEFAULT_ENV)" --override "testenv.package=external" \
+	    --pkg-only
 # Copy to a location available in the Docker build context:
-	cp -lfv ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/* "./dist/"
+	cp -lfv ./var-docker/$(PYTHON_DEFAULT_ENV)/.tox/.pkg/tmp/dist/* "./dist/"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
