@@ -10,11 +10,20 @@ Useful to avoid circular imports.
 import os
 
 TRUE_STRS = {"1", "true", "yes", "on"}
+"""
+The case-insensitive strings considered equivalent to ``true``.
+"""
 DEBUG = (  # noqa: F841
     "DEBUG" in os.environ  # pylint: disable=magic-value-comparison
     and os.environ["DEBUG"].strip().lower() in TRUE_STRS
 )
+"""
+Set this environment variable to ``true`` to print ``logging.DEBUG`` level messages.
+"""
 POST_MORTEM = (  # noqa: F841
     "POST_MORTEM" in os.environ  # pylint: disable=magic-value-comparison
     and os.environ["POST_MORTEM"].strip().lower() in TRUE_STRS
 )
+"""
+Set this environment variable to ``true`` to invoke ``pdb.post_mortem()`` on exceptions.
+"""

@@ -1,12 +1,10 @@
 # SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
-#
 # SPDX-License-Identifier: MIT
 
-import commitizen
-import commitizen.providers
+from importlib.metadata import version as get_version
 
 # Configuration file for the Sphinx documentation builder.
-#
+
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
@@ -16,12 +14,10 @@ import commitizen.providers
 project = 'Project Structure'
 copyright = '2023, Ross Patterson'
 author = 'Ross Patterson'
-# https://www.sphinx-doc.org/en/master/_modules/sphinx/builders/epub3.html
-cz_provider = commitizen.providers.get_provider(commitizen.config.read_cfg())
-release = cz_provider.get_version()
-cz_scheme = commitizen.version_schemes.get_version_scheme(cz_provider.config)
-major, minor, patch = cz_scheme(release).release
-version = f"{major}.{minor}"
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#usage-from-sphinx
+release: str = get_version("project-structure")
+# for example take major/minor
+version: str = ".".join(release.split('.')[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -29,6 +25,7 @@ version = f"{major}.{minor}"
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.imgconverter',
+    'sphinx.ext.autosummary',
     'sphinx_copybutton',
     'sphinxext.opengraph',
 ]

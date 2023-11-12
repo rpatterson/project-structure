@@ -18,10 +18,6 @@ Required
 #. ``base``: Investigate `Sphinx TODO extension
    <https://www.sphinx-doc.org/en/master/usage/extensions/todo.html>`_.
 
-#. ``base``: Restore `general and module Sphinx indexes
-   <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
-   in the branches for appropriate project types.
-
 #. ``base``: Publish Sphinx docs to `all available documentation hosts
    <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
 

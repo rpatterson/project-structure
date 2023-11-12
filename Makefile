@@ -303,11 +303,12 @@ build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
 ## Serve the Sphinx documentation with live updates
 build-docs-watch: $(HOME)/.local/bin/tox
 	mkdir -pv "./build/docs/html/"
-	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
+	tox exec -e "$(PYTHON_DEFAULT_ENV)" -- \
+	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 .PHONY: $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%)
 # Render the documentation into a specific format.
-$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
+$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 
