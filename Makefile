@@ -258,8 +258,7 @@ test-lint-code-prettier: ./var/log/npm-install.log
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
 test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
-		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
-		test-lint-docs-restructuredtext-lint
+		test-lint-docs-sphinx-lint test-lint-docs-doc8
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
@@ -281,11 +280,6 @@ test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
 test-lint-docs-doc8: ./.tox/build/.tox-info.json
 	git ls-files -z '*.rst' ':!docs/news*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
-.PHONY: test-lint-docs-restructuredtext-lint
-## Test the documentation for formatting errors with restructuredtext-lint.
-test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
-	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
 ## Lint prose text for spelling, grammar, and style.
