@@ -31,6 +31,7 @@ extensions = [
     'sphinx.ext.imgconverter',
     'sphinx_copybutton',
     'sphinxext.opengraph',
+    'notfound.extension',
 ]
 
 templates_path = ['_templates']
