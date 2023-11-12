@@ -20,7 +20,8 @@ export DOCKER_USER=merpatterson
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
 # https://devguide.python.org/versions/#supported-versions
-PYTHON_SUPPORTED_MINORS=3.11 3.12 3.10 3.9 3.8
+PYTHON_DEFAULT_MINOR=3.11
+PYTHON_SUPPORTED_MINORS=$(PYTHON_DEFAULT_MINOR) 3.12 3.10 3.9 3.8
 
 
 ### "Private" Variables:
@@ -118,7 +119,6 @@ ifeq ($(PYTHON_MINOR),)
 # Fallback to the latest installed supported Python version
 PYTHON_MINOR=$(PYTHON_LATEST_BASENAME:python%=%)
 endif
-PYTHON_DEFAULT_MINOR=$(firstword $(PYTHON_SUPPORTED_MINORS))
 PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
 PYTHON_MINORS=$(PYTHON_SUPPORTED_MINORS)
 ifeq ($(PYTHON_MINOR),)
@@ -130,6 +130,7 @@ export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
 PYTHON_ALL_ENVS=$(PYTHON_ENVS) build
+PYTHON_OTHER_ENVS=$(filter-out $(PYTHON_DEFAULT_ENV),$(PYTHON_ENVS))
 PYTHON_EXTRAS=test devel
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
@@ -275,8 +276,7 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 
 .PHONY: build-requirements-compile
 ## Compile the requirements for one Python version and one type/extra.
-build-requirements-compile:
-	$(MAKE) -e "./.tox/$(PYTHON_ENV)/bin/pip-compile"
+build-requirements-compile: ./.tox/$(PYTHON_ENV)/.tox-info.json
 	pip_compile_opts="--strip-extras --generate-hashes --allow-unsafe \
 	$(PIP_COMPILE_ARGS)"
 ifneq ($(PIP_COMPILE_EXTRA),)
@@ -701,7 +701,7 @@ clean:
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
 define build_requirements_user_template=
-./requirements/$(1)/user.txt: ./setup.cfg ./.tox/$(1)/bin/pip-compile
+./requirements/$(1)/user.txt: ./setup.cfg ./.tox/$(1)/.tox-info.json
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/user.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -709,7 +709,7 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(eval \
     $(call build_requirements_user_template,$(python_env))))
 define build_requirements_extra_template=
-./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/$(1)/bin/pip-compile
+./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/$(1)/.tox-info.json
 	true DEBUG Updated prereqs: $$(?)
 	extra_basename="$$$$(basename "$$(@)")"
 	$$(MAKE) -e PYTHON_ENV="$$$$(basename "$$$$(dirname "$$(@)")")" \
@@ -720,7 +720,7 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(foreach extra,$(PYTHON_EXTRAS),\
     $(eval $(call build_requirements_extra_template,$(python_env),$(extra)))))
 define build_requirements_build_template=
-./requirements/$(1)/build.txt: ./requirements/build.txt.in ./.tox/$(1)/bin/pip-compile
+./requirements/$(1)/build.txt: ./requirements/build.txt.in ./.tox/$(1)/.tox-info.json
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/build.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -848,14 +848,23 @@ $(HOME)/.nvm/nvm.sh:
 # don't need Tox's logic about when to update/recreate them, e.g.:
 #     $ ./.tox/build/bin/cz --help
 # Useful for build/release tools:
-$(PYTHON_ALL_ENVS:%=./.tox/%/bin/pip-compile):
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/bin/pip-compile=%)" --notest
-
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(PYTHON_HOST_ENV)/build.txt
-	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
+./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_DEFAULT_ENV)/test.txt \
+		./requirements/$(PYTHON_DEFAULT_ENV)/devel.txt
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+define tox_info_template=
+./.tox/$(1)/.tox-info.json): $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(1)/test.txt
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+endef
+$(foreach python_env,$(PYTHON_OTHER_ENVS),$(eval \
+    $(call tox_info_template,$(python_env))))
 
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
