@@ -475,7 +475,7 @@ test-docker-$(1): ./var/log/docker-compose-network.log \
 	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
 # Run from the development Docker container for consistency:
 	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
-	    make -e test-code
+	    make -$(MAKEFLAGS) -e test-code
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
@@ -580,7 +580,7 @@ test-docker: ./var/log/docker-compose-network.log build-docker
 	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) true
 # Run from the development Docker container for consistency:
 	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
-	    make -e test-code
+	    make -$(MAKEFLAGS) -e test-code
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
