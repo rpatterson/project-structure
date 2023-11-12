@@ -26,6 +26,7 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.imgconverter',
     'sphinx.ext.autosummary',
+    'sphinx_autodoc_typehints',
     'sphinx_copybutton',
     'sphinxext.opengraph',
 ]
