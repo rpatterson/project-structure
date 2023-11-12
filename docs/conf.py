@@ -25,7 +25,7 @@ version: str = ".".join(release.split('.')[:2])
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.imgconverter',
-    'sphinx.ext.autosummary',
+    'autoapi.extension',
     'sphinx_copybutton',
     'sphinxext.opengraph',
 ]
@@ -60,6 +60,19 @@ linkcheck_ignore = [
 ]
 
 # -- Extension options -------------------------------------------------------
+
+# https://sphinx-autoapi.readthedocs.io/en/latest/tutorials.html
+autoapi_dirs = ['../src']
+autoapi_ignore = ['*migrations*', '*_version*']
+autoapi_options = [
+    'members',
+    'show-inheritance',
+    'show-module-summary',
+    'special-members',
+]
+# Support parallel builds and incremental builds:
+autoapi_keep_files = True
+
 ogp_site_url = 'http://project-structure.readthedocs.io/'
 ogp_image = './_static/logo.png'
 
