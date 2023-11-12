@@ -150,10 +150,6 @@ endif
 VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
 
-# Run Python tools in isolated environments managed by Tox:
-TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
-    sphinx-lint doc8 restructuredtext-lint proselint
-
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
 # project hosting services, indexes, and registries:
