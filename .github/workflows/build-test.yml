@@ -23,6 +23,9 @@ name: "Build and Test"
 #   A GitHub "Classic" Personal Access Token with scopes: `repo`, `workflow`,
 #   `packages`, and `project`
 #
+# - Add the project logo to the GitHub Social Preview:
+#     https://github.com/rpatterson/project-structure/settings
+#
 # Add them through the web UI or use the GitHub command-line tool:
 # https://docs.github.com/en/actions/security-guides/encrypted-secrets#creating-encrypted-secrets-for-a-repository
 

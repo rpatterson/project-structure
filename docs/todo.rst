@@ -31,11 +31,6 @@ Required
 
 #. ``base``: Add an Open Collective badge.
 
-#. ``ci``: TEMPLATE: `GitLab Project avatar
-   <https://gitlab.com/rpatterson/project-structure/edit#js-general-project-settings>`_
-   and `GitHub Social Preview
-   <https://github.com/rpatterson/project-structure/settings>`_.
-
 
 ****************************************************************************************
 High priority

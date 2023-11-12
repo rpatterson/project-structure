@@ -30,6 +30,9 @@
 #   to the hostname, e.g.:
 #     https://token-name:token-value@gitlab.com/rpatterson/project-structure.git
 #
+# - Add the project logo to the GitLab Project avatar:
+#     https://gitlab.com/rpatterson/project-structure/edit#js-general-project-settings
+#
 # Mask all except `GPG_SIGNING_PRIVATE_KEY`, which is too large to mask. Protect all
 # except `CODECOV_TOKEN` and `DOCKER_PASS` which contributors need to use CI to test
 # their work before maintainers merge into `develop` or `main`.
