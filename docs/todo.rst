@@ -73,14 +73,14 @@ Nice to have
 #. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
    ./build/docs/latex/ && make)``.
 
-#. `Docker image build-time labels
+#. ``docker``: `Docker image build-time labels
    <https://specs.opencontainers.org/image-spec/annotations/?v=v1.0.1>`_::
 
      org.opencontainers.image.revision
      org.opencontainers.image.ref.name
      org.opencontainers.image.base.digest
 
-#. Container image variants, for example ``*:slim`` or ``*:alpine``:
+#. ``docker``: Container image variants, for example ``*:slim`` or ``*:alpine``:
 
    The might save less disk space than by using the most widely used base image, given
    that `different images share common image layers
@@ -89,7 +89,7 @@ Nice to have
    distribution differences. As such, this probably isn't worth the effort until users
    report convincing use cases.
 
-#. CI/CD for other image platforms:
+#. ``docker``: CI/CD for other image platforms:
 
    This would cause one issue with CI resources. The pipelines already exhaust too much
    of the GitLab free CI/CD minutes for each run. Running the tests in ARM images would
