@@ -56,10 +56,6 @@ Nice to have
 #. ``base``: Switch to `the badge formatting
    <https://rstcheck-core.readthedocs.io/en/latest/#>`_ from ``rstcheck``
 
-#. ``base``: Upgrade Vale when they publish a release that fixes `the 'script run:
-   Compile Error: unresolved reference' errors
-   <https://github.com/errata-ai/vale/issues/697#issue-1932675573>`_.
-
 #. ``base``: Try some of `the linters and formatters
    <https://unibeautify.com/docs/beautifier-stylelint>`_ supported by ``UniBeautify``:
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
