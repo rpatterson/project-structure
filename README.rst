@@ -11,6 +11,8 @@ Project Structure
 Project Structure foundation or template
 ****************************************************************************************
 
+.. highlight:: console
+
 .. list-table::
    :class: borderless align-right
 

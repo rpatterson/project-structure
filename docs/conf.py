@@ -31,7 +31,6 @@ extensions = [
     'sphinx.ext.imgconverter',
     'sphinx_copybutton',
     'sphinxext.opengraph',
-    'sphinx_prompt',
 ]
 
 templates_path = ['_templates']
@@ -64,6 +63,9 @@ linkcheck_ignore = [
 ]
 
 # -- Extension options -------------------------------------------------------
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#automatic-exclusion-of-prompts-from-the-copies
+copybutton_exclude = '.linenos, .gp, .go'
+
 ogp_site_url = 'http://project-structure.readthedocs.io/'
 ogp_image = './_static/logo.png'
 
