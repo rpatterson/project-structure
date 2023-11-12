@@ -7,9 +7,11 @@ Contributing
 ########################################################################################
 
 Development requires standard tools, including ``git``, ``make``, and `Docker`_. Clone
-the repository::
+the repository:
 
-  $ git clone "https://gitlab.com/rpatterson/project-structure"
+  .. prompt:: bash
+
+     git clone "https://gitlab.com/rpatterson/project-structure"
 
 Set up for local development and install the Version Control System (VCS) integration::
 
