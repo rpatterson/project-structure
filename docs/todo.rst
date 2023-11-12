@@ -19,9 +19,6 @@ Required
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
 
-#. ``base``: Publish Sphinx docs to `all available documentation hosts
-   <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
-
 #. ``base``: Add an Open Collective badge.
 
 
@@ -54,6 +51,3 @@ Nice to have
 
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
    - `js-beautify <https://www.npmjs.com/package/js-beautify>`_
-
-#. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
-   ./build/docs/latex/ && make)``.
