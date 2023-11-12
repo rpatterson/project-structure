@@ -34,7 +34,7 @@ Required
 High priority
 ****************************************************************************************
 
-.. todo:: Any documentation improvements:
+#. Any documentation improvements:
 
    Docs benefit most from fresh eyes. If you find anything confusing, ask for help. When
    you understand better, contribute changes to the docs to help others.
@@ -62,5 +62,3 @@ Nice to have
 
 #. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
    ./build/docs/latex/ && make)``.
-
-.. todolist::
