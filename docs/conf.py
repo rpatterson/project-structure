@@ -29,6 +29,7 @@ version = f"{major}.{minor}"
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.imgconverter',
+    'sphinx.ext.todo',
     'sphinx_copybutton',
     'sphinxext.opengraph',
 ]
@@ -63,6 +64,7 @@ linkcheck_ignore = [
 ]
 
 # -- Extension options -------------------------------------------------------
+todo_include_todos = True
 ogp_site_url = 'http://project-structure.readthedocs.io/'
 ogp_image = './_static/logo.png'
 

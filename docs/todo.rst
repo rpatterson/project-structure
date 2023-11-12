@@ -15,9 +15,6 @@ TEMPLATE: clear items and add items for your project.
 Required
 ****************************************************************************************
 
-#. ``base``: Investigate `Sphinx TODO extension
-   <https://www.sphinx-doc.org/en/master/usage/extensions/todo.html>`_.
-
 #. ``base``: Restore `general and module Sphinx indexes
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
@@ -37,7 +34,7 @@ Required
 High priority
 ****************************************************************************************
 
-#. Any documentation improvements:
+.. todo:: Any documentation improvements:
 
    Docs benefit most from fresh eyes. If you find anything confusing, ask for help. When
    you understand better, contribute changes to the docs to help others.
@@ -65,3 +62,5 @@ Nice to have
 
 #. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
    ./build/docs/latex/ && make)``.
+
+.. todolist::
