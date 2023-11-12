@@ -94,4 +94,4 @@ of the `Makefile`_ for guidance.
 .. _`reuse-tool`: https://reuse.software/dev/#tool
 .. _Makefile: https://gitlab.com/rpatterson/project-structure/-/blob/main/Makefile
 .. _`the TODO file`:
-   https://gitlab.com/rpatterson/project-structure/-/blob/main/docs/todo.rst
+   https://project-structure.readthedocs.io/en/latest/todo.html

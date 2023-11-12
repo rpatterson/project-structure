@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# TEMPLATE: If the project hosts its documentation on `readthedocs.io`, then [sign
+# up](https://readthedocs.org/accounts/signup/) there.  Push this file to the remote and
+# then:
+#
+# - [import your project](https://readthedocs.org/dashboard/import/)
+#
+# - [set the metadata](https://readthedocs.org/dashboard/project-structure/edit/) such
+#   as `Description:` and `Tags:`
+#
+# - Add your emails for [Email
+#   Notifications](https://readthedocs.org/dashboard/project-structure/notifications/)
+
+# https://docs.readthedocs.io/en/stable/config-file/index.html
+version: 2
+
+formats: "all"
+
+build:
+  os: "ubuntu-22.04"
+  tools:
+    python: "3.11"
+
+python:
+  install:
+    - requirements: "./requirements/build.txt.in"
+
+sphinx:
+  configuration: "./docs/conf.py"
+  fail_on_warning: true

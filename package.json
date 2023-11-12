@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/rpatterson/project-structure.git"
+    "url": "https://project-structure.readthedocs.io/en/latest/"
   },
   "funding": {
     "type": "liberapay",

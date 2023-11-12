@@ -17,6 +17,9 @@ Project Structure foundation or template
    * - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
+       .. figure:: https://readthedocs.org/projects/project-structure/badge/
+          :alt: Documentation status
+          :target: https://project-structure.readthedocs.io/en/latest/
 
      - .. figure:: https://gitlab.com/rpatterson/project-structure/-/badges/release.svg
           :alt: GitLab latest release
@@ -293,7 +296,7 @@ References
 .. target-notes::
 
 .. _`the contributing documentation`:
-   https://gitlab.com/rpatterson/project-structure/-/blob/main/docs/contributing.rst
+   https://project-structure.readthedocs.io/en/latest/contributing.html
 
 .. _`Docker Compose`: https://docs.docker.com/compose/
 .. _`the example ./docker-compose.yml file`:

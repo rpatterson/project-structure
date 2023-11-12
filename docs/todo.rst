@@ -22,14 +22,14 @@ Required
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
 
-#. ``base``: Publish Sphinx docs to `all available documentation hosts
-   <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
-
-#. Investigate recommended third-party Sphinx extensions:
+#. ``base``: Investigate recommended third-party Sphinx extensions:
    - https://github.com/yoloseem/awesome-sphinxdoc
    - https://sphinx-extensions.readthedocs.io/en/latest/
 
 #. ``base``: Add an Open Collective badge.
+
+#. ``ci``: Publish Sphinx docs to `all available documentation hosts
+   <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
 
 
 ****************************************************************************************
