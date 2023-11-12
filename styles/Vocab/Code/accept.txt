@@ -48,6 +48,5 @@ kill
 [Gg]it
 via
 INFO
-NEWS
 PUID
 man
