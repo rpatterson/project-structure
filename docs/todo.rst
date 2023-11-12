@@ -26,6 +26,7 @@ Required
    <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
 
 #. Investigate recommended third-party Sphinx extensions:
+
    - https://github.com/yoloseem/awesome-sphinxdoc
    - https://sphinx-extensions.readthedocs.io/en/latest/
 
@@ -58,6 +59,7 @@ Nice to have
 
 #. ``base``: Try some of `the linters and formatters
    <https://unibeautify.com/docs/beautifier-stylelint>`_ supported by ``UniBeautify``:
+
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
    - `js-beautify <https://www.npmjs.com/package/js-beautify>`_
 
