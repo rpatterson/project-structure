@@ -31,6 +31,7 @@ extensions = [
     'sphinx.ext.imgconverter',
     'sphinx_copybutton',
     'sphinxext.opengraph',
+    'sphinx_last_updated_by_git',
 ]
 
 templates_path = ['_templates']
