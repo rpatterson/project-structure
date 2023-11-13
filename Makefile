@@ -194,7 +194,7 @@ all: build
 ## Perform any necessary local setup common to most operations.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		$(HOME)/.local/bin/tox ./var/log/npm-install.log
+		./.tox/build/.tox-info.json ./var/log/npm-install.log
 # <!--alex enable hooks-->
 
 .PHONY: build-pkgs
@@ -208,7 +208,7 @@ build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: $(HOME)/.local/bin/tox
+build-docs-watch: ./.tox/build/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
@@ -348,7 +348,7 @@ test-lint-docker: ./var/log/docker-compose-network.log
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
+test-push: ./var/log/git-fetch.log ./.tox/build/.tox-info.json
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -418,7 +418,7 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log
+release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json ./var/log/npm-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -519,7 +519,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 
 .PHONY: devel-upgrade
 ## Update all locked or frozen dependencies to their most recent available versions.
-devel-upgrade: $(HOME)/.local/bin/tox
+devel-upgrade: ./.tox/build/.tox-info.json
 # Update VCS integration from remotes to the most recent tag:
 	tox exec -e "build" -- pre-commit autoupdate
 # Update the Vale style rule definitions:
