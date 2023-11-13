@@ -19,8 +19,6 @@ commitizen
 # Generate release notes:
 towncrier
 
-# Verify reStructuredText documentation:
-rstcheck
 # https://github.com/sphinx-contrib/sphinx-lint
 sphinx-lint
 # https://docs.restructuredtext.net/articles/linter#supported-linters
