@@ -12,64 +12,71 @@ Project Structure foundation or template
 ****************************************************************************************
 
 .. list-table::
-   :class: borderless align-right
+   :widths: 20 20 20 20 20
+   :class: borderless align-right docutils field-list
 
-   * - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
+   * - Project:
+     - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
-       .. figure:: https://readthedocs.org/projects/project-structure/badge/
+     - .. figure:: https://readthedocs.org/projects/project-structure/badge/
           :alt: Documentation status
           :target: https://project-structure.readthedocs.io/en/latest/
-
+     -
+     -
+   * - GitLab:
      - .. figure:: https://gitlab.com/rpatterson/project-structure/-/badges/release.svg
           :alt: GitLab latest release
           :target: https://gitlab.com/rpatterson/project-structure/-/releases
-       .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/pipeline.svg
+     - .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/pipeline.svg
           :alt: GitLab CI/CD pipeline status
           :target: https://gitlab.com/rpatterson/project-structure/-/commits/main
-       .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/coverage.svg
+     - .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/coverage.svg
           :alt: GitLab coverage report
           :target: https://gitlab.com/rpatterson/project-structure/-/commits/main
-       .. figure:: https://img.shields.io/gitlab/stars/rpatterson/project-structure?gitlab_url=https%3A%2F%2Fgitlab.com&logo=gitlab
+     - .. figure:: https://img.shields.io/gitlab/stars/rpatterson/project-structure?logo=gitlab
           :alt: GitLab repository stars
           :target: https://gitlab.com/rpatterson/project-structure
 
+   * - GitHub:
      - .. figure:: https://img.shields.io/github/v/release/rpatterson/project-structure?logo=github
           :alt: GitHub release (latest SemVer)
           :target: https://github.com/rpatterson/project-structure/releases
-       .. figure:: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml/badge.svg
+     - .. figure:: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml/badge.svg
           :alt: GitHub Actions status
           :target: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml
-       .. figure:: https://codecov.io/github/rpatterson/project-structure/branch/main/graph/badge.svg?token=GNKVQ8VYOU
+     - .. figure:: https://codecov.io/github/rpatterson/project-structure/branch/main/graph/badge.svg?token=GNKVQ8VYOU
           :alt: Codecov test coverage
           :target: https://app.codecov.io/github/rpatterson/project-structure
-       .. figure:: https://img.shields.io/github/stars/rpatterson/project-structure?logo=github
+     - .. figure:: https://img.shields.io/github/stars/rpatterson/project-structure?logo=github
           :alt: GitHub repository stars
           :target: https://github.com/rpatterson/project-structure/
 
-     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main
+   * - Docker:
+     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main?logo=docker
           :alt: Docker Hub image version
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image pulls count
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
           :alt: Docker Hub stars
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image size
           :target: https://hub.docker.com/r/merpatterson/project-structure
 
+   * - Author:
      - .. figure:: https://img.shields.io/keybase/pgp/rpatterson?logo=keybase
           :alt: KeyBase Pretty Good Privacy (PGP) key ID
           :target: https://keybase.io/rpatterson
-       .. figure:: https://img.shields.io/github/followers/rpatterson?style=social
+     - .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
           :alt: GitHub followers count
           :target: https://github.com/rpatterson
-       .. figure:: https://img.shields.io/liberapay/receives/rpatterson.svg?logo=liberapay
+     - .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay donated per week
           :target: https://liberapay.com/rpatterson/donate
-       .. figure:: https://img.shields.io/liberapay/patrons/rpatterson.svg?logo=liberapay
+     - .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay patrons count
           :target: https://liberapay.com/rpatterson/donate
 
@@ -118,6 +125,7 @@ variants. Real projects can also merge those changes.
 .. include-above-contents-end
 .. contents:: Table of Contents
 .. include-below-contents-start
+.. highlight:: console
 
 
 ****************************************************************************************

@@ -50,7 +50,7 @@ HEAD
 head
 via
 INFO
-NEWS
+info
 PUID
 man
 junit
