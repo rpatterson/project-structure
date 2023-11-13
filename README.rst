@@ -11,6 +11,8 @@ Project Structure
 Project Structure foundation or template
 ****************************************************************************************
 
+.. highlight:: console
+
 .. list-table::
    :class: borderless align-right
 
@@ -34,13 +36,13 @@ Project Structure foundation or template
      - .. figure:: https://img.shields.io/keybase/pgp/rpatterson?logo=keybase
           :alt: KeyBase Pretty Good Privacy (PGP) key ID
           :target: https://keybase.io/rpatterson
-       .. figure:: https://img.shields.io/github/followers/rpatterson?style=social
+       .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
           :alt: GitHub followers count
           :target: https://github.com/rpatterson
-       .. figure:: https://img.shields.io/liberapay/receives/rpatterson.svg?logo=liberapay
+       .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay donated per week
           :target: https://liberapay.com/rpatterson/donate
-       .. figure:: https://img.shields.io/liberapay/patrons/rpatterson.svg?logo=liberapay
+       .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay patrons count
           :target: https://liberapay.com/rpatterson/donate
 

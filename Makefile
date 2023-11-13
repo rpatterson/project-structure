@@ -150,10 +150,6 @@ endif
 VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
 
-# Run Python tools in isolated environments managed by Tox:
-TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
-    sphinx-lint doc8 restructuredtext-lint proselint
-
 # Values used to build Docker images:
 DOCKER_FILE=./Dockerfile
 export DOCKER_BUILD_TARGET=user
@@ -464,8 +460,7 @@ test-lint-code-prettier: ./var/log/npm-install.log
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
 test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
-		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
-		test-lint-docs-restructuredtext-lint
+		test-lint-docs-sphinx-lint test-lint-docs-doc8
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
@@ -473,9 +468,9 @@ test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
-# Also exclude `./NEWS*.rst` because it's duplicate headings cause:
-#     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
-	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+# Also exclude `./docs/news*.rst` because it's duplicate headings cause:
+#     INFO docs/news.rst:317 Duplicate implicit target name: "bugfixes".
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
@@ -485,13 +480,8 @@ test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
 .PHONY: test-lint-docs-doc8
 ## Test the documentation for formatting errors with doc8.
 test-lint-docs-doc8: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' ':!NEWS*.rst' |
+	git ls-files -z '*.rst' ':!docs/news*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
-.PHONY: test-lint-docs-restructuredtext-lint
-## Test the documentation for formatting errors with restructuredtext-lint.
-test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
-	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
 ## Lint prose text for spelling, grammar, and style.
@@ -503,7 +493,7 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
-	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' |
+	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
@@ -730,8 +720,8 @@ endif
 # Assemble the release notes for this next version:
 	tox exec -e "build" -qq -- \
 	    towncrier build --version "$${next_version}" --draft --yes \
-	    >"./NEWS-VERSION.rst"
-	git add -- "./NEWS-VERSION.rst"
+	    >"./docs/news-version.rst"
+	git add -- "./docs/news-version.rst"
 	tox exec -e "build" -- towncrier build --version "$${next_version}" --yes
 # Bump the version in the NPM package metadata:
 	~/.nvm/nvm-exec npm --no-git-tag-version version "$${next_version}"
@@ -766,7 +756,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
-	    ':!newsfragments/*' ':!NEWS*.rst' ':!styles/*/meta.json' \
+	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/*/meta.json' \
 	    ':!styles/*/*.yml' |
 	while read -d $$'\0'
 	do

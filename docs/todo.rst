@@ -15,26 +15,11 @@ TEMPLATE: clear items and add items for your project.
 Required
 ****************************************************************************************
 
-#. ``base``: Investigate `Sphinx TODO extension
-   <https://www.sphinx-doc.org/en/master/usage/extensions/todo.html>`_.
-
 #. ``base``: Restore `general and module Sphinx indexes
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
 
-#. ``base``: Publish Sphinx docs to `all available documentation hosts
-   <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
-
-#. Investigate recommended third-party Sphinx extensions:
-   - https://github.com/yoloseem/awesome-sphinxdoc
-   - https://sphinx-extensions.readthedocs.io/en/latest/
-
 #. ``base``: Add an Open Collective badge.
-
-#. ``ci``: TEMPLATE: `GitLab Project avatar
-   <https://gitlab.com/rpatterson/project-structure/edit#js-general-project-settings>`_
-   and `GitHub Social Preview
-   <https://github.com/rpatterson/project-structure/settings>`_.
 
 
 ****************************************************************************************
@@ -61,17 +46,11 @@ Nice to have
 #. ``base``: Switch to `the badge formatting
    <https://rstcheck-core.readthedocs.io/en/latest/#>`_ from ``rstcheck``
 
-#. ``base``: Upgrade Vale when they publish a release that fixes `the 'script run:
-   Compile Error: unresolved reference' errors
-   <https://github.com/errata-ai/vale/issues/697#issue-1932675573>`_.
-
 #. ``base``: Try some of `the linters and formatters
    <https://unibeautify.com/docs/beautifier-stylelint>`_ supported by ``UniBeautify``:
+
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
    - `js-beautify <https://www.npmjs.com/package/js-beautify>`_
-
-#. ``base``: Fix build of ``$ make build-docs-latex`` into ``*.pdf`` by using ``$ (cd
-   ./build/docs/latex/ && make)``.
 
 #. ``docker``: `Docker image build-time labels
    <https://specs.opencontainers.org/image-spec/annotations/?v=v1.0.1>`_::
