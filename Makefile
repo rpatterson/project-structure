@@ -876,10 +876,10 @@ $(HOME)/.nvm/nvm.sh:
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 define tox_info_template=
-./.tox/$(1)/.tox-info.json): $(HOME)/.local/bin/tox ./tox.ini \
+./.tox/$(1)/.tox-info.json): $$(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(1)/test.txt
-	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
-	touch "$(@)"
+	tox run $$(TOX_EXEC_OPTS) -e "$$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$$(@)"
 endef
 $(foreach python_env,$(PYTHON_OTHER_ENVS),$(eval \
     $(call tox_info_template,$(python_env))))
