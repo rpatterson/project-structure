@@ -11,8 +11,8 @@
 # - [set the metadata](https://readthedocs.org/dashboard/project-structure/edit/) such
 #   as `Description:` and `Tags:`
 #
-# - Add your emails for [Email
-#   Notifications](https://readthedocs.org/dashboard/project-structure/notifications/)
+# - Add your emails for [email
+#   notifications](https://readthedocs.org/dashboard/project-structure/notifications/)
 
 # https://docs.readthedocs.io/en/stable/config-file/index.html
 version: 2
