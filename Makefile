@@ -271,28 +271,27 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
 define build_requirements_template=
-build-requirements-$(1):
-# Workaround race conditions in pip's HTTP file cache:
-# https://github.com/pypa/pip/issues/6970#issuecomment-527678672
-	targets="./requirements/$(1)/user.txt \
+build-requirements-$(1): ./requirements/$(1)/user.txt \
 	$$(PYTHON_EXTRAS:%=./requirements/$(1)/%.txt) \
-	./requirements/$(1)/build.txt"
-	$$(MAKE) -e $$$${targets} || $$(MAKE) -e $$$${targets} ||
-	    $$(MAKE) -e $$$${targets}
+	./requirements/$(1)/build.txt
 endef
 $(foreach python_env,$(PYTHON_ENVS),$(eval \
     $(call build_requirements_template,$(python_env))))
 
 .PHONY: build-requirements-compile
 ## Compile the requirements for one Python version and one type/extra.
-build-requirements-compile: ./.tox/$(PYTHON_ENV)/.tox-info.json
+build-requirements-compile: ./.tox/.log/$(PYTHON_ENV)-bootstrap.log
 	pip_compile_opts="--strip-extras --generate-hashes --reuse-hashes \
 	--allow-unsafe $(PIP_COMPILE_ARGS) --quiet"
 ifneq ($(PIP_COMPILE_EXTRA),)
 	pip_compile_opts+=" --extra $(PIP_COMPILE_EXTRA)"
 endif
 	./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
-	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)"
+	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)" ||
+	    ./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
+	        --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)" ||
+	    ./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
+	        --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)"
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
@@ -312,7 +311,7 @@ build-docs:
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: ./.tox/build/.tox-info.json
+build-docs-watch: ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "$(PYTHON_DEFAULT_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
@@ -383,7 +382,7 @@ test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
+test-lint-docs-rstcheck: ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
@@ -722,7 +721,7 @@ clean:
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
 define build_requirements_user_template=
-./requirements/$(1)/user.txt: ./setup.cfg ./.tox/$(1)/.tox-info.json
+./requirements/$(1)/user.txt: ./setup.cfg ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/user.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -730,7 +729,7 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(eval \
     $(call build_requirements_user_template,$(python_env))))
 define build_requirements_extra_template=
-./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/$(1)/.tox-info.json
+./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	extra_basename="$$$$(basename "$$(@)")"
 	$$(MAKE) -e PYTHON_ENV="$$$$(basename "$$$$(dirname "$$(@)")")" \
@@ -741,7 +740,8 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(foreach extra,$(PYTHON_EXTRAS),\
     $(eval $(call build_requirements_extra_template,$(python_env),$(extra)))))
 define build_requirements_build_template=
-./requirements/$(1)/build.txt: ./requirements/build.txt.in ./.tox/$(1)/.tox-info.json
+./requirements/$(1)/build.txt: ./requirements/build.txt.in \
+		./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/build.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -869,21 +869,25 @@ $(HOME)/.nvm/nvm.sh:
 # don't need Tox's logic about when to update/recreate:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(PYTHON_DEFAULT_ENV)/build.txt
-	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(PYTHON_DEFAULT_ENV)/test.txt \
 		./requirements/$(PYTHON_DEFAULT_ENV)/devel.txt
-	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 define tox_info_template=
 ./.tox/$(1)/.tox-info.json): $$(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(1)/test.txt
-	tox run $$(TOX_EXEC_OPTS) -e "$$(@:.tox/%/.tox-info.json=%)" --notest
+	tox run -e "$$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$$(@)"
 endef
 $(foreach python_env,$(PYTHON_OTHER_ENVS),$(eval \
     $(call tox_info_template,$(python_env))))
+$(PYTHON_ALL_ENVS:%=./.tox/.log/%-bootstrap.log): $(HOME)/.local/bin/tox ./tox.ini
+	mkdir -pv "$(dir $(@))"
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/.log/%-bootstrap.log=%)" --notest |
+	    tee -a "$(@)"
 
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
