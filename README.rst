@@ -11,25 +11,29 @@ Project Structure
 Project Structure foundation or template
 ****************************************************************************************
 
-.. highlight:: console
-
 .. list-table::
-   :class: borderless align-right
+   :widths: 20 20 20 20 20
+   :class: borderless align-right docutils field-list
 
-   * - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
+   * - Project:
+     - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
+     -
+     -
+     -
 
+   * - Author:
      - .. figure:: https://img.shields.io/keybase/pgp/rpatterson?logo=keybase
           :alt: KeyBase Pretty Good Privacy (PGP) key ID
           :target: https://keybase.io/rpatterson
-       .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
+     - .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
           :alt: GitHub followers count
           :target: https://github.com/rpatterson
-       .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
+     - .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay donated per week
           :target: https://liberapay.com/rpatterson/donate
-       .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
+     - .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay patrons count
           :target: https://liberapay.com/rpatterson/donate
 
@@ -70,6 +74,7 @@ variants. Real projects can also merge those changes.
 .. include-above-contents-end
 .. contents:: Table of Contents
 .. include-below-contents-start
+.. highlight:: console
 
 
 ****************************************************************************************

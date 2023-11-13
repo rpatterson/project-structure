@@ -1,6 +1,7 @@
 {
   "checks": {
     "typography.symbols": false,
-    "annotations.misc": false
+    "annotations.misc": false,
+    "lexical_illusions.misc": false
   }
 }
