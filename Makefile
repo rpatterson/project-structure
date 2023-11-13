@@ -252,7 +252,7 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		$(HOME)/.local/bin/tox ./var/log/npm-install.log build-docker
+		./.tox/build/.tox-info.json ./var/log/npm-install.log build-docker
 # <!--alex enable hooks-->
 
 .PHONY: build-pkgs
@@ -268,7 +268,7 @@ build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: $(HOME)/.local/bin/tox
+build-docs-watch: ./.tox/build/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
@@ -277,6 +277,15 @@ build-docs-watch: $(HOME)/.local/bin/tox
 $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: build-docs-pdf
+# Render the LaTeX documentation into a PDF file.
+build-docs-pdf: build-docs-latex
+	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" LATEXMKOPTS="-f -interaction=nonstopmode" ||
+	    true
+.PHONY: build-docs-info
+# Render the Texinfo documentation into a `*.info` file.
+build-docs-info: build-docs-texinfo
+	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" info
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -311,7 +320,7 @@ build-docker-tags:
 
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 ## Print the list of image tags for the current registry and variant.
-$(DOCKER_REGISTRIES:%=build-docker-tags-%): $(HOME)/.local/bin/tox
+$(DOCKER_REGISTRIES:%=build-docker-tags-%): ./.tox/build/.tox-info.json
 	test -e "./var/log/git-fetch.log"
 	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
 	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
@@ -360,7 +369,7 @@ endif
 
 .PHONY: build-docker-build
 ## Run the actual commands used to build the Docker container image.
-build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) $(HOME)/.local/bin/tox \
+build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.json \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
@@ -564,7 +573,7 @@ test-lint-docker: ./var/log/docker-compose-network.log ./var/log/docker-login-DO
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
+test-push: ./var/log/git-fetch.log ./.tox/build/.tox-info.json
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -673,7 +682,7 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log \
+release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json ./var/log/npm-install.log \
 		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
 	if ! git diff --cached --exit-code
 	then
@@ -775,7 +784,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 
 .PHONY: devel-upgrade
 ## Update all locked or frozen dependencies to their most recent available versions.
-devel-upgrade: $(HOME)/.local/bin/tox
+devel-upgrade: ./.tox/build/.tox-info.json
 # Update VCS integration from remotes to the most recent tag:
 	tox exec -e "build" -- pre-commit autoupdate
 # Update the Vale style rule definitions:
