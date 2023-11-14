@@ -306,7 +306,8 @@ build-pkgs: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
 build-docs:
-	$(MAKE) DOCS_SPHINX_BUILD_OPTS="-D autosummary_generate=0" \
+	$(MAKE) DOCS_SPHINX_BUILD_OPTS="\
+	-D autosummary_generate=0 -D autoapi_generate_api_docs=0" \
 	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
