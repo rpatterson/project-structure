@@ -74,7 +74,6 @@ variants. Real projects can also merge those changes.
 .. include-above-contents-end
 .. contents:: Table of Contents
 .. include-below-contents-start
-.. highlight:: console
 
 
 ****************************************************************************************
@@ -102,7 +101,9 @@ have or better yet submit a PR with corrections.
 
 #. Merge into your project:
 
-   If starting a fresh project::
+   If starting a fresh project:
+
+   .. code:: console
 
      $ git clone --origin "template" --branch "${TEMPLATE_BRANCH:?}" \
      "https://gitlab.com/rpatterson/project-structure.git" "./foo-project"
@@ -111,29 +112,39 @@ have or better yet submit a PR with corrections.
      $ git remote add "origin" "git@gitlab.com:foo-username/foo-project.git"
      $ git switch -C "main" --track "origin/main"
 
-   If merging into an existing project::
+   If merging into an existing project:
+
+   .. code:: console
 
      $ git remote add "template" \
      "https://gitlab.com/rpatterson/project-structure.git"
      $ git config remote.template.tagOpt --no-tags
      $ git merge --allow-unrelated-histories "template/${TEMPLATE_BRANCH:?}"
 
-#. Rename files and directories derived from the project name::
+#. Rename files and directories derived from the project name:
+
+   .. code:: console
 
      $ git ls-files | grep -iE 'project.?structure'
 
-#. Rename project name and template creator identity strings::
+#. Rename project name and template creator identity strings:
+
+   .. code:: console
 
      $ git grep -iE 'project.?structure|ross|Patterson'
 
 #. Make changes described in ``# TEMPLATE:`` comments:
 
    These bits need the developer's attention and reasoning. Read the comments and follow
-   them with care::
+   them with care:
+
+   .. code:: console
 
      $ git grep "TEMPLATE"
 
-#. Update the project logo images::
+#. Update the project logo images:
+
+   .. code:: console
 
      $ git ls-files 'logo*.png' '**/logo*.png' 'logo*.svg' '**/logo*.svg' \
      'docs/_static/favicon.ico'
@@ -163,7 +174,9 @@ straight to final release. For example they can decide that:
 Installation
 ****************************************************************************************
 
-Install by using any tool for installing packages for the project language::
+Install by using any tool for installing packages for the project language:
+
+.. code:: console
 
   $ true "TEMPLATE: Always specific to the project type"
 
