@@ -165,11 +165,13 @@ endif
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_DEFAULT_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
-    latex man texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_OTHER_BUILDERS=dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
+    texinfo text gettext linkcheck xml pseudoxml devhelp
+DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS)
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_ALL_BUILDERS) pdf info
+DOCS_SPHINX_BUILD_OPTS=
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
-DOCS_SPHINX_ALL_BUILDERS=$(DOCS_SPHINX_DEFAULT_BUILDERS) doctest devhelp
 
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
@@ -204,7 +206,9 @@ build-pkgs: ./var/log/git-fetch.log
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
+build-docs:
+	$(MAKE) DOCS_SPHINX_BUILD_OPTS="-D autosummary_generate=0" \
+	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
@@ -212,20 +216,26 @@ build-docs-watch: ./.tox/build/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%)
+.PHONY: build-docs-html
 # Render the documentation into a specific format.
-$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
+build-docs-html: ./.tox/build/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%)
+# Render the documentation into a specific format.
+$(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): \
+		./.tox/build/.tox-info.json build-docs-html
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
+	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 # Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
-	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" LATEXMKOPTS="-f -interaction=nonstopmode" ||
-	    true
+	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" \
+	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
 # Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
-	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" info
+	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -266,8 +276,8 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
-		test-lint-docs-sphinx-lint test-lint-docs-doc8
+test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
+		test-lint-docs-doc8
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
