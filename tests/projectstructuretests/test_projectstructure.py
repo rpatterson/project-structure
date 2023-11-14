@@ -10,6 +10,8 @@ import subprocess  # nosec B404
 
 import unittest
 
+import projectstructure
+
 
 class ProjectStructureTests(unittest.TestCase):
     """
@@ -20,6 +22,10 @@ class ProjectStructureTests(unittest.TestCase):
         """
         The Python package is on `sys.path` and importable.
         """
+        self.assertIsNotNone(
+            projectstructure.__version__,
+            "Dynamic version not set from VCS tags",
+        )
         import_process = subprocess.run(  # nosec B603
             [sys.executable, "-c", "import projectstructure"],
             check=True,
