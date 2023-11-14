@@ -354,7 +354,8 @@ test: test-lint test-code
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=build-requirements-%)
+test-code: $(PYTHON_ENVS:%=./.tox/%/.tox-info.json) \
+		$(PYTHON_ENVS:%=build-requirements-%)
 	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-lint
