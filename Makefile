@@ -286,8 +286,8 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 .PHONY: build-requirements-compile
 ## Compile the requirements for one Python version and one type/extra.
 build-requirements-compile: ./.tox/$(PYTHON_ENV)/.tox-info.json
-	pip_compile_opts="--strip-extras --generate-hashes --allow-unsafe \
-	$(PIP_COMPILE_ARGS)"
+	pip_compile_opts="--strip-extras --generate-hashes --reuse-hashes \
+	--allow-unsafe $(PIP_COMPILE_ARGS)"
 ifneq ($(PIP_COMPILE_EXTRA),)
 	pip_compile_opts+=" --extra $(PIP_COMPILE_EXTRA)"
 endif
