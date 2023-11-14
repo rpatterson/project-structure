@@ -5,8 +5,8 @@ Source: https://gitlab.com/rpatterson/project-structure
 
 Files:
  newsfragments/*
- NEWS-VERSION.rst
- NEWS.rst
+ docs/news-version.rst
+ docs/news.rst
 Copyright: 2023 Ross Patterson <me@rpatterson.net>
 License: MIT
 Comment:

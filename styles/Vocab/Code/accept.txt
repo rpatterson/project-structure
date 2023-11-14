@@ -48,7 +48,7 @@ kill
 [Gg]it
 via
 INFO
-NEWS
+info
 PUID
 man
 noqa

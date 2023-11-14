@@ -16,6 +16,8 @@ export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
 NPM_SCOPE=rpattersonnet
 export DOCKER_USER=merpatterson
+# https://devguide.python.org/versions/#supported-versions
+PYTHON_DEFAULT_MINOR=3.11
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
@@ -55,6 +57,7 @@ HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIP=python3-pip
+HOST_PKG_NAMES_PYTHON=python$(PYTHON_DEFAULT_MINOR)-venv
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 ifneq ($(shell which "brew"),)
 HOST_PREFIX=/usr/local
@@ -63,12 +66,14 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=python
+HOST_PKG_NAMES_PYTHON=python@$(PYTHON_DEFAULT_MINOR)
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=py3-pip
+HOST_PKG_NAMES_PYTHON=py3-virtualenv
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
@@ -77,6 +82,8 @@ HOST_TARGET_DOCKER:=$(shell which docker)
 ifeq ($(HOST_TARGET_DOCKER),)
 HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
 endif
+export PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
+PIP_COMPILE_ARGS=
 
 # Values derived from the environment:
 USER_NAME:=$(shell id -u -n)
@@ -226,11 +233,13 @@ export TEST_PYPI_PASSWORD
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_DEFAULT_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
-    latex man texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_OTHER_BUILDERS=dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
+    texinfo text gettext linkcheck xml pseudoxml devhelp
+DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS)
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_ALL_BUILDERS) pdf info
+DOCS_SPHINX_BUILD_OPTS=
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
-DOCS_SPHINX_ALL_BUILDERS=$(DOCS_SPHINX_DEFAULT_BUILDERS) doctest devhelp
 
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
@@ -255,8 +264,8 @@ all: build
 ## Perform any necessary local setup common to most operations.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		$(HOME)/.local/bin/tox ./var/log/npm-install.log \
-		$(PYTHON_ENVS:%=build-requirements-%)
+		$(PYTHON_ALL_ENVS:%=./.tox/%/.tox-info.json) \
+		$(PYTHON_ENVS:%=./requirements/%/user.txt) ./var/log/npm-install.log
 # <!--alex enable hooks-->
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
@@ -297,20 +306,37 @@ build-pkgs: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%)
+build-docs:
+	$(MAKE) DOCS_SPHINX_BUILD_OPTS="-D autosummary_generate=0" \
+	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: $(HOME)/.local/bin/tox
+build-docs-watch: ./.tox/build/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "$(PYTHON_DEFAULT_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: $(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%)
+.PHONY: build-docs-html
 # Render the documentation into a specific format.
-$(DOCS_SPHINX_ALL_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
+build-docs-html: ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%)
+# Render the documentation into a specific format.
+$(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): \
+		./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json build-docs-html
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
+	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: build-docs-pdf
+# Render the LaTeX documentation into a PDF file.
+build-docs-pdf: build-docs-latex
+	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" \
+	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
+.PHONY: build-docs-info
+# Render the Texinfo documentation into a `*.info` file.
+build-docs-info: build-docs-texinfo
+	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -351,9 +377,8 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck $(DOCS_SPHINX_DEFAULT_BUILDERS:%=build-docs-%) \
-		test-lint-docs-sphinx-lint test-lint-docs-doc8 \
-		test-lint-docs-restructuredtext-lint
+test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
+		test-lint-docs-doc8
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
@@ -361,9 +386,9 @@ test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
-# Also exclude `./NEWS*.rst` because it's duplicate headings cause:
-#     INFO NEWS.rst:317 Duplicate implicit target name: "bugfixes".
-	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
+# Also exclude `./docs/news*.rst` because it's duplicate headings cause:
+#     INFO docs/news.rst:317 Duplicate implicit target name: "bugfixes".
+	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
@@ -373,13 +398,8 @@ test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
 .PHONY: test-lint-docs-doc8
 ## Test the documentation for formatting errors with doc8.
 test-lint-docs-doc8: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' ':!NEWS*.rst' |
+	git ls-files -z '*.rst' ':!docs/news*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
-.PHONY: test-lint-docs-restructuredtext-lint
-## Test the documentation for formatting errors with restructuredtext-lint.
-test-lint-docs-restructuredtext-lint: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' ':!docs/index.rst' ':!NEWS*.rst' |
-	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/restructuredtext-lint)" --level "debug"
 
 .PHONY: test-lint-prose
 ## Lint prose text for spelling, grammar, and style.
@@ -391,7 +411,7 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
-	    ':!NEWS*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
+	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
@@ -439,7 +459,7 @@ test-lint-docker: ./var/log/docker-compose-network.log
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
+test-push: ./var/log/git-fetch.log ./.tox/build/.tox-info.json
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -515,7 +535,7 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log $(HOME)/.local/bin/tox ./var/log/npm-install.log
+release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json ./var/log/npm-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -561,8 +581,8 @@ endif
 # Assemble the release notes for this next version:
 	tox exec -e "build" -qq -- \
 	    towncrier build --version "$${next_version}" --draft --yes \
-	    >"./NEWS-VERSION.rst"
-	git add -- "./NEWS-VERSION.rst"
+	    >"./docs/news-version.rst"
+	git add -- "./docs/news-version.rst"
 	tox exec -e "build" -- towncrier build --version "$${next_version}" --yes
 # Bump the version in the NPM package metadata:
 	~/.nvm/nvm-exec npm --no-git-tag-version version "$${next_version}"
@@ -597,7 +617,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 		$(HOME)/.local/bin/tox
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
-	    ':!newsfragments/*' ':!NEWS*.rst' ':!styles/*/meta.json' \
+	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/*/meta.json' \
 	    ':!styles/*/*.yml' ':!requirements/*/*.txt' |
 	while read -d $$'\0'
 	do
@@ -633,8 +653,7 @@ devel-upgrade-requirements:
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(PYTHON_ENVS:%=build-requirements-%)
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
-devel-upgrade-pre-commit: $(HOME)/.local/bin/tox \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt
+devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 	tox exec -e "build" -- pre-commit autoupdate
 .PHONY: devel-upgrade-vale
 ## Update the Vale style rule definitions.
@@ -846,11 +865,9 @@ $(HOME)/.nvm/nvm.sh:
 
 # Targets used as pre-requisites to ensure virtual environments managed by tox have been
 # created so other targets can use them directly to save Tox's startup time when they
-# don't need Tox's logic about when to update/recreate them, e.g.:
-#     $ ./.tox/build/bin/cz --help
-# Useful for build/release tools:
+# don't need Tox's logic about when to update/recreate:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt
+		./requirements/$(PYTHON_DEFAULT_ENV)/build.txt
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \

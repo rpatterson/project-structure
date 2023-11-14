@@ -28,6 +28,7 @@ extensions = [
     'autoapi.extension',
     'sphinx_copybutton',
     'sphinxext.opengraph',
+    'notfound.extension',
 ]
 
 templates_path = ['_templates']
@@ -61,6 +62,12 @@ linkcheck_ignore = [
 
 # -- Extension options -------------------------------------------------------
 
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#automatic-exclusion-of-prompts-from-the-copies
+copybutton_exclude = '.linenos, .gp, .go'
+
+ogp_site_url = 'http://project-structure.readthedocs.io/'
+ogp_image = './_static/logo.png'
+
 # https://sphinx-autoapi.readthedocs.io/en/latest/tutorials.html
 autoapi_dirs = ['../src']
 autoapi_ignore = ['*migrations*', '*_version*']
@@ -72,9 +79,6 @@ autoapi_options = [
 ]
 # Support parallel builds and incremental builds:
 autoapi_keep_files = True
-
-ogp_site_url = 'http://project-structure.readthedocs.io/'
-ogp_image = './_static/logo.png'
 
 # -- Other formats -----------------------------------------------------------
 latex_logo = './_static/logo.svg'
