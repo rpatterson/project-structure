@@ -22,3 +22,12 @@ License: MIT
 Comment:
  [Vale](https://vale.sh) manages [the rule definitions of the
  styles](https://vale.sh/docs/topics/packages/) used to lint prose.
+
+Files:
+ requirements/*/*.txt
+Copyright: 2023 Ross Patterson <me@rpatterson.net>
+License: MIT
+Comment:
+ Version pins/locks/freezes that [Pip
+ Tools](https://pip-tools.readthedocs.io/en/latest/) manage and are thus inappropriate
+ for header annotations/commments.

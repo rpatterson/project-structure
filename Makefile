@@ -16,6 +16,8 @@ export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
 NPM_SCOPE=rpattersonnet
 export DOCKER_USER=merpatterson
+# https://devguide.python.org/versions/#supported-versions
+PYTHON_DEFAULT_MINOR=3.11
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
@@ -52,6 +54,7 @@ HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIP=python3-pip
+HOST_PKG_NAMES_PYTHON=python$(PYTHON_DEFAULT_MINOR)-venv
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 ifneq ($(shell which "brew"),)
 HOST_PREFIX=/usr/local
@@ -60,12 +63,14 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=python
+HOST_PKG_NAMES_PYTHON=python@$(PYTHON_DEFAULT_MINOR)
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=py3-pip
+HOST_PKG_NAMES_PYTHON=py3-virtualenv
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
@@ -74,6 +79,8 @@ HOST_TARGET_DOCKER:=$(shell which docker)
 ifeq ($(HOST_TARGET_DOCKER),)
 HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
 endif
+export PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
+PIP_COMPILE_ARGS=
 
 # Values derived from the environment:
 USER_NAME:=$(shell id -u -n)
@@ -310,7 +317,7 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
-	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' |
+	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
@@ -511,7 +518,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
 	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/*/meta.json' \
-	    ':!styles/*/*.yml' |
+	    ':!styles/*/*.yml' ':!requirements/*/*.txt' |
 	while read -d $$'\0'
 	do
 	    if ! (
@@ -528,11 +535,21 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run format
 
 .PHONY: devel-upgrade
-## Update all locked or frozen dependencies to their most recent available versions.
-devel-upgrade: ./.tox/build/.tox-info.json
-# Update VCS integration from remotes to the most recent tag:
+## Update requirements, dependencies, and other external versions tracked in VCS.
+devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
+.PHONY: devel-upgrade-requirements
+## Update Python tool versions to their most recent available versions.
+devel-upgrade-requirements:
+	touch "./requirements/build.txt.in"
+	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
+	    "./requirements/$(PYTHON_DEFAULT_ENV)/build.txt"
+.PHONY: devel-upgrade-pre-commit
+## Update VCS integration from remotes to the most recent tag.
+devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 	tox exec -e "build" -- pre-commit autoupdate
-# Update the Vale style rule definitions:
+.PHONY: devel-upgrade-vale
+## Update the Vale style rule definitions.
+devel-upgrade-vale:
 	touch "./.vale.ini" "./styles/code.ini"
 	$(MAKE) "./var/log/vale-rule-levels.log"
 
@@ -547,7 +564,8 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	    exit
 	fi
 # Only add changes upgrade-related changes:
-	git add --update "./.pre-commit-config.yaml" "./.vale.ini" "./styles/"
+	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
+	    "./.vale.ini" "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
@@ -590,7 +608,6 @@ clean:
 ### Real Targets:
 #
 # Recipes that make actual changes and create and update files for the target.
-
 
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log:
@@ -701,9 +718,16 @@ $(HOME)/.nvm/nvm.sh:
 	    | bash
 
 # Manage Python tools:
-./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini ./requirements/build.txt.in
+./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_DEFAULT_ENV)/build.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
+./requirements/$(PYTHON_DEFAULT_ENV)/build.txt: ./requirements/build.txt.in \
+		$(HOME)/.local/bin/tox
+	mkdir -pv "$(dir $(@))"
+	tox exec -e "build" -- pip-compile --strip-extras --generate-hashes \
+	    --reuse-hashes --allow-unsafe --quiet $(PIP_COMPILE_ARGS) \
+	    --output-file "$(@)" "$(<)"
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
