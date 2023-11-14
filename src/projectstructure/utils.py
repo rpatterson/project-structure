@@ -11,7 +11,7 @@ import os
 
 TRUE_STRS = {"1", "true", "yes", "on"}
 """
-The case-insensitive strings considered equivalent to ``true``.
+The case-insensitive strings considered equal to ``true``.
 """
 DEBUG = (  # noqa: F841
     "DEBUG" in os.environ  # pylint: disable=magic-value-comparison
@@ -25,5 +25,5 @@ POST_MORTEM = (  # noqa: F841
     and os.environ["POST_MORTEM"].strip().lower() in TRUE_STRS
 )
 """
-Set this environment variable to ``true`` to invoke ``pdb.post_mortem()`` on exceptions.
+Set this environment variable to ``true`` to call ``pdb.post_mortem()`` on exceptions.
 """
