@@ -16,8 +16,9 @@ export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
 NPM_SCOPE=rpattersonnet
 export DOCKER_USER=merpatterson
-# https://devguide.python.org/versions/#supported-versions
-PYTHON_DEFAULT_MINOR=3.11
+# Match the same Python version available in the `./build-host/` Docker image:
+# https://pkgs.alpinelinux.org/packages?name=python3&branch=edge&repo=main&arch=x86_64&maintainer=
+PYTHON_SUPPORTED_MINOR=3.11
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
@@ -54,7 +55,6 @@ HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIP=python3-pip
-HOST_PKG_NAMES_PYTHON=python$(PYTHON_DEFAULT_MINOR)-venv
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 ifneq ($(shell which "brew"),)
 HOST_PREFIX=/usr/local
@@ -63,14 +63,12 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=python
-HOST_PKG_NAMES_PYTHON=python@$(PYTHON_DEFAULT_MINOR)
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=py3-pip
-HOST_PKG_NAMES_PYTHON=py3-virtualenv
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
@@ -79,7 +77,16 @@ HOST_TARGET_DOCKER:=$(shell which docker)
 ifeq ($(HOST_TARGET_DOCKER),)
 HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
 endif
-export PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
+PYTHON_SUPPORTED_ENV=py$(subst .,,$(PYTHON_SUPPORTED_MINOR))
+PYTHON_HOST_MINOR=$(PYTHON_SUPPORTED_MINOR)
+# Try to be usable for as wide an audience of contributors as possible.  Fallback to the
+# default `$ python3` of the contributors host operating system if the canonical Python
+# version isn't available:
+ifeq ($(shell which "python$(PYTHON_HOST_MINOR)"),)
+PYTHON_HOST_MINOR:=$(shell python3 -c \
+    'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+endif
+export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
 PIP_COMPILE_ARGS=
 
 # Values derived from the environment:
@@ -542,7 +549,7 @@ devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-require
 devel-upgrade-requirements:
 	touch "./requirements/build.txt.in"
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
-	    "./requirements/$(PYTHON_DEFAULT_ENV)/build.txt"
+	    "./requirements/$(PYTHON_HOST_ENV)/build.txt"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -719,15 +726,23 @@ $(HOME)/.nvm/nvm.sh:
 
 # Manage Python tools:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_DEFAULT_ENV)/build.txt
+		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
-./requirements/$(PYTHON_DEFAULT_ENV)/build.txt: ./requirements/build.txt.in \
+./requirements/$(PYTHON_SUPPORTED_ENV)/build.txt: ./requirements/build.txt.in \
 		$(HOME)/.local/bin/tox
 	mkdir -pv "$(dir $(@))"
-	tox exec -e "build" -- pip-compile --strip-extras --generate-hashes \
-	    --reuse-hashes --allow-unsafe --quiet $(PIP_COMPILE_ARGS) \
-	    --output-file "$(@)" "$(<)"
+	tox exec -e "build" -x testenv:build.deps="-r$(<)" -- pip-compile --strip-extras \
+	    --generate-hashes --reuse-hashes --allow-unsafe --quiet \
+	    $(PIP_COMPILE_ARGS) --output-file "$(@)" "$(<)"
+# Only compile versions that the `./build-host/` Docker image can compile but use tools
+# without pinned/frozen versions for contributors that don't have the canonical Python
+# version installed:
+ifneq ($(PYTHON_SUPPORTED_ENV),$(PYTHON_HOST_ENV))
+./requirements/$(PYTHON_HOST_ENV)/build.txt: ./requirements/build.txt.in
+	mkdir -pv "$(dir $(@))"
+	ln -sv --relative --backup="numbered" "$(<)" "$(@)"
+endif
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install "tox"
