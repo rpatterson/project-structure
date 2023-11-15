@@ -220,7 +220,7 @@ build-pkgs: ./var/log/git-fetch.log
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs:
+build-docs: ./.tox/build/.tox-info.json
 	$(MAKE) DOCS_SPHINX_BUILD_OPTS="-D autosummary_generate=0" \
 	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
