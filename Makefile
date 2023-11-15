@@ -244,7 +244,7 @@ $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): \
 .PHONY: build-docs-pdf
 # Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
-	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" \
+	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
 # Render the Texinfo documentation into a `*.info` file.
