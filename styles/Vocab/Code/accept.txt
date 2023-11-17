@@ -48,5 +48,6 @@ kill
 [Gg]it
 via
 INFO
+info
 PUID
 man

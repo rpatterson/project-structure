@@ -15,11 +15,11 @@ TEMPLATE: clear items and add items for your project.
 Required
 ****************************************************************************************
 
-#. ``base``: Restore `general and module Sphinx indexes
+#. ``base``: Add an Open Collective badge.
+
+#. ``(js|ts|etc.)``: Restore `general and module Sphinx indexes
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
-
-#. ``base``: Add an Open Collective badge.
 
 
 ****************************************************************************************
@@ -43,14 +43,14 @@ Nice to have
 #. ``base``: Try out `other Sphinx themes
    <https://www.sphinx-doc.org/en/master/tutorial/more-sphinx-customization.html#using-a-third-party-html-theme>`_
 
-#. ``base``: Switch to `the badge formatting
-   <https://rstcheck-core.readthedocs.io/en/latest/#>`_ from ``rstcheck``
-
 #. ``base``: Try some of `the linters and formatters
    <https://unibeautify.com/docs/beautifier-stylelint>`_ supported by ``UniBeautify``:
 
    - ``Stylelint`` `CSS linter <https://stylelint.io/>`_
    - `js-beautify <https://www.npmjs.com/package/js-beautify>`_
+
+#. ``base``: Try out the `rinohtype Sphinx renderer
+   <https://www.mos6581.org/rinohtype/master/sphinx.html>`_.
 
 #. ``docker``: `Docker image build-time labels
    <https://specs.opencontainers.org/image-spec/annotations/?v=v1.0.1>`_::

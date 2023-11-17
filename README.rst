@@ -11,38 +11,43 @@ Project Structure
 Project Structure foundation or template
 ****************************************************************************************
 
-.. highlight:: console
-
 .. list-table::
-   :class: borderless align-right
+   :widths: 20 20 20 20 20
+   :class: borderless align-right docutils field-list
 
-   * - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
+   * - Project:
+     - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
+     -
+     -
+     -
 
+   * - Docker:
      - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main
           :alt: Docker Hub image version
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image pulls count
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
           :alt: Docker Hub stars
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image size
           :target: https://hub.docker.com/r/merpatterson/project-structure
 
+   * - Author:
      - .. figure:: https://img.shields.io/keybase/pgp/rpatterson?logo=keybase
           :alt: KeyBase Pretty Good Privacy (PGP) key ID
           :target: https://keybase.io/rpatterson
-       .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
+     - .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
           :alt: GitHub followers count
           :target: https://github.com/rpatterson
-       .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
+     - .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay donated per week
           :target: https://liberapay.com/rpatterson/donate
-       .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
+     - .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay patrons count
           :target: https://liberapay.com/rpatterson/donate
 
@@ -117,7 +122,9 @@ have or better yet submit a PR with corrections.
 
 #. Merge into your project:
 
-   If starting a fresh project::
+   If starting a fresh project:
+
+   .. code:: console
 
      $ git clone --origin "template" --branch "${TEMPLATE_BRANCH:?}" \
      "https://gitlab.com/rpatterson/project-structure.git" "./foo-project"
@@ -126,29 +133,39 @@ have or better yet submit a PR with corrections.
      $ git remote add "origin" "git@gitlab.com:foo-username/foo-project.git"
      $ git switch -C "main" --track "origin/main"
 
-   If merging into an existing project::
+   If merging into an existing project:
+
+   .. code:: console
 
      $ git remote add "template" \
      "https://gitlab.com/rpatterson/project-structure.git"
      $ git config remote.template.tagOpt --no-tags
      $ git merge --allow-unrelated-histories "template/${TEMPLATE_BRANCH:?}"
 
-#. Rename files and directories derived from the project name::
+#. Rename files and directories derived from the project name:
+
+   .. code:: console
 
      $ git ls-files | grep -iE 'project.?structure'
 
-#. Rename project name and template creator identity strings::
+#. Rename project name and template creator identity strings:
+
+   .. code:: console
 
      $ git grep -iE 'project.?structure|ross|Patterson'
 
 #. Make changes described in ``# TEMPLATE:`` comments:
 
    These bits need the developer's attention and reasoning. Read the comments and follow
-   them with care::
+   them with care:
+
+   .. code:: console
 
      $ git grep "TEMPLATE"
 
-#. Update the project logo images::
+#. Update the project logo images:
+
+   .. code:: console
 
      $ git ls-files 'logo*.png' '**/logo*.png' 'logo*.svg' '**/logo*.svg' \
      'docs/_static/favicon.ico'
@@ -184,6 +201,8 @@ Local Installation
 ========================================================================================
 
 Use a package manager for the project language to install locally::
+
+.. code:: console
 
   $ true "TEMPLATE: Always specific to the project type"
 
