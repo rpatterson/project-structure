@@ -752,7 +752,7 @@ ifneq ($(PYTHON_SUPPORTED_ENV),$(PYTHON_HOST_ENV))
 endif
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
-	pipx install "tox"
+	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
 	touch "$(@)"
 $(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 # https://pypa.github.io/pipx/installation/#install-pipx
