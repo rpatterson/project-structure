@@ -16,14 +16,14 @@ export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
 NPM_SCOPE=rpattersonnet
 export DOCKER_USER=merpatterson
+# Match the same Python version available in the `./build-host/` Docker image:
+# https://pkgs.alpinelinux.org/packages?name=python3&branch=edge&repo=main&arch=x86_64&maintainer=
+PYTHON_SUPPORTED_MINOR=3.11
 # https://devguide.python.org/versions/#supported-versions
-PYTHON_DEFAULT_MINOR=3.11
+PYTHON_SUPPORTED_MINORS=$(PYTHON_SUPPORTED_MINOR) 3.12 3.10 3.9 3.8
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
-# https://devguide.python.org/versions/#supported-versions
-PYTHON_DEFAULT_MINOR=3.11
-PYTHON_SUPPORTED_MINORS=$(PYTHON_DEFAULT_MINOR) 3.12 3.10 3.9 3.8
 
 
 ### "Private" Variables:
@@ -57,7 +57,8 @@ HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIP=python3-pip
-HOST_PKG_NAMES_PYTHON=python$(PYTHON_DEFAULT_MINOR)-venv
+HOST_PKG_NAMES_MAKEINFO=texinfo
+HOST_PKG_NAMES_LATEXMK=latexmk
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 ifneq ($(shell which "brew"),)
 HOST_PREFIX=/usr/local
@@ -66,14 +67,13 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=python
-HOST_PKG_NAMES_PYTHON=python@$(PYTHON_DEFAULT_MINOR)
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_PIP=py3-pip
-HOST_PKG_NAMES_PYTHON=py3-virtualenv
+HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
@@ -82,7 +82,16 @@ HOST_TARGET_DOCKER:=$(shell which docker)
 ifeq ($(HOST_TARGET_DOCKER),)
 HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
 endif
-export PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
+PYTHON_SUPPORTED_ENV=py$(subst .,,$(PYTHON_SUPPORTED_MINOR))
+PYTHON_HOST_MINOR=$(PYTHON_SUPPORTED_MINOR)
+# Try to be usable for as wide an audience of contributors as possible.  Fallback to the
+# default `$ python3` of the contributors host operating system if the canonical Python
+# version isn't available:
+ifeq ($(shell which "python$(PYTHON_HOST_MINOR)"),)
+PYTHON_HOST_MINOR:=$(shell python3 -c \
+    'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+endif
+export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
 PIP_COMPILE_ARGS=
 
 # Values derived from the environment:
@@ -110,11 +119,6 @@ export TZ
 export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
-# Use the same Python version tox would as a default.
-# https://tox.wiki/en/latest/config.html#base_python
-PYTHON_HOST_MINOR:=$(shell \
-    pip3 --version | sed -nE 's|.* \(python ([0-9]+.[0-9]+)\)$$|\1|p;q')
-export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
 # Find the latest installed Python version of the supported versions:
 PYTHON_BASENAMES=$(PYTHON_SUPPORTED_MINORS:%=python%)
 PYTHON_AVAIL_EXECS:=$(foreach \
@@ -126,7 +130,6 @@ ifeq ($(PYTHON_MINOR),)
 # Fallback to the latest installed supported Python version
 PYTHON_MINOR=$(PYTHON_LATEST_BASENAME:python%=%)
 endif
-export PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
 PYTHON_MINORS=$(PYTHON_SUPPORTED_MINORS)
 ifeq ($(PYTHON_MINOR),)
 PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
@@ -137,7 +140,7 @@ export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
 PYTHON_ALL_ENVS=$(PYTHON_ENVS) build
-PYTHON_OTHER_ENVS=$(filter-out $(PYTHON_DEFAULT_ENV),$(PYTHON_ENVS))
+PYTHON_OTHER_ENVS=$(filter-out $(PYTHON_HOST_ENV),$(PYTHON_ENVS))
 PYTHON_EXTRAS=test devel
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
@@ -203,7 +206,7 @@ endif
 # The options that support running arbitrary commands in the venvs managed by tox
 # without Tox's startup time:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
-TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_DEFAULT_ENV)"
+TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_HOST_ENV)"
 TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
     sphinx-lint doc8 restructuredtext-lint proselint
 PIP_COMPILE_EXTRA=
@@ -234,8 +237,8 @@ export TEST_PYPI_PASSWORD
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
 DOCS_SPHINX_OTHER_BUILDERS=dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
-    texinfo text gettext linkcheck xml pseudoxml devhelp
-DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS)
+    texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS) devhelp
 DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_ALL_BUILDERS) pdf info
 DOCS_SPHINX_BUILD_OPTS=
 # <!--alex enable gals-man-->
@@ -305,33 +308,38 @@ build-pkgs: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs:
+build-docs: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	$(MAKE) DOCS_SPHINX_BUILD_OPTS="\
 	-D autosummary_generate=0 -D autoapi_generate_api_docs=0" \
 	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
+build-docs-watch: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
-	tox exec -e "$(PYTHON_DEFAULT_ENV)" -- \
+	tox exec -e "$(PYTHON_HOST_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 .PHONY: build-docs-html
 # Render the documentation into a specific format.
-build-docs-html: ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
+build-docs-html: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
+	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: build-docs-devhelp
+# Render the documentation into the GNOME Devhelp format.
+build-docs-devhelp: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -a \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%)
 # Render the documentation into a specific format.
 $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): \
-		./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json build-docs-html
+		./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 # Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
-	$(MAKE) -C "./build/docs/$(@:build-docs-%=%)/" \
+	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
 # Render the Texinfo documentation into a `*.info` file.
@@ -383,7 +391,7 @@ test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: ./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json
+test-lint-docs-rstcheck: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
@@ -869,12 +877,12 @@ $(HOME)/.nvm/nvm.sh:
 # created so other targets can use them directly to save Tox's startup time when they
 # don't need Tox's logic about when to update/recreate:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_DEFAULT_ENV)/build.txt
+		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
-./.tox/$(PYTHON_DEFAULT_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_DEFAULT_ENV)/test.txt \
-		./requirements/$(PYTHON_DEFAULT_ENV)/devel.txt
+./.tox/$(PYTHON_HOST_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_HOST_ENV)/test.txt \
+		./requirements/$(PYTHON_HOST_ENV)/devel.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 define tox_info_template=
@@ -892,7 +900,7 @@ $(PYTHON_ALL_ENVS:%=./.tox/.log/%-bootstrap.log): $(HOME)/.local/bin/tox ./tox.i
 
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
-	pipx install "tox"
+	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
 	touch "$(@)"
 $(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 # https://pypa.github.io/pipx/installation/#install-pipx
@@ -902,6 +910,14 @@ $(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 $(HOST_PREFIX)/bin/pip3:
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
+
+# Tools needed by Sphinx builders:
+$(HOST_PREFIX)/bin/makeinfo:
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_MAKEINFO)"
+$(HOST_PREFIX)/bin/latexmk:
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_LATEXMK)"
 
 # Manage tools in containers:
 $(HOST_TARGET_DOCKER):
