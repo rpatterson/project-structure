@@ -236,10 +236,9 @@ export TEST_PYPI_PASSWORD
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_OTHER_BUILDERS=dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
-    texinfo text gettext linkcheck xml pseudoxml
-DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS) devhelp
-DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_ALL_BUILDERS) pdf info
+DOCS_SPHINX_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
+     devhelp latex man texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) pdf info
 DOCS_SPHINX_BUILD_OPTS=
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
@@ -298,13 +297,9 @@ endif
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
-build-pkgs: ./var/log/git-fetch.log ./.tox/$(PYTHON_ENV)/.tox-info.json
-# Defined as a .PHONY recipe so that more than one target can depend on this as a
-# pre-requisite and it runs one time:
-	rm -vf ./dist/*
-	tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only
-# Copy to a location available in the Docker build context:
-	cp -lfv ./.tox/.pkg/tmp/dist/* "./dist/"
+build-pkgs:
+	touch "./.cz.toml"
+	$(MAKE) "./var/log/build-pkgs.log"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
@@ -320,22 +315,12 @@ build-docs-watch: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	tox exec -e "$(PYTHON_HOST_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: build-docs-html
-# Render the documentation into a specific format.
-build-docs-html: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
-	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
-.PHONY: build-docs-devhelp
-# Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -a \
-	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
-.PHONY: $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%)
+.PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): \
-		./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
-	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -E \
+	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
@@ -725,6 +710,14 @@ clean:
 ### Real Targets:
 #
 # Recipes that make actual changes and create and update files for the target.
+
+# TEMPLATE: Add any other prerequisites that are likely to require updating the build
+# package.
+./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
+		./.tox/$(PYTHON_ENV)/.tox-info.json ./pyproject.toml
+	mkdir -pv "$(dir $(@))"
+	tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
+	    tee -a "$(@)"
 
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
