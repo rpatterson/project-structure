@@ -6,6 +6,8 @@
 Contributing
 ########################################################################################
 
+.. highlight:: console
+
 Development requires standard tools, including ``git``, ``make``, and `Docker`_. Clone
 the repository::
 

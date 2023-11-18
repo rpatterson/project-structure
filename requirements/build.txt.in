@@ -6,6 +6,9 @@
 # project's code or package and are used outside the Docker container in the developer's
 # localhost environment..
 
+# Manage fixed/pinned versions in `./requirements/**.txt`:
+pip-tools
+
 # Version Control System (VCS) integration to enforce passing tests, test coverage,
 # style, and linting:
 pre-commit
@@ -28,11 +31,12 @@ sphinx-autobuild
 # https://pradyunsg.me/furo/recommendations/
 sphinx-copybutton
 sphinxext-opengraph
+# https://sphinx-extensions.readthedocs.io/en/latest/
+sphinx-notfound-page
 # https://github.com/sphinx-contrib/sphinx-lint
 sphinx-lint
 # https://docs.restructuredtext.net/articles/linter#supported-linters
 doc8
-restructuredtext-lint
 
 # Workaround Vale prose linter limitations:
 pyyaml

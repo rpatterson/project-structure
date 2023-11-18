@@ -26,3 +26,4 @@
 
    contributing
    todo
+   news
