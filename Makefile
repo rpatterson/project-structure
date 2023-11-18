@@ -271,15 +271,16 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./var/log/npm-install.log build-docker
+		./.tox/build/.tox-info.json ./var/log/npm-install.log \
+		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log) \
+		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log)
 # <!--alex enable hooks-->
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
-build-pkgs: ./var/log/git-fetch.log \
-	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    true "TEMPLATE: Always specific to the project type"
+build-pkgs:
+	touch "./.cz.toml"
+	$(MAKE) "./var/log/build-pkgs.log"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
@@ -339,8 +340,9 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): build-pkgs ./var-docker/log/$(1)/build-devel.log \
-		./var-docker/log/$(1)/build-user.log
+build-docker-$(1): build-pkgs
+	$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
+	    "./var-docker/log/$(1)/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -472,6 +474,8 @@ test-docker-$(1): ./var/log/docker-compose-network.log \
 	    docker_run_args+=" -T"
 	fi
 # Test that the end-user image can run commands:
+# TEMPLATE: Change the command to confirm the user image contains a working installation
+# of the package:
 	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
 # Run from the development Docker container for consistency:
 	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
@@ -890,10 +894,18 @@ clean:
 #
 # Recipes that make actual changes and create and update files for the target.
 
+# TEMPLATE: Add any other prerequisites that are likely to require updating the build
+# package.
+./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
+	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+	mkdir -pv "$(dir $(@))"
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	    true "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
+
 # Build Docker container images.
 # Build the development image:
 $(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
-		./bin/entrypoint.sh ./.cz.toml \
+		./bin/entrypoint.sh \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $(?)
 	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
@@ -917,7 +929,8 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval \
 define build_docker_user_template=
 ./var-docker/log/$(1)/build-user.log: ./Dockerfile \
 		./var-docker/log/$(1)/build-base.log \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
 # Build the user image after building all required artifacts:
