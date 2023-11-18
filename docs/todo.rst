@@ -21,6 +21,8 @@ Required
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
 
+#. ``ci``: Built docs formats as artifacts and release files.
+
 #. ``ci``: Publish Sphinx docs to `all available documentation hosts
    <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
 
