@@ -17,8 +17,6 @@ Required
 
 #. ``base``: Add an Open Collective badge.
 
-#. ``ci``: Built docs formats as artifacts and release files.
-
 #. ``(js|ts|etc.)``: Restore `general and module Sphinx indexes
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
@@ -53,5 +51,8 @@ Nice to have
 
 #. ``base``: Try out the `rinohtype Sphinx renderer
    <https://www.mos6581.org/rinohtype/master/sphinx.html>`_.
+
+#. ``base``: Build operating system packages, such as ``*.deb``, ``*.rpm``, ``*.msi``,
+   including documentation.
 
 #. ``py``: Create new branches for different frameworks, e.g.: Flask, Pyramid, Django.
