@@ -461,25 +461,22 @@ test-debug:
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in all variants.
-test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
-.PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
+test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
+		$(DOCKER_VARIANTS:%=test-docker-user-%)
+.PHONY: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
+		$(DOCKER_VARIANTS:%=test-docker-user-%)
 define test_docker_template=
-test-docker-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-user.log \
+# Run code tests inside the development Docker container for consistency:
+test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-devel.log
-	docker_run_args="--rm"
-	if test ! -t 0
-	then
-# No fancy output when running in parallel
-	    docker_run_args+=" -T"
-	fi
+	docker compose run --rm -T $$$${docker_run_args} $$(PROJECT_NAME)-devel \
+	    make -$(MAKEFLAGS) -e test-code
 # Test that the end-user image can run commands:
+test-docker-user-$(1): ./var/log/docker-compose-network.log \
+		./var-docker/log/$(1)/build-user.log
 # TEMPLATE: Change the command to confirm the user image contains a working installation
 # of the package:
-	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
-# Run from the development Docker container for consistency:
-	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
-	    make -$(MAKEFLAGS) -e test-code
+	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
