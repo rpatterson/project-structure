@@ -628,7 +628,8 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	    make -$$(MAKEFLAGS) -e test-code
 # Upload any build or test artifacts to CI/CD providers
-	if test "$$(GITLAB_CI)" = "true"
+	if test "$$(GITLAB_CI)" = "true" &&
+	    test "$(@:test-docker-devel-%=%)" = "$(DOCKER_VARIANT_DEFAULT)"
 	then
 	    if test "$$(CODECOV_TOKEN)" != ""
 	    then
