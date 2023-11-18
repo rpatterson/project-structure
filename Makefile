@@ -236,10 +236,10 @@ export TEST_PYPI_PASSWORD
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_OTHER_BUILDERS=dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
-    texinfo text gettext linkcheck xml pseudoxml
-DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS) devhelp
-DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_ALL_BUILDERS) pdf info
+DOCS_SPHINX_OTHER_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
+    latex man texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_OTHER_BUILDERS) info pdf man-gz devhelp
+DOCS_SPHINX_PKG_FORMATS=info pdf man-gz epub singlehtml
 DOCS_SPHINX_BUILD_OPTS=
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
@@ -298,7 +298,7 @@ endif
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
-build-pkgs: ./var/log/git-fetch.log $(HOME)/.local/bin/tox
+build-pkgs: ./var/log/git-fetch.log ./.tox/$(PYTHON_ENV)/.tox-info.json
 # Defined as a .PHONY recipe so that more than one target can depend on this as a
 # pre-requisite and it runs one time:
 	rm -vf ./dist/*
@@ -320,31 +320,31 @@ build-docs-watch: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	tox exec -e "$(PYTHON_HOST_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: build-docs-html
-# Render the documentation into a specific format.
-build-docs-html: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
-	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-devhelp
 # Render the documentation into the GNOME Devhelp format.
 build-docs-devhelp: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -a \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%)
-# Render the documentation into a specific format.
+## Render the documentation into a specific format.
 $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): \
 		./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
 	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
-# Render the LaTeX documentation into a PDF file.
+## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
+.PHONY: build-docs-man-gz
+## Compress the manual page documentation for installation.
+build-docs-man-gz: build-docs-man
+	gzip -k $(<:build-docs-%=./build/docs/%)/*.1
 .PHONY: build-docs-info
-# Render the Texinfo documentation into a `*.info` file.
+## Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
+	gzip -k $(<:build-docs-%=./build/docs/%)/*.info
 
 .PHONY: build-date
 # A prerequisite that always triggers it's target.
@@ -882,12 +882,13 @@ $(HOME)/.nvm/nvm.sh:
 	touch "$(@)"
 ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(PYTHON_HOST_ENV)/test.txt \
-		./requirements/$(PYTHON_HOST_ENV)/devel.txt
+		./requirements/$(PYTHON_HOST_ENV)/devel.txt \
+		$(DOCS_SPHINX_PKG_FORMATS:%=build-docs-%
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 define tox_info_template=
 ./.tox/$(1)/.tox-info.json): $$(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(1)/test.txt
+		./requirements/$(1)/test.txt $(DOCS_SPHINX_PKG_FORMATS:%=build-docs-%)
 	tox run -e "$$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$$(@)"
 endef

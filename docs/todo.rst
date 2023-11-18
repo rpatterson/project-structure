@@ -17,6 +17,8 @@ Required
 
 #. ``base``: Add an Open Collective badge.
 
+#. ``ci``: Built docs formats as artifacts and release files.
+
 #. ``(js|ts|etc.)``: Restore `general and module Sphinx indexes
    <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#special-names>`_
    in the branches for appropriate project types.
