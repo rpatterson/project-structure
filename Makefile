@@ -297,10 +297,9 @@ export TEST_PYPI_PASSWORD
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_OTHER_BUILDERS=dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
-    texinfo text gettext linkcheck xml pseudoxml
-DOCS_SPHINX_ALL_BUILDERS=html $(DOCS_SPHINX_OTHER_BUILDERS) devhelp
-DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_ALL_BUILDERS) pdf info
+DOCS_SPHINX_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
+     devhelp latex man texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) pdf info
 DOCS_SPHINX_BUILD_OPTS=
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
@@ -342,7 +341,9 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./var/log/npm-install.log build-docker \
+		./.tox/build/.tox-info.json ./var/log/npm-install.log \
+		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log) \
+		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log) \
 		$(PYTHON_ENVS:%=build-requirements-%)
 # <!--alex enable hooks-->
 
@@ -374,18 +375,9 @@ endif
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
-build-pkgs: ./var/log/git-fetch.log ./var/log/docker-compose-network.log \
-	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
-# Defined as a .PHONY recipe so that more than one target can depend on this as a
-# pre-requisite and it runs one time:
-	rm -vf ./dist/*
-# Build Python packages/distributions from the development Docker container for
-# consistency/reproducibility.
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	    tox run -e "$(PYTHON_DEFAULT_ENV)" --override "testenv.package=external" \
-	    --pkg-only
-# Copy to a location available in the Docker build context:
-	cp -lfv ./var-docker/$(PYTHON_DEFAULT_ENV)/.tox/.pkg/tmp/dist/* "./dist/"
+build-pkgs:
+	touch "./.cz.toml"
+	$(MAKE) "./var/log/build-pkgs.log"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
@@ -399,21 +391,12 @@ build-docs-watch: ./.tox/build/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: build-docs-html
-# Render the documentation into static HTML.
-build-docs-html: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
-	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
-.PHONY: build-docs-devhelp
-# Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -a \
-	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
-.PHONY: $(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%)
-# Render the documentation into a specific format.
-$(DOCS_SPHINX_OTHER_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W \
-	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
+## Render the documentation into a specific format.
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -E \
+	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 # Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
@@ -445,8 +428,9 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): build-pkgs ./var-docker/log/$(1)/build-devel.log \
-		./var-docker/log/$(1)/build-user.log
+build-docker-$(1): build-pkgs
+	$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
+	    "./var-docker/log/$(1)/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -581,23 +565,22 @@ test-debug: $(HOME)/.local/bin/tox
 
 .PHONY: test-docker
 ## Run the full suite of tests, coverage checks, and code linters in all variants.
-test-docker: $(DOCKER_VARIANTS:%=test-docker-%)
-.PHONY: $(DOCKER_VARIANTS:%=test-docker-%)
+test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
+		$(DOCKER_VARIANTS:%=test-docker-user-%)
+.PHONY: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
+		$(DOCKER_VARIANTS:%=test-docker-user-%)
 define test_docker_template=
-test-docker-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-user.log \
+# Run code tests inside the development Docker container for consistency:
+test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-devel.log
-	docker_run_args="--rm"
-	if test ! -t 0
-	then
-# No fancy output when running in parallel
-	    docker_run_args+=" -T"
-	fi
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -$(MAKEFLAGS) -e test-code
 # Test that the end-user image can run commands:
-	docker compose run --no-deps $$$${docker_run_args} $$(PROJECT_NAME) true
-# Run from the development Docker container for consistency:
-	docker compose run $$$${docker_run_args} $$(PROJECT_NAME)-devel \
-	    make -e test-code
+test-docker-user-$(1): ./var/log/docker-compose-network.log \
+		./var-docker/log/$(1)/build-user.log
+# TEMPLATE: Change the command to confirm the user image has a working installation of
+# the package:
+	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
@@ -688,21 +671,6 @@ test-lint-prose-write-good: ./var/log/npm-install.log
 ## Lint prose in all files tracked in VCS with alex.
 test-lint-prose-alex: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
-
-.PHONY: test-docker
-## Run the full suite of tests, coverage checks, and code linters in containers.
-test-docker: ./var/log/docker-compose-network.log build-docker
-	docker_run_args="--rm"
-	if test ! -t 0
-	then
-# No fancy output when running in parallel
-	    docker_run_args+=" -T"
-	fi
-# Test that the end-user image can run commands:
-	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) true
-# Run from the development Docker container for consistency:
-	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
-	    make -e test-code
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
@@ -1058,6 +1026,21 @@ clean:
 #
 # Recipes that make actual changes and create and update files for the target.
 
+# TEMPLATE: Add any other prerequisites that are likely to require updating the build
+# package.
+./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
+		./var/log/docker-compose-network.log \
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+	rm -vf ./dist/*
+	mkdir -pv "$(dir $(@))"
+# Build Python packages/distributions from the development Docker container for
+# consistency/reproducibility.
+	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
+	    tox run -e "$(PYTHON_DEFAULT_ENV)" --override "testenv.package=external" \
+	    --pkg-only | tee -a "$(@)"
+# Copy to a location available in the Docker build context:
+	cp -lfv ./var-docker/$(PYTHON_DEFAULT_ENV)/.tox/.pkg/tmp/dist/* "./dist/"
+
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
@@ -1103,7 +1086,7 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 # Build Docker container images.
 # Build the shared base image:
 $(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
-		./bin/entrypoint.sh ./.cz.toml \
+		./bin/entrypoint.sh \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $(?)
 	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
@@ -1139,7 +1122,8 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval \
 define build_docker_user_template=
 ./var-docker/log/$(1)/build-user.log: ./Dockerfile \
 		./var-docker/log/$(1)/build-base.log \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
 	mkdir -pv "$$(dir $$(@))"
