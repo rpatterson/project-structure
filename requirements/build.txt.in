@@ -5,6 +5,9 @@
 # Build, release, and development tools that can operate totally independently of the
 # project's code or package.
 
+# Manage fixed/pinned versions in `./requirements/**.txt`:
+pip-tools
+
 # Version Control System (VCS) integration to enforce passing tests, test coverage,
 # style, and linting:
 pre-commit
