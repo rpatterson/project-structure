@@ -571,21 +571,6 @@ test-lint-prose-write-good: ./var/log/npm-install.log
 test-lint-prose-alex: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
 
-.PHONY: test-docker
-## Run the full suite of tests, coverage checks, and code linters in containers.
-test-docker: ./var/log/docker-compose-network.log build-docker
-	docker_run_args="--rm"
-	if test ! -t 0
-	then
-# No fancy output when running in parallel
-	    docker_run_args+=" -T"
-	fi
-# Test that the end-user image can run commands:
-	docker compose run --no-deps $${docker_run_args} $(PROJECT_NAME) true
-# Run from the development Docker container for consistency:
-	docker compose run $${docker_run_args} $(PROJECT_NAME)-devel \
-	    make -$(MAKEFLAGS) -e test-code
-
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
 test-lint-docker: ./var/log/docker-compose-network.log ./var/log/docker-login-DOCKER.log
