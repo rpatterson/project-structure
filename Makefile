@@ -218,8 +218,9 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
-build-pkgs: ./var/log/git-fetch.log
-	true "TEMPLATE: Always specific to the project type"
+build-pkgs:
+	touch "./.cz.toml"
+	$(MAKE) "./var/log/build-pkgs.log"
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
@@ -622,6 +623,12 @@ clean:
 ### Real Targets:
 #
 # Recipes that make actual changes and create and update files for the target.
+
+# TEMPLATE: Add any other prerequisites that are likely to require updating the build
+# package.
+./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log
+	mkdir -pv "$(dir $(@))"
+	true "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log:
