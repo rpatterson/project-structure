@@ -331,7 +331,7 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # prerequisite:
 define build_docker_template=
 build-docker-$(1): build-pkgs
-	$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
+	$$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
 	    "./var-docker/log/$(1)/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
@@ -460,7 +460,7 @@ define test_docker_template=
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-devel.log
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -$(MAKEFLAGS) -e test-code
+	    make -$$(MAKEFLAGS) -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-user.log
@@ -886,7 +886,7 @@ $(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
 define build_docker_devel_template=
 ./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
 		./var-docker/log/$(1)/build-base.log \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$$(dir $$(@))"
@@ -901,7 +901,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval \
 define build_docker_user_template=
 ./var-docker/log/$(1)/build-user.log: ./Dockerfile \
 		./var-docker/log/$(1)/build-base.log \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
