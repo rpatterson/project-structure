@@ -237,7 +237,8 @@ build-docs-watch: ./.tox/build/.tox-info.json
 ## Render the documentation into a specific format.
 $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -E \
-	    $(DOCS_SPHINX_BUILD_OPTS) "./docs/" "./build/docs/$(@:build-docs-%=%)/"
+	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 # Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
