@@ -98,6 +98,9 @@ Nice to have
    As such, this probably isn't worth the effort until users report significant
    platform-specific bugs.
 
+#. ``base``: Build operating system packages, such as ``*.deb``, ``*.rpm``, ``*.msi``,
+   including documentation.
+
 #. ``py``: Create new branches for different frameworks, e.g.: Flask, Pyramid, Django.
 
 #. ``py-docker``: Build requirements for each ``$(DOCKER_PLATFORMS)`` as requirements

@@ -79,7 +79,7 @@ ignore-paths:
   - "dist"
 
   # Ignore failures in these artifacts:
-  - "src/projectstructure/version.py"
+  - "src/projectstructure/_version.py"
 
   # TEMPLATE: Add any paths that never contain Python code under `./src/projectstructure/`
   # or `./tests/projectstructuretests/` for your project:

@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 # Use VCS tags as the sole authority on versions. Get the current version from VCS tags:
 # https://github.com/pypa/setuptools_scm#pyprojecttoml-usage
-write_to = "src/projectstructure/version.py"
+version_file = "src/projectstructure/_version.py"
 # Uncomment to test uploading to PyPI locally
 # local_scheme = "no-local-version"
 
@@ -21,8 +21,8 @@ output-format = "colorized"
 ignore-paths = [
 # Managed by tools, best to use `# pylint: disable=` inline comments for any other
 # ignores:
-    "src/.+/version.py",
-    ".*/src/.+/version.py",
+    "src/.+/_version.py",
+    ".*/src/.+/_version.py",
 ]
 # Extend linting to usage of trusted extension packages
 extension-pkg-allow-list = ["lxml"]
@@ -86,7 +86,7 @@ ignore_missing_imports = true
 
 [tool.vulture]
 # https://github.com/jendrikseipp/vulture#ignoring-files
-exclude = ["src/projectstructure/version.py"]
+exclude = ["src/projectstructure/_version.py"]
 
 [tool.isort]
 # Match Black's defaults

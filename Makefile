@@ -20,7 +20,7 @@ export DOCKER_USER=merpatterson
 # https://pkgs.alpinelinux.org/packages?name=python3&branch=edge&repo=main&arch=x86_64&maintainer=
 PYTHON_SUPPORTED_MINOR=3.11
 # https://devguide.python.org/versions/#supported-versions
-PYTHON_SUPPORTED_MINORS=3.11 3.12 3.10 3.9 3.8
+PYTHON_SUPPORTED_MINORS=$(PYTHON_SUPPORTED_MINOR) 3.12 3.10 3.9 3.8
 
 # Option variables that control behavior:
 export TEMPLATE_IGNORE_EXISTING=false
@@ -82,7 +82,6 @@ HOST_TARGET_DOCKER:=$(shell which docker)
 ifeq ($(HOST_TARGET_DOCKER),)
 HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
 endif
-PYTHON_SUPPORTED_ENV=py$(subst .,,$(PYTHON_SUPPORTED_MINOR))
 PYTHON_HOST_MINOR=$(PYTHON_SUPPORTED_MINOR)
 # Try to be usable for as wide an audience of contributors as possible.  Fallback to the
 # default `$ python3` of the contributors host operating system if the canonical Python
@@ -92,7 +91,6 @@ PYTHON_HOST_MINOR:=$(shell python3 -c \
     'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 endif
 export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
-PIP_COMPILE_ARGS=
 HOST_TARGET_PIP:=$(shell which pip3)
 ifeq ($(HOST_TARGET_PIP),)
 HOST_TARGET_PIP=$(HOST_PREFIX)/bin/pip3
@@ -123,11 +121,6 @@ export TZ
 export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
-# Use the same Python version tox would as a default.
-# https://tox.wiki/en/latest/config.html#base_python
-PYTHON_HOST_MINOR:=$(shell \
-    pip3 --version | sed -nE 's|.* \(python ([0-9]+.[0-9]+)\)$$|\1|p;q')
-export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
 # Find the latest installed Python version of the supported versions:
 PYTHON_BASENAMES=$(PYTHON_SUPPORTED_MINORS:%=python%)
 PYTHON_AVAIL_EXECS:=$(foreach \
@@ -139,8 +132,6 @@ ifeq ($(PYTHON_MINOR),)
 # Fallback to the latest installed supported Python version
 PYTHON_MINOR=$(PYTHON_LATEST_BASENAME:python%=%)
 endif
-PYTHON_DEFAULT_MINOR=$(firstword $(PYTHON_SUPPORTED_MINORS))
-PYTHON_DEFAULT_ENV=py$(subst .,,$(PYTHON_DEFAULT_MINOR))
 PYTHON_MINORS=$(PYTHON_SUPPORTED_MINORS)
 ifeq ($(PYTHON_MINOR),)
 PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
@@ -152,6 +143,7 @@ export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
 PYTHON_ALL_ENVS=$(PYTHON_ENVS) build
+PYTHON_OTHER_ENVS=$(filter-out $(PYTHON_HOST_ENV),$(PYTHON_ENVS))
 PYTHON_EXTRAS=test devel
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
@@ -259,7 +251,7 @@ export TOX_RUN_ARGS
 # The options that support running arbitrary commands in the venvs managed by tox
 # without Tox's startup time:
 TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
-TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_DEFAULT_ENV)"
+TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_HOST_ENV)"
 TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
     sphinx-lint doc8 restructuredtext-lint proselint
 PIP_COMPILE_EXTRA=
@@ -340,37 +332,35 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./var/log/npm-install.log \
+		$(PYTHON_ALL_ENVS:%=./.tox/%/.tox-info.json) ./var/log/npm-install.log \
 		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log) \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log) \
-		$(PYTHON_ENVS:%=build-requirements-%)
+		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log)
 # <!--alex enable hooks-->
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
 define build_requirements_template=
-build-requirements-$(1):
-# Workaround race conditions in pip's HTTP file cache:
-# https://github.com/pypa/pip/issues/6970#issuecomment-527678672
-	targets="./requirements/$(1)/user.txt \
+build-requirements-$(1): ./requirements/$(1)/user.txt \
 	$$(PYTHON_EXTRAS:%=./requirements/$(1)/%.txt) \
-	./requirements/$(1)/build.txt"
-	$$(MAKE) -e $$$${targets} || $$(MAKE) -e $$$${targets} ||
-	    $$(MAKE) -e $$$${targets}
+	./requirements/$(1)/build.txt
 endef
 $(foreach python_env,$(PYTHON_ENVS),$(eval \
     $(call build_requirements_template,$(python_env))))
 
 .PHONY: build-requirements-compile
 ## Compile the requirements for one Python version and one type/extra.
-build-requirements-compile: ./.tox/$(PYTHON_ENV)/bin/pip-compile
+build-requirements-compile: ./.tox/.log/$(PYTHON_ENV)-bootstrap.log
 	pip_compile_opts="--strip-extras --generate-hashes --reuse-hashes \
-	--allow-unsafe --quiet $(PIP_COMPILE_ARGS)"
+	--allow-unsafe $(PIP_COMPILE_ARGS) --quiet"
 ifneq ($(PIP_COMPILE_EXTRA),)
 	pip_compile_opts+=" --extra $(PIP_COMPILE_EXTRA)"
 endif
 	./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
-	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)"
+	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)" ||
+	    ./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
+	        --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)" ||
+	    ./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
+	        --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)"
 
 .PHONY: build-pkgs
 ## Ensure the built package is current.
@@ -384,28 +374,29 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: ./.tox/build/.tox-info.json
+build-docs-watch: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
-	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
+	tox exec -e "$(PYTHON_HOST_ENV)" -- \
+	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 # Done as a separate target because this builder fails every other run without the
 # suboptimal `-E` option:
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: ./.tox/build/.tox-info.json
+build-docs-devhelp: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn -E \
 	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json \
 		build-docs-devhelp
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn \
-	    -j "auto" -D autosummary_generate="0" "./docs/" \
-	    "./build/docs/$(@:build-docs-%=%)/"
+	    -j "auto" -D autosummary_generate="0" -D autoapi_generate_api_docs="0" \
+	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
-# Render the LaTeX documentation into a PDF file.
+## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
@@ -562,7 +553,7 @@ test: test-lint test-docker
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: $(HOME)/.local/bin/tox $(PYTHON_ENVS:%=build-requirements-%)
+test-code: $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
 	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-debug
@@ -615,7 +606,7 @@ test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
+test-lint-docs-rstcheck: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
@@ -955,7 +946,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 ## Update requirements, dependencies, and other external versions tracked in VCS.
 devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
 .PHONY: devel-upgrade-requirements
-## Update Python tool versions to their most recent available versions.
+## Update all locked or frozen dependencies to their most recent available versions.
 devel-upgrade-requirements:
 	touch "./setup.cfg" "./requirements/build.txt.in"
 # Ensure the network is create first to avoid race conditions
@@ -1036,7 +1027,8 @@ clean:
 # package.
 ./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
 		./var/log/docker-compose-network.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log \
+		./pyproject.toml
 	rm -vf ./dist/*
 	mkdir -pv "$(dir $(@))"
 # Build Python packages/distributions from the development Docker container for
@@ -1051,7 +1043,7 @@ clean:
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
 define build_requirements_user_template=
-./requirements/$(1)/user.txt: ./setup.cfg ./.tox/$(1)/bin/pip-compile
+./requirements/$(1)/user.txt: ./setup.cfg ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/user.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -1059,7 +1051,7 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(eval \
     $(call build_requirements_user_template,$(python_env))))
 define build_requirements_extra_template=
-./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/$(1)/bin/pip-compile
+./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	extra_basename="$$$$(basename "$$(@)")"
 	$$(MAKE) -e PYTHON_ENV="$$$$(basename "$$$$(dirname "$$(@)")")" \
@@ -1070,7 +1062,8 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(foreach extra,$(PYTHON_EXTRAS),\
     $(eval $(call build_requirements_extra_template,$(python_env),$(extra)))))
 define build_requirements_build_template=
-./requirements/$(1)/build.txt: ./requirements/build.txt.in ./.tox/$(1)/bin/pip-compile
+./requirements/$(1)/build.txt: ./requirements/build.txt.in \
+		./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/build.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -1288,17 +1281,29 @@ $(HOME)/.nvm/nvm.sh:
 
 # Targets used as pre-requisites to ensure virtual environments managed by tox have been
 # created so other targets can use them directly to save Tox's startup time when they
-# don't need Tox's logic about when to update/recreate them, e.g.:
-#     $ ./.tox/build/bin/cz --help
-# Useful for build/release tools:
-$(PYTHON_ALL_ENVS:%=./.tox/%/bin/pip-compile):
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
-	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/%/bin/pip-compile=%)" --notest
-
+# don't need Tox's logic about when to update/recreate:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
+./.tox/$(PYTHON_HOST_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_HOST_ENV)/test.txt \
+		./requirements/$(PYTHON_HOST_ENV)/devel.txt
+	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$(@)"
+define tox_info_template=
+./.tox/$(1)/.tox-info.json): $$(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(1)/test.txt
+	tox run -e "$$(@:.tox/%/.tox-info.json=%)" --notest
+	touch "$$(@)"
+endef
+$(foreach python_env,$(PYTHON_OTHER_ENVS),$(eval \
+    $(call tox_info_template,$(python_env))))
+$(PYTHON_ALL_ENVS:%=./.tox/.log/%-bootstrap.log): $(HOME)/.local/bin/tox ./tox.ini
+	mkdir -pv "$(dir $(@))"
+	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/.log/%-bootstrap.log=%)" --notest |
+	    tee -a "$(@)"
+
 $(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"

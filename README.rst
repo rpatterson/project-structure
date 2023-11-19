@@ -223,13 +223,13 @@ Local Installation
 ========================================================================================
 
 Install by using any tool for installing standard Python 3 distributions such as
-`pip`_::
+`pip`_:
 
 .. code:: console
 
-  $ pip3 install --user project-Docker
+  $ pip3 install --user project-structure
 
-structure Container Image
+Docker Container Image
 ========================================================================================
 
 The recommended way to use the container image is by using `Docker Compose`_. See `the

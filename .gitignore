@@ -40,7 +40,7 @@ parts
 .installed.cfg
 *.egg
 **/.egg
-/src/*/version.py
+/src/*/_version.py
 /project-structure-*
 
 # PyInstaller
