@@ -236,10 +236,9 @@ export TEST_PYPI_PASSWORD
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
-     devhelp latex man texinfo text gettext linkcheck xml pseudoxml
-DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) pdf info
-DOCS_SPHINX_BUILD_OPTS=
+DOCS_SPHINX_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
+    texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) devhelp pdf info
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
 
@@ -303,10 +302,7 @@ build-pkgs:
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	$(MAKE) DOCS_SPHINX_BUILD_OPTS="\
-	-D autosummary_generate=0 -D autoapi_generate_api_docs=0" \
-	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
+build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
@@ -315,12 +311,22 @@ build-docs-watch: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	tox exec -e "$(PYTHON_HOST_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
-.PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
-## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -E \
+# Done as a separate target because this builder fails every other run without the
+# suboptimal `-E` option:
+# https://github.com/sphinx-doc/sphinx/issues/11759
+.PHONY: build-docs-devhelp
+## Render the documentation into the GNOME Devhelp format.
+build-docs-devhelp: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn -E \
 	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
+.PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
+## Render the documentation into a specific format.
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json \
+		build-docs-devhelp
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn \
+	    -j "auto" -D autosummary_generate="0" -D autoapi_generate_api_docs="0" \
+	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
