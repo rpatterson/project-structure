@@ -208,6 +208,7 @@ DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
 DOCKER_VARIANT_OS_DEFAULT=debian
+DOCKER_REQUIREMENTS_TARGET_PREFIX=build-docker-requirements-$(DOCKER_VARIANT_OS_DEFAULT)
 DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
 DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
 # TEMPLATE: Update for the project language:
@@ -326,9 +327,8 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		$(PYTHON_ALL_ENVS:%=./.tox/%/.tox-info.json) ./var/log/npm-install.log \
-		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-devel.log) \
-		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-user.log)
+		./var/log/npm-install.log build-docker \
+		$(PYTHON_ENVS:%=$(DOCKER_REQUIREMENTS_TARGET_PREFIX)-%)
 # <!--alex enable hooks-->
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
@@ -415,11 +415,26 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): build-pkgs
-	$$(MAKE) "./var-docker/$(1)/log/build-devel.log" \
-	    "./var-docker/$(1)/log/build-user.log"
+build-docker-$(1): build-docker-devel-$(1) build-docker-user-$(1)
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
+.PHONY: $(DOCKER_VARIANTS:%=build-docker-devel-%)
+# Update the development image and update the bind volume contents:
+define build_docker_devel_template=
+build-docker-devel-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-devel.log
+	export DOCKER_VARIANT="$(1)-$(2)"
+	docker compose run $$(DOCKER_COMPOSE_RUN_ARGS) $$(PROJECT_NAME)-devel \
+	    make -e "./.tox/$(2)/.tox-info.json"
+endef
+$(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_OTHER_ENVS),\
+    $(eval $(call build_docker_devel_template,$(os),$(python_env)))))
+.PHONY: $(DOCKER_VARIANTS:%=build-docker-user-%)
+# Update the build package and build it into the user image:
+define build_docker_user_template=
+build-docker-user-$(1): build-pkgs
+	$$(MAKE) "./var-docker/$(1)/log/build-user.log"
+endef
+$(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_user_template,$(variant))))
 
 .PHONY: build-docker-tags
 ## Print the list of tags for this image variant in all registries.
@@ -521,16 +536,20 @@ endif
 	        tox exec -e "build" -qq -- cz version --project
 	    )" $${docker_build_args} --file "$(<)" "./"
 
-.PHONY: $(PYTHON_MINORS:%=build-docker-requirements-%)
+.PHONY: $(DOCKER_VARIANTS:%=build-docker-requirements-%)
 ## Pull container images and compile fixed/pinned dependency versions if necessary.
-$(PYTHON_MINORS:%=build-docker-requirements-%): ./.env.~out~
-	export PYTHON_MINOR="$(@:build-docker-requirements-%=%)"
-	export PYTHON_ENV="py$(subst .,,$(@:build-docker-requirements-%=%))"
-	$(MAKE) -e "./var-docker/$(DOCKER_VARIANT_OS_DEFAULT)-$${PYTHON_ENV}\
-	/log/build-devel.log"
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    make -$(MAKEFLAGS) -e PYTHON_MINORS="$(@:build-docker-requirements-%=%)" \
-	    build-requirements-py$(subst .,,$(@:build-docker-requirements-%=%))
+define build_docker_requirements_template=
+build-docker-requirements-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-bootstrap.log \
+		./.env.~out~
+	export PYTHON_ENV="$(2)"
+	export PYTHON_MINOR="$$$$(echo $(2) | sed -nE -e 's|py([0-9])([0-9]+)|\1.\2|p')"
+	export DOCKER_VARIANT="$(1)-$(2)"
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -$$(MAKEFLAGS) -e PYTHON_MINORS="$$$${PYTHON_MINOR}" \
+	    build-requirements-$$$${PYTHON_ENV}
+endef
+$(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
+    $(eval $(call build_docker_requirements_template,$(os),$(python_env)))))
 
 
 ### Test Targets:
@@ -1056,15 +1075,16 @@ $(foreach python_env,$(PYTHON_ENVS),\
 # Build Docker container images:
 # Build the base layer common to both published images:
 define build_docker_base_template=
-./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+./var-docker/$(1)-$(2)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./requirements/$(2)/user.txt
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
-	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="base" \
+	$$(MAKE) -e DOCKER_VARIANT="$(1)-$(2)" DOCKER_BUILD_TARGET="base" \
 	    build-docker-build | tee -a "$$(@)"
 endef
-$(foreach variant,$(DOCKER_VARIANTS),\
-    $(eval $(call build_docker_base_template,$(variant))))
+$(foreach os,$(DOCKER_VARIANT_OSES),$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
+    $(eval $(call build_docker_base_template,$(os),$(language)))))
 # Build the development image:
 define build_docker_devel_template=
 ./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
@@ -1074,20 +1094,6 @@ define build_docker_devel_template=
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="devel" \
 	    build-docker-build | tee -a "$$(@)"
-	if test "$$(DOCKER_BUILD_PULL)" = "true"
-	then
-# Ensure the virtualenv in the volume is also current:
-	    docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	        tox run $$(TOX_EXEC_OPTS) -e "$$(PYTHON_ENV)" --notest
-	else
-# Initialize volumes contents.  Also update the pinned/frozen versions, if needed, using
-# the container.  If changed, then the container image might need re-building to ensure
-# it's current and correct:
-	    docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	        make -e PYTHON_MINORS="$$(PYTHON_MINOR)" \
-	        build-requirements-$$(PYTHON_ENV)
-	    $$(MAKE) -e "$$(@)"
-	fi
 endef
 $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_devel_template,$(variant))))
@@ -1110,6 +1116,19 @@ define build_docker_user_template=
 endef
 $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_user_template,$(variant))))
+# Build the development image in which to compile frozen, or pinned, versions:
+define build_docker_bootstrap_template=
+./var-docker/$$(DOCKER_VARIANT_OS_DEFAULT)-$(1)/log/build-bootstrap.log: ./Dockerfile \
+		./bin/entrypoint.sh \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+	true DEBUG Updated prereqs: $$(?)
+	mkdir -pv "$$(dir $$(@))"
+	$$(MAKE) -e DOCKER_VARIANT="$$(DOCKER_VARIANT_OS_DEFAULT)-$(1)" \
+	    DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$$(@)"
+endef
+$(foreach language,$(DOCKER_VARIANT_LANGUAGES),$(eval \
+    $(call build_docker_bootstrap_template,$(language))))
+# Avoid race conditions building the images in parallel:
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
@@ -1125,6 +1144,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
+# Authenticated to Docker image registries:
 ./var/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
