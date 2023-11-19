@@ -43,7 +43,7 @@ services:
           :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
-      MAKEFLAGS: "${MAKEFLAGS}"
+      MAKEFLAGS: "${MAKEFLAGS:-}"
       # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:
