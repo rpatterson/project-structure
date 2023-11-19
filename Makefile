@@ -168,7 +168,6 @@ VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
 
 # Values used to build Docker images:
-DOCKER_FILE=./Dockerfile
 export DOCKER_BUILD_TARGET=user
 DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
