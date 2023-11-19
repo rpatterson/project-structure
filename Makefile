@@ -46,6 +46,7 @@ SHELL:=bash
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 export PS1?=$$
+# Prefix echoed recipe commands with the recipe line number for debugging:
 export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
@@ -201,7 +202,6 @@ VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
 
 # Values used to build Docker images:
-DOCKER_FILE=./Dockerfile
 export DOCKER_BUILD_TARGET=user
 DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
@@ -312,13 +312,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log ./.env.~out~
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log \
+run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -333,8 +333,8 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		$(PYTHON_ALL_ENVS:%=./.tox/%/.tox-info.json) ./var/log/npm-install.log \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log) \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log)
+		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-devel.log) \
+		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-user.log)
 # <!--alex enable hooks-->
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
@@ -427,8 +427,8 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # prerequisite:
 define build_docker_template=
 build-docker-$(1): build-pkgs
-	$$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
-	    "./var-docker/log/$(1)/build-user.log"
+	$$(MAKE) "./var-docker/$(1)/log/build-devel.log" \
+	    "./var-docker/$(1)/log/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -537,7 +537,8 @@ endif
 $(PYTHON_MINORS:%=build-docker-requirements-%): ./.env.~out~
 	export PYTHON_MINOR="$(@:build-docker-requirements-%=%)"
 	export PYTHON_ENV="py$(subst .,,$(@:build-docker-requirements-%=%))"
-	$(MAKE) -e "./var-docker/$${PYTHON_ENV}/log/build-devel.log"
+	$(MAKE) -e "./var-docker/$(DOCKER_VARIANT_OS_DEFAULT)-$${PYTHON_ENV}\
+	/log/build-devel.log"
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) -T $(PROJECT_NAME)-devel \
 	    make -e PYTHON_MINORS="$(@:build-docker-requirements-%=%)" \
 	    build-requirements-py$(subst .,,$(@:build-docker-requirements-%=%))
@@ -570,11 +571,11 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
 define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-devel.log
+		./var-docker/$(1)/log/build-devel.log
 	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-user.log
+		./var-docker/$(1)/log/build-user.log
 	docker compose run --no-deps --rm -T $$(PROJECT_NAME) \
 	    python -c 'import projectstructure; print(projectstructure)'
 endef
@@ -672,17 +673,15 @@ test-lint-prose-alex: ./var/log/npm-install.log
 ## Check the style and content of the `./Dockerfile*` files
 test-lint-docker: ./var/log/docker-compose-network.log \
 		./var/log/docker-login-DOCKER.log \
-		$(PYTHON_MINORS:%=test-lint-docker-volumes-%)
+		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- docker compose run --rm -T hadolint hadolint
-.PHONY: $(PYTHON_MINORS:%=test-lint-docker-volumes-%)
+.PHONY: $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 ## Prevent Docker volumes owned by `root` for one Python version.
-$(PYTHON_MINORS:%=test-lint-docker-volumes-%):
+$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
 	$(MAKE) -e \
-	    PYTHON_MINORS="$(@:test-lint-docker-volumes-%=%)" \
-	    PYTHON_MINOR="$(@:test-lint-docker-volumes-%=%)" \
-	    PYTHON_ENV="py$(subst .,,$(@:test-lint-docker-volumes-%=%))" \
+	    DOCKER_VARIANT="$(@:test-lint-docker-volumes-%=%)" \
 	    test-lint-docker-volumes
 .PHONY: test-lint-docker-volumes
 ## Prevent Docker volumes owned by `root`.
@@ -749,12 +748,10 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    git worktree remove "$${worktree_path}"
 	fi
 	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
-	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
-	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
-	    "./.env.~out~"
+	cp "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
 	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
 	$(MAKE) -e -C "./build-host/" build
-	docker compose run --rm -T build-host
+	docker compose run --rm --workdir "$${worktree_path}" build-host
 
 
 ### Release Targets:
@@ -773,13 +770,13 @@ release-pkgs: build-pkgs $(HOME)/.local/bin/tox ~/.pypirc.~out~
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 # https://twine.readthedocs.io/en/latest/#using-twine
-	tox exec -e "build" -- \
-	    twine check ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
+	tox exec -e "build" -- twine check \
+	    ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/*
 # The VCS remote should reflect the release before publishing the release to ensure that
 # a published release is never *not* reflected in VCS:
 	$(MAKE) -e test-clean
 	tox exec -e "build" -- twine upload -s -r "$(PYPI_REPO)" \
-	    ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
+	    ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/*
 endif
 
 .PHONY: release-docker
@@ -788,8 +785,8 @@ release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
 	$(MAKE) -e test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
 define release_docker_template=
-release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
-		./var-docker/log/$(1)/build-user.log \
+release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
+		./var-docker/$(1)/log/build-user.log \
 		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
@@ -827,7 +824,7 @@ endif
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
 		./var/log/npm-install.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -1013,9 +1010,9 @@ clean:
 	    || true
 	tox exec -e "build" -- pre-commit clean || true
 	git clean -dfx -e "/var" -e "var-docker/" -e "/.env" -e "*~"
-	git clean -dfx "./var-docker/py*/.tox/" \
-	    "./var-docker/py*/project_structure.egg-info/"
-	rm -rfv "./var/log/" ./var-docker/py*/log/
+	git clean -dfx "./var-docker/*/.tox/" \
+	    "./var-docker/*/project_structure.egg-info/"
+	rm -rfv "./var/log/" ./var-docker/*/log/
 
 
 ### Real Targets:
@@ -1026,7 +1023,7 @@ clean:
 # package.
 ./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
 		./var/log/docker-compose-network.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log \
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log \
 		./pyproject.toml
 	rm -vf ./dist/*
 	mkdir -pv "$(dir $(@))"
@@ -1036,7 +1033,7 @@ clean:
 	    tox run -e "$(PYTHON_DEFAULT_ENV)" --override "testenv.package=external" \
 	    --pkg-only | tee -a "$(@)"
 # Copy to a location available in the Docker build context:
-	cp -lfv ./var-docker/$(PYTHON_DEFAULT_ENV)/.tox/.pkg/tmp/dist/* "./dist/"
+	cp -lfv ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/* "./dist/"
 
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
@@ -1081,24 +1078,27 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 
 ## Docker real targets:
 
-# Build Docker container images.
-# Build the shared base image:
-$(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
-		./bin/entrypoint.sh \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
-	true DEBUG Updated prereqs: $(?)
-	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
-	mkdir -pv "$(dir $(@))"
-	$(MAKE) -e DOCKER_BUILD_TARGET="base" build-docker-build | tee -a "$(@)"
-# Build the development image:
-define build_docker_devel_template=
-./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log \
+# Build Docker container images:
+# Build the base layer common to both published images:
+define build_docker_base_template=
+./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
-	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-devel.log=%)"
+	mkdir -pv "$$(dir $$(@))"<
+	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="base" \
+	    build-docker-build | tee -a "$$(@)"
+endef
+$(foreach variant,$(DOCKER_VARIANTS),\
+    $(eval $(call build_docker_base_template,$(variant))))
+# Build the development image:
+define build_docker_devel_template=
+./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
+		./var-docker/$(1)/log/build-base.log \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
-	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$$(@)"
+	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="devel" \
+	    build-docker-build | tee -a "$$(@)"
 	if test "$$(DOCKER_BUILD_PULL)" = "true"
 	then
 # Ensure the virtualenv in the volume is also current:
@@ -1114,29 +1114,27 @@ define build_docker_devel_template=
 	    $$(MAKE) -e "$$(@)"
 	fi
 endef
-$(foreach variant,$(DOCKER_VARIANTS),$(eval \
-    $(call build_docker_devel_template,$(variant))))
-# Build the end-user image:
+$(foreach variant,$(DOCKER_VARIANTS),\
+    $(eval $(call build_docker_devel_template,$(variant))))
+# Build the user image:
 define build_docker_user_template=
-./var-docker/log/$(1)/build-user.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/build-pkgs.log
+./var-docker/$(1)/log/build-user.log: ./Dockerfile \
+		./var-docker/$(1)/log/build-base.log \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
-	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
-	mkdir -pv "$$(dir $$(@))"
 # Build the user image after building all required artifacts:
 	if test "$$(PYTHON_WHEEL)" = ""
 	then
 	    $$(MAKE) -e "build-pkgs"
 	    PYTHON_WHEEL="$$$$(ls -t ./dist/*.whl | head -n 1)"
 	fi
-	$$(MAKE) -e DOCKER_BUILD_ARGS="$$(DOCKER_BUILD_ARGS) \
-	--build-arg PYTHON_WHEEL=$$$${PYTHON_WHEEL}" build-docker-build |
-	    tee -a "$$(@)"
+	mkdir -pv "$$(dir $$(@))"
+	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
+	    DOCKER_BUILD_ARGS="$$(DOCKER_BUILD_ARGS) --build-arg \
+	PYTHON_WHEEL=$$$${PYTHON_WHEEL}" build-docker-build | tee -a "$$(@)"
 endef
-$(foreach variant,$(DOCKER_VARIANTS),$(eval \
-    $(call build_docker_user_template,$(variant))))
+$(foreach variant,$(DOCKER_VARIANTS),\
+    $(eval $(call build_docker_user_template,$(variant))))
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"

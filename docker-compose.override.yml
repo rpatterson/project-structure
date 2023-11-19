@@ -11,7 +11,7 @@ services:
   # Configuration specific to development:
   project-structure:
     image: "${DOCKER_USER:?}/project-structure\
-      :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+      :user-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
       context: "./"
@@ -23,14 +23,14 @@ services:
         VERSION: "${VERSION:-}"
       cache_from:
         - "${DOCKER_USER:?}/project-structure\
-          :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+          :user-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
 
   # Container for use by developers:
   project-structure-devel:
     image: "${DOCKER_USER:?}/project-structure\
-      :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+      :devel-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-devel"
     profiles:
       - "test"
@@ -44,10 +44,10 @@ services:
         VERSION: "${VERSION:-}"
       cache_from:
         - "${DOCKER_USER:?}/project-structure\
-          :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+          :devel-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
-      MAKEFLAGS: "${MAKEFLAGS}"
+      MAKEFLAGS: "${MAKEFLAGS:-}"
       # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:
@@ -66,11 +66,11 @@ services:
       - "${CHECKOUT_DIR:-.}/home/.cache/:/home/project-structure/.cache/"
       # Avoid any clashes between image variants and the local host at both build and
       # runtime:
-      - "${CHECKOUT_DIR:-.}/var-docker/${PYTHON_ENV:-py311}/\
+      - "${CHECKOUT_DIR:-.}/var-docker/${DOCKER_VARIANT:-debian-py311}/\
         :/usr/local/src/project-structure/var/"
-      - "${CHECKOUT_DIR:-.}/var-docker/${PYTHON_ENV:-py311}/.tox/\
+      - "${CHECKOUT_DIR:-.}/var-docker/${DOCKER_VARIANT:-debian-py311}/.tox/\
         :/usr/local/src/project-structure/.tox/"
-      - "${CHECKOUT_DIR:-.}/var-docker/${PYTHON_ENV:-py311}\
+      - "${CHECKOUT_DIR:-.}/var-docker/${DOCKER_VARIANT:-debian-py311}\
         /project_structure.egg-info/\
         :/usr/local/src/project-structure/src/project_structure.egg-info/"
 
@@ -166,12 +166,13 @@ services:
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
       - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
       - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      # Share local SSH authentication to repository remotes:
+      # Share local authentication inside the container:
       - "~/.ssh/:/home/runner/.ssh/"
       - "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}\
         :${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       - "~/.gnupg/:/home/runner/.gnupg/"
       - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
+      - "~/.docker/:/home/runner/.docker/"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
