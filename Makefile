@@ -210,7 +210,7 @@ DOCKER_VARIANT_OS_DEFAULT=debian
 DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
 DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
 # TEMPLATE: Update for the project language:
-DOCKER_VARIANT_LANGUAGE_DEFAULT=$(PYTHON_DEFAULT_ENV)
+DOCKER_VARIANT_LANGUAGE_DEFAULT=$(PYTHON_HOST_ENV)
 DOCKER_VARIANT_LANGUAGES=$(PYTHON_ENVS)
 DOCKER_VARIANT_LANGUAGE=$(PYTHON_ENV)
 # Build all image variants in parallel:
@@ -1030,7 +1030,7 @@ clean:
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
 	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	    tox run -e "$(PYTHON_DEFAULT_ENV)" --override "testenv.package=external" \
+	    tox run -e "$(PYTHON_HOST_ENV)" --override "testenv.package=external" \
 	    --pkg-only | tee -a "$(@)"
 # Copy to a location available in the Docker build context:
 	cp -lfv ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/* "./dist/"
