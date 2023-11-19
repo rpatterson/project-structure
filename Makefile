@@ -44,6 +44,7 @@ SHELL:=bash
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 export PS1?=$$
+# Prefix echoed recipe commands with the recipe line number for debugging:
 export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
