@@ -566,10 +566,21 @@ test-lint-prose-alex: ./var/log/npm-install.log
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: ./var/log/docker-compose-network.log ./var/log/docker-login-DOCKER.log
+test-lint-docker: ./var/log/docker-compose-network.log \
+		./var/log/docker-login-DOCKER.log \
+		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- docker compose run --rm -T hadolint hadolint
+.PHONY: $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
+## Prevent Docker volumes owned by `root` for one Python version.
+$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
+	$(MAKE) -e \
+	    DOCKER_VARIANT="$(@:test-lint-docker-volumes-%=%)" \
+	    test-lint-docker-volumes
+.PHONY: test-lint-docker-volumes
+## Prevent Docker volumes owned by `root`.
+test-lint-docker-volumes: ./var/log/docker-compose-network.log
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
