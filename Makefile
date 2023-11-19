@@ -878,44 +878,42 @@ clean:
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    true "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
-# Build Docker container images.
+# Build Docker container images:
+# Build the base layer common to both published images:
+define build_docker_base_template=
+./var-docker/log/$(1)/build-base.log: ./Dockerfile \
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+	true DEBUG Updated prereqs: $$(?)
+	mkdir -pv "$$(dir $$(@))"
+	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="base" \
+	    build-docker-build | tee -a "$$(@)"
+endef
+$(foreach variant,$(DOCKER_VARIANTS),\
+    $(eval $(call build_docker_base_template,$(variant))))
 # Build the development image:
-$(DOCKER_VARIANTS:%=./var-docker/log/%/build-base.log): ./Dockerfile \
-		./bin/entrypoint.sh \
-		$(HOME)/.local/state/docker-multi-platform/log/host-install.log
-	true DEBUG Updated prereqs: $(?)
-	export DOCKER_VARIANT="$(@:var-docker/log/%/build-devel.log=%)"
-	mkdir -pv "$(dir $(@))"
-	$(MAKE) -e DOCKER_BUILD_TARGET="base" build-docker-build | tee -a "$(@)"
 define build_docker_devel_template=
 ./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
 		./var-docker/log/$(1)/build-base.log \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
-	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-devel.log=%)"
 	mkdir -pv "$$(dir $$(@))"
-	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$$(@)"
-# Initialize volumes contents:
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    true "TEMPLATE: Always specific to the project type"
+	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="devel" \
+	    build-docker-build | tee -a "$$(@)"
 endef
-$(foreach variant,$(DOCKER_VARIANTS),$(eval \
-    $(call build_docker_devel_template,$(variant))))
-# Build the end-user image:
+$(foreach variant,$(DOCKER_VARIANTS),\
+    $(eval $(call build_docker_devel_template,$(variant))))
+# Build the user image:
 define build_docker_user_template=
 ./var-docker/log/$(1)/build-user.log: ./Dockerfile \
 		./var-docker/log/$(1)/build-base.log \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/build-pkgs.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
-	export DOCKER_VARIANT="$$(@:var-docker/log/%/build-user.log=%)"
-# Build the user image after building all required artifacts:
 	mkdir -pv "$$(dir $$(@))"
-# TEMPLATE: Pass the build package for the project type as a build argument:
-	$$(MAKE) -e build-docker-build | tee -a "$$(@)"
+	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
+	    build-docker-build | tee -a "$$(@)"
 endef
-$(foreach variant,$(DOCKER_VARIANTS),$(eval \
-    $(call build_docker_user_template,$(variant))))
+$(foreach variant,$(DOCKER_VARIANTS),\
+    $(eval $(call build_docker_user_template,$(variant))))
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
