@@ -575,9 +575,8 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-user.log
-# TEMPLATE: Change the command to confirm the user image has a working installation of
-# the package:
-	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
+	docker compose run --no-deps --rm -T $$(PROJECT_NAME) \
+	    python -c 'import projectstructure; print(projectstructure)'
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
