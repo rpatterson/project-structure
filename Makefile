@@ -424,12 +424,10 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    git worktree remove "$${worktree_path}"
 	fi
 	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
-	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
-	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
-	    "./.env.~out~"
+	cp "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
 	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
 	$(MAKE) -e -C "./build-host/" build
-	docker compose run --rm -T build-host
+	docker compose run --rm --workdir "$${worktree_path}" build-host
 
 
 ### Release Targets:
