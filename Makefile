@@ -459,8 +459,7 @@ define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-devel.log
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -$$(MAKEFLAGS) -e test-code
+	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-user.log
