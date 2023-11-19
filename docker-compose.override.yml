@@ -43,7 +43,7 @@ services:
           :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
-      MAKEFLAGS: "${MAKEFLAGS}"
+      MAKEFLAGS: "${MAKEFLAGS:-}"
       # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:
@@ -169,12 +169,13 @@ services:
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
       - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
       - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      # Share local SSH authentication to repository remotes:
+      # Share local authentication inside the container:
       - "~/.ssh/:/home/runner/.ssh/"
       - "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}\
         :${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       - "~/.gnupg/:/home/runner/.gnupg/"
       - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
+      - "~/.docker/:/home/runner/.docker/"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
