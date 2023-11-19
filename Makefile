@@ -881,7 +881,7 @@ clean:
 # Build Docker container images:
 # Build the base layer common to both published images:
 define build_docker_base_template=
-./var-docker/$(1)/log/build-base.log: ./Dockerfile \
+./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
