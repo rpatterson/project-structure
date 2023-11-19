@@ -12,6 +12,7 @@ services:
     image: "merpatterson/project-structure"
     container_name: "project-structure"
     environment:
+      # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env` to match permissions inside and
       # outside the container.  Default to the common/standard main/first user and group

@@ -297,10 +297,9 @@ export TEST_PYPI_PASSWORD
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
 # <!--alex disable gals-man-->
-DOCS_SPHINX_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp \
-     devhelp latex man texinfo text gettext linkcheck xml pseudoxml
-DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) pdf info
-DOCS_SPHINX_BUILD_OPTS=
+DOCS_SPHINX_BUILDERS=html dirhtml singlehtml htmlhelp qthelp epub applehelp latex man \
+    texinfo text gettext linkcheck xml pseudoxml
+DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) devhelp pdf info
 # <!--alex enable gals-man-->
 # These builders report false warnings or failures:
 
@@ -381,9 +380,7 @@ build-pkgs:
 
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
-build-docs: ./.tox/build/.tox-info.json
-	$(MAKE) DOCS_SPHINX_BUILD_OPTS="-D autosummary_generate=0" \
-	    $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
+build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
@@ -391,11 +388,21 @@ build-docs-watch: ./.tox/build/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
+# Done as a separate target because this builder fails every other run without the
+# suboptimal `-E` option:
+# https://github.com/sphinx-doc/sphinx/issues/11759
+.PHONY: build-docs-devhelp
+## Render the documentation into the GNOME Devhelp format.
+build-docs-devhelp: ./.tox/build/.tox-info.json
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn -E \
+	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json
-	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -W -E \
-	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
+		build-docs-devhelp
+	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn \
+	    -j "auto" -D autosummary_generate="0" "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 # Render the LaTeX documentation into a PDF file.
@@ -429,7 +436,7 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # prerequisite:
 define build_docker_template=
 build-docker-$(1): build-pkgs
-	$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
+	$$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
 	    "./var-docker/log/$(1)/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
@@ -573,8 +580,7 @@ define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-devel.log
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -$(MAKEFLAGS) -e test-code
+	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/log/$(1)/build-user.log
