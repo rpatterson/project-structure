@@ -249,13 +249,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log ./.env.~out~
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log \
+run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -270,8 +270,8 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		./.tox/build/.tox-info.json ./var/log/npm-install.log \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log) \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log)
+		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-devel.log) \
+		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-user.log)
 # <!--alex enable hooks-->
 
 .PHONY: build-pkgs
@@ -338,8 +338,8 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # prerequisite:
 define build_docker_template=
 build-docker-$(1): build-pkgs
-	$$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
-	    "./var-docker/log/$(1)/build-user.log"
+	$$(MAKE) "./var-docker/$(1)/log/build-devel.log" \
+	    "./var-docker/$(1)/log/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -465,11 +465,11 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
 define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-devel.log
+		./var-docker/$(1)/log/build-devel.log
 	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-user.log
+		./var-docker/$(1)/log/build-user.log
 # TEMPLATE: Change the command to confirm the user image has a working installation of
 # the package:
 	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
@@ -662,8 +662,8 @@ release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
 	$(MAKE) -e test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
 define release_docker_template=
-release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
-		./var-docker/log/$(1)/build-user.log \
+release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
+		./var-docker/$(1)/log/build-user.log \
 		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
@@ -695,7 +695,7 @@ endif
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
 		./var/log/npm-install.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -873,7 +873,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
-	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+	./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    true "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
@@ -881,7 +881,7 @@ clean:
 # Build Docker container images:
 # Build the base layer common to both published images:
 define build_docker_base_template=
-./var-docker/log/$(1)/build-base.log: ./Dockerfile \
+./var-docker/$(1)/log/build-base.log: ./Dockerfile \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -892,8 +892,8 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_base_template,$(variant))))
 # Build the development image:
 define build_docker_devel_template=
-./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log \
+./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
+		./var-docker/$(1)/log/build-base.log \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -904,8 +904,8 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_devel_template,$(variant))))
 # Build the user image:
 define build_docker_user_template=
-./var-docker/log/$(1)/build-user.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log \
+./var-docker/$(1)/log/build-user.log: ./Dockerfile \
+		./var-docker/$(1)/log/build-base.log \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
