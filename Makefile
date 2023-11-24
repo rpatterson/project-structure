@@ -890,7 +890,7 @@ $(HOME)/.nvm/nvm.sh:
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 define tox_info_template=
-./.tox/$(1)/.tox-info.json): $$(HOME)/.local/bin/tox ./tox.ini \
+./.tox/$(1)/.tox-info.json: $$(HOME)/.local/bin/tox ./tox.ini \
 		./requirements/$(1)/test.txt
 	tox run -e "$$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$$(@)"
