@@ -196,12 +196,6 @@ DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
-# Values used to run built images in containers:
-DOCKER_COMPOSE_RUN_ARGS=
-DOCKER_COMPOSE_RUN_ARGS+= --rm
-ifeq ($(shell tty),not a tty)
-DOCKER_COMPOSE_RUN_ARGS+= -T
-endif
 export DOCKER_PASS
 
 # Values used for publishing releases:
@@ -973,7 +967,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 
 ./README.md: README.rst
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
-	docker compose run --rm "pandoc"
+	docker compose run --rm -T "pandoc"
 
 
 ### Development Tools:
