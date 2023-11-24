@@ -943,10 +943,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
 .PHONY: devel-upgrade-requirements
 ## Update all locked or frozen dependencies to their most recent available versions.
-devel-upgrade-requirements:
+devel-upgrade-requirements: ./var/log/docker-compose-network.log
 	touch "./setup.cfg" "./requirements/build.txt.in"
-# Ensure the network is create first to avoid race conditions
-	docker compose create $(PROJECT_NAME)-devel
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
 	    DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
 	    $(PYTHON_MINORS:%=build-docker-requirements-%)
