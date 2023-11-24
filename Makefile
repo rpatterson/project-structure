@@ -529,7 +529,7 @@ $(PYTHON_MINORS:%=build-docker-requirements-%): ./.env.~out~
 	export PYTHON_ENV="py$(subst .,,$(@:build-docker-requirements-%=%))"
 	$(MAKE) -e "./var-docker/$(DOCKER_VARIANT_OS_DEFAULT)-$${PYTHON_ENV}\
 	/log/build-devel.log"
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) -T $(PROJECT_NAME)-devel \
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    make -e PYTHON_MINORS="$(@:build-docker-requirements-%=%)" \
 	    build-requirements-py$(subst .,,$(@:build-docker-requirements-%=%))
 
@@ -937,7 +937,6 @@ devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
 devel-upgrade-requirements: ./var/log/docker-compose-network.log
 	touch ./requirements/*.txt.in
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
-	    DOCKER_COMPOSE_RUN_ARGS="$(DOCKER_COMPOSE_RUN_ARGS) -T" \
 	    $(PYTHON_MINORS:%=build-docker-requirements-%)
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
@@ -1023,9 +1022,9 @@ clean:
 	mkdir -pv "$(dir $(@))"
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
-	docker compose run $(DOCKER_COMPOSE_RUN_ARGS) $(PROJECT_NAME)-devel \
-	    tox run -e "$(PYTHON_HOST_ENV)" --override "testenv.package=external" \
-	    --pkg-only | tee -a "$(@)"
+	docker compose run --rm -T $(PROJECT_NAME)-devel tox run -e \
+	    "$(PYTHON_HOST_ENV)" --override "testenv.package=external" --pkg-only |
+	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
 	cp -lfv ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/* "./dist/"
 
@@ -1095,13 +1094,13 @@ define build_docker_devel_template=
 	if test "$$(DOCKER_BUILD_PULL)" = "true"
 	then
 # Ensure the virtualenv in the volume is also current:
-	    docker compose run $$(DOCKER_COMPOSE_RUN_ARGS) $$(PROJECT_NAME)-devel \
+	    docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	        tox run $$(TOX_EXEC_OPTS) -e "$$(PYTHON_ENV)" --notest
 	else
 # Initialize volumes contents.  Also update the pinned/frozen versions, if needed, using
 # the container.  If changed, then the container image might need re-building to ensure
 # it's current and correct:
-	    docker compose run $$(DOCKER_COMPOSE_RUN_ARGS) -T $$(PROJECT_NAME)-devel \
+	    docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	        make -e PYTHON_MINORS="$$(PYTHON_MINOR)" \
 	        build-requirements-$$(PYTHON_ENV)
 	    $$(MAKE) -e "$$(@)"
