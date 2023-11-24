@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# Libraries and tools used to run the test suite but not needed by end-users:
+
+pytest
+coverage
+
+# Manage fixed/pinned versions in `./requirements/**.txt`. Though not used in the tests,
+# needed here to compile requrement versions for each supported Python version:
+pip-tools

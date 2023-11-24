@@ -210,7 +210,6 @@ TOX_EXEC_OPTS=--no-recreate-pkg --skip-pkg-install
 TOX_EXEC_ARGS=tox exec $(TOX_EXEC_OPTS) -e "$(PYTHON_HOST_ENV)"
 TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
     sphinx-lint doc8 restructuredtext-lint proselint
-PIP_COMPILE_EXTRA=
 
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
@@ -285,9 +284,6 @@ $(foreach python_env,$(PYTHON_ENVS),$(eval \
 build-requirements-compile: ./.tox/.log/$(PYTHON_ENV)-bootstrap.log
 	pip_compile_opts="--strip-extras --generate-hashes --reuse-hashes \
 	--allow-unsafe $(PIP_COMPILE_ARGS) --quiet"
-ifneq ($(PIP_COMPILE_EXTRA),)
-	pip_compile_opts+=" --extra $(PIP_COMPILE_EXTRA)"
-endif
 	./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
 	    --output-file "$(PIP_COMPILE_OUT)" "$(PIP_COMPILE_SRC)" ||
 	    ./.tox/$(PYTHON_ENV)/bin/pip-compile $${pip_compile_opts} \
@@ -649,7 +645,7 @@ devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
 .PHONY: devel-upgrade-requirements
 ## Update all locked or frozen dependencies to their most recent available versions.
 devel-upgrade-requirements:
-	touch "./setup.cfg" "./requirements/build.txt.in"
+	touch ./requirements/*.txt.in
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(PYTHON_ENVS:%=build-requirements-%)
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
@@ -734,7 +730,7 @@ clean:
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
 define build_requirements_user_template=
-./requirements/$(1)/user.txt: ./setup.cfg ./.tox/.log/$(1)-bootstrap.log
+./requirements/$(1)/user.txt: ./requirements/user.txt.in ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/user.txt=%)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
@@ -742,11 +738,10 @@ endef
 $(foreach python_env,$(PYTHON_ENVS),$(eval \
     $(call build_requirements_user_template,$(python_env))))
 define build_requirements_extra_template=
-./requirements/$(1)/$(2).txt: ./setup.cfg ./.tox/.log/$(1)-bootstrap.log
+./requirements/$(1)/$(2).txt: ./requirements/$(2).txt.in ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
 	extra_basename="$$$$(basename "$$(@)")"
 	$$(MAKE) -e PYTHON_ENV="$$$$(basename "$$$$(dirname "$$(@)")")" \
-	    PIP_COMPILE_EXTRA="$$$${extra_basename%.txt}" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" \
 	    build-requirements-compile
 endef
