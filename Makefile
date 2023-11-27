@@ -547,7 +547,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
+devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
+		devel-upgrade-requirements
 .PHONY: devel-upgrade-requirements
 ## Update Python tool versions to their most recent available versions.
 devel-upgrade-requirements:
@@ -558,6 +559,11 @@ devel-upgrade-requirements:
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 	tox exec -e "build" -- pre-commit autoupdate
+.PHONY: devel-upgrade-js
+## Update tools implemented in JavaScript.
+devel-upgrade-js: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm update
+	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-vale
 ## Update the Vale style rule definitions.
 devel-upgrade-vale:
@@ -576,7 +582,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	fi
 # Only add changes upgrade-related changes:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./.vale.ini" "./styles/"
+	    "./package-lock.json" "./.vale.ini" "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"

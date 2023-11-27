@@ -31,8 +31,8 @@
     "url": "https://liberapay.com/rpatterson/donate"
   },
   "devDependencies": {
-    "alex": "^11.0.0",
-    "prettier": "2.8.8",
-    "write-good": "^1.0.8"
+    "alex": ">=11.0.0",
+    "prettier": ">=2.8.8",
+    "write-good": ">=1.0.8"
   }
 }
