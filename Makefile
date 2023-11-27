@@ -229,12 +229,6 @@ DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
-# Values used to run built images in containers:
-DOCKER_COMPOSE_RUN_ARGS=
-DOCKER_COMPOSE_RUN_ARGS+= --rm
-ifeq ($(shell tty),not a tty)
-DOCKER_COMPOSE_RUN_ARGS+= -T
-endif
 export DOCKER_PASS
 
 # Run Python tools in isolated environments managed by Tox:
@@ -685,7 +679,7 @@ $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
 	    test-lint-docker-volumes
 .PHONY: test-lint-docker-volumes
 ## Prevent Docker volumes owned by `root`.
-test-lint-docker-volumes: ./var/log/docker-compose-network.log
+test-lint-docker-volumes:
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
@@ -940,7 +934,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
+devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
+		devel-upgrade-requirements
 .PHONY: devel-upgrade-requirements
 ## Update all locked or frozen dependencies to their most recent available versions.
 devel-upgrade-requirements: ./var/log/docker-compose-network.log
@@ -952,6 +947,11 @@ devel-upgrade-requirements: ./var/log/docker-compose-network.log
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 	tox exec -e "build" -- pre-commit autoupdate
+.PHONY: devel-upgrade-js
+## Update tools implemented in JavaScript.
+devel-upgrade-js: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm update
+	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-vale
 ## Update the Vale style rule definitions.
 devel-upgrade-vale:
@@ -971,7 +971,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	fi
 # Only add changes upgrade-related changes:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./.vale.ini" "./styles/"
+	    "./package-lock.json" "./.vale.ini" "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
@@ -1174,7 +1174,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 
 ./README.md: README.rst
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
-	docker compose run --rm "pandoc"
+	docker compose run --rm -T "pandoc"
 
 
 ### Development Tools:

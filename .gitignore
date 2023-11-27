@@ -34,7 +34,6 @@ eggs
 .eggs
 parts
 /node_modules
-/package-lock.json
 *.egg-info
 **/*.egg-info
 .installed.cfg
