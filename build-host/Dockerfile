@@ -67,14 +67,14 @@ RUN \
 COPY [ "./bin/install-codecov.sh", "${HOME}/.local/bin/" ]
 # hadolint ignore=DL3042,DL4006,SC1091
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    pip3 install --user "pipx==1.2.0" && \
+    pip3 install --user "pipx==1.2.1" && \
     python3 -m "pipx" ensurepath && \
     pipx install "tox==4.11.3" && \
-    wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh" | \
+    wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh" | \
         bash && \
     echo 'nvm_get_arch() { nvm_echo x64-musl; }' >>"${HOME}/.nvm/nvm.sh" && \
 	. "${HOME}/.nvm/nvm.sh" || true && \
-    nvm install "18" && \
+    nvm install "20" && \
     ${HOME}/.local/bin/install-codecov.sh && \
     mkdir -pv "${HOME}/.local/state/${PROJECT_NAME}/log/"
 
