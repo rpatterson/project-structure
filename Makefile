@@ -748,7 +748,7 @@ $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
 	    test-lint-docker-volumes
 .PHONY: test-lint-docker-volumes
 ## Prevent Docker volumes owned by `root`.
-test-lint-docker-volumes: ./var/log/docker-compose-network.log
+test-lint-docker-volumes:
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
