@@ -263,12 +263,6 @@ DOCKER_IMAGES+=$(DOCKER_IMAGE_GITHUB)
 else
 DOCKER_IMAGES+=$(DOCKER_IMAGE_DOCKER)
 endif
-# Values used to run built images in containers:
-DOCKER_COMPOSE_RUN_ARGS=
-DOCKER_COMPOSE_RUN_ARGS+= --rm
-ifeq ($(shell tty),not a tty)
-DOCKER_COMPOSE_RUN_ARGS+= -T
-endif
 export DOCKER_PASS
 
 # Values derived from or overridden by CI environments:
@@ -382,13 +376,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log ./.env.~out~
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user.log \
+run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -403,8 +397,8 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-user
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		./.tox/build/.tox-info.json ./var/log/npm-install.log \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-devel.log) \
-		$(DOCKER_VARIANTS:%=./var-docker/log/%/build-user.log)
+		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-devel.log) \
+		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-user.log)
 # <!--alex enable hooks-->
 
 .PHONY: build-pkgs
@@ -471,8 +465,8 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # prerequisite:
 define build_docker_template=
 build-docker-$(1): build-pkgs
-	$$(MAKE) "./var-docker/log/$(1)/build-devel.log" \
-	    "./var-docker/log/$(1)/build-user.log"
+	$$(MAKE) "./var-docker/$(1)/log/build-devel.log" \
+	    "./var-docker/$(1)/log/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -621,7 +615,7 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
 define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-devel.log
+		./var-docker/$(1)/log/build-devel.log
 	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Upload any build or test artifacts to CI/CD providers
 	if test "$$(GITLAB_CI)" = "true" &&
@@ -643,7 +637,7 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 	fi
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/log/$(1)/build-user.log
+		./var-docker/$(1)/log/build-user.log
 # TEMPLATE: Change the command to confirm the user image has a working installation of
 # the package:
 	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
@@ -740,10 +734,21 @@ test-lint-prose-alex: ./var/log/npm-install.log
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: ./var/log/docker-compose-network.log ./var/log/docker-login-DOCKER.log
+test-lint-docker: ./var/log/docker-compose-network.log \
+		./var/log/docker-login-DOCKER.log \
+		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- docker compose run --rm -T hadolint hadolint
+.PHONY: $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
+## Prevent Docker volumes owned by `root` for one Python version.
+$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
+	$(MAKE) -e \
+	    DOCKER_VARIANT="$(@:test-lint-docker-volumes-%=%)" \
+	    test-lint-docker-volumes
+.PHONY: test-lint-docker-volumes
+## Prevent Docker volumes owned by `root`.
+test-lint-docker-volumes: ./var/log/docker-compose-network.log
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
@@ -861,8 +866,8 @@ release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
 	$(MAKE) -e test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
 define release_docker_template=
-release-docker-$(1): ./var-docker/log/$(1)/build-devel.log \
-		./var-docker/log/$(1)/build-user.log \
+release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
+		./var-docker/$(1)/log/build-user.log \
 		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
@@ -894,7 +899,7 @@ endif
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
 		./var/log/npm-install.log \
-		./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log \
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log \
 		./var/log/git-remotes.log
 	if ! git diff --cached --exit-code
 	then
@@ -1021,7 +1026,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
+devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
+		devel-upgrade-requirements
 .PHONY: devel-upgrade-requirements
 ## Update Python tool versions to their most recent available versions.
 devel-upgrade-requirements:
@@ -1032,6 +1038,11 @@ devel-upgrade-requirements:
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 	tox exec -e "build" -- pre-commit autoupdate
+.PHONY: devel-upgrade-js
+## Update tools implemented in JavaScript.
+devel-upgrade-js: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm update
+	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-vale
 ## Update the Vale style rule definitions.
 devel-upgrade-vale:
@@ -1057,7 +1068,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean ./var/log/gpg-import.lo
 	fi
 # Only add changes upgrade-related changes:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./.vale.ini" "./styles/"
+	    "./package-lock.json" "./.vale.ini" "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
@@ -1120,7 +1131,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log \
-	./var-docker/log/$(DOCKER_VARIANT_DEFAULT)/build-devel.log
+	./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    true "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
@@ -1128,7 +1139,7 @@ clean:
 # Build Docker container images:
 # Build the base layer common to both published images:
 define build_docker_base_template=
-./var-docker/log/$(1)/build-base.log: ./Dockerfile \
+./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -1139,8 +1150,8 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_base_template,$(variant))))
 # Build the development image:
 define build_docker_devel_template=
-./var-docker/log/$(1)/build-devel.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log \
+./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
+		./var-docker/$(1)/log/build-base.log \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -1151,8 +1162,8 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_devel_template,$(variant))))
 # Build the user image:
 define build_docker_user_template=
-./var-docker/log/$(1)/build-user.log: ./Dockerfile \
-		./var-docker/log/$(1)/build-base.log \
+./var-docker/$(1)/log/build-user.log: ./Dockerfile \
+		./var-docker/$(1)/log/build-base.log \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -1233,7 +1244,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 
 ./README.md: README.rst
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
-	docker compose run --rm "pandoc"
+	docker compose run --rm -T "pandoc"
 
 
 ### Development Tools:
