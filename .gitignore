@@ -29,7 +29,6 @@ __pycache__
 /var
 /var-*
 /node_modules
-/package-lock.json
 *.egg-info
 
 # Translations
