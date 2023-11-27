@@ -35,6 +35,8 @@ ENV NVM_DIR="${HOME}/.nvm"
 # Node.js releases compatible with Alpine Linux based on musl libc:
 # https://github.com/nvm-sh/nvm/issues/1102#issuecomment-550572252
 ENV NVM_NODEJS_ORG_MIRROR="https://unofficial-builds.nodejs.org/download/release"
+# Limit Python versions to the version installed into the image:
+ENV PYTHON_MINORS="3.11"
 
 ENTRYPOINT [ "docker-entrypoint.sh", "init-job.sh", "entrypoint.sh" ]
 CMD [ "make", "-e", "build-docker" ]
