@@ -1077,7 +1077,7 @@ define build_docker_base_template=
 ./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
-	mkdir -pv "$$(dir $$(@))"<
+	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="base" \
 	    build-docker-build | tee -a "$$(@)"
 endef

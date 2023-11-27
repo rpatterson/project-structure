@@ -62,7 +62,7 @@ ARG PYTHON_ENV=py311
 COPY [ "./requirements/${PYTHON_ENV}/user.txt", "./requirements/${PYTHON_ENV}/" ]
 # hadolint ignore=DL3042
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    pip3 install -r "./requirements/${PYTHON_ENV}/user.txt"
+    pip3 install --no-deps -r "./requirements/${PYTHON_ENV}/user.txt"
 
 # Build-time labels:
 ARG VERSION=
