@@ -46,6 +46,7 @@ SHELL:=bash
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 export PS1?=$$
+# Prefix echoed recipe commands with the recipe line number for debugging:
 export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
@@ -505,12 +506,10 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    git worktree remove "$${worktree_path}"
 	fi
 	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
-	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
-	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
-	    "./.env.~out~"
+	cp "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
 	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
 	$(MAKE) -e -C "./build-host/" build
-	docker compose run --rm -T build-host
+	docker compose run --rm --workdir "$${worktree_path}" build-host
 
 
 ### Release Targets:
@@ -645,7 +644,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade: devel-upgrade-pre-commit devel-upgrade-vale devel-upgrade-requirements
+devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
+		devel-upgrade-requirements
 .PHONY: devel-upgrade-requirements
 ## Update all locked or frozen dependencies to their most recent available versions.
 devel-upgrade-requirements:
@@ -655,6 +655,11 @@ devel-upgrade-requirements:
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 	tox exec -e "build" -- pre-commit autoupdate
+.PHONY: devel-upgrade-js
+## Update tools implemented in JavaScript.
+devel-upgrade-js: ./var/log/npm-install.log
+	~/.nvm/nvm-exec npm update
+	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-vale
 ## Update the Vale style rule definitions.
 devel-upgrade-vale:
@@ -673,7 +678,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	fi
 # Only add changes upgrade-related changes:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./.vale.ini" "./styles/"
+	    "./package-lock.json" "./.vale.ini" "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
