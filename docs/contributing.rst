@@ -62,11 +62,10 @@ issues, maintainers merge ``develop`` into ``main`` and publish final releases::
 
   $ make release
 
-The ``./requirements/**.txt`` files lock versions of dependencies and development tools
+The ``./requirements/*/*.txt`` files lock versions of dependencies and development tools
 for reproducibility. The `Makefile`_ updates those when dependencies change in
-``./setup.cfg`` and ``./requirements/build.txt.in``. Other versions might get updated
-when maintainers publish newer versions. Maintainers can also update all dependencies to
-current versions::
+``./requirements/*.txt.in``. Other versions might get updated when maintainers publish
+newer versions. Maintainers can also update all dependencies to current versions::
 
   $ make devel-upgrade
 

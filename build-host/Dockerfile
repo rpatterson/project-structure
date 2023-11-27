@@ -30,11 +30,15 @@ ENV PROJECT_NAME="${PROJECT_NAME}"
 # Find the same home directory even when run as another user, for example `root`:
 ENV HOME="/home/runner"
 ENV PATH="${HOME}/.local/bin:${PATH}"
+# Render template targets without user input:
+ENV TEMPLATE_IGNORE_EXISTING=true
 # Prevent Node Version Manager (NVM) installing into `/bin/versions/**`:
 ENV NVM_DIR="${HOME}/.nvm"
 # Node.js releases compatible with Alpine Linux based on musl libc:
 # https://github.com/nvm-sh/nvm/issues/1102#issuecomment-550572252
 ENV NVM_NODEJS_ORG_MIRROR="https://unofficial-builds.nodejs.org/download/release"
+# Limit Python versions to the version installed into the image:
+ENV PYTHON_MINORS="3.11"
 
 ENTRYPOINT [ "docker-entrypoint.sh", "init-job.sh", "entrypoint.sh" ]
 CMD [ "make", "-e", "build-docker" ]
