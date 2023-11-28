@@ -544,9 +544,8 @@ build-docker-requirements-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-bootstrap.
 	export PYTHON_ENV="$(2)"
 	export PYTHON_MINOR="$$$$(echo $(2) | sed -nE -e 's|py([0-9])([0-9]+)|\1.\2|p')"
 	export DOCKER_VARIANT="$(1)-$(2)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -$$(MAKEFLAGS) -e PYTHON_MINORS="$$$${PYTHON_MINOR}" \
-	    build-requirements-$$$${PYTHON_ENV}
+	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e \
+	    PYTHON_MINORS="$$$${PYTHON_MINOR}" build-requirements-$$$${PYTHON_ENV}
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
     $(eval $(call build_docker_requirements_template,$(os),$(python_env)))))
@@ -580,8 +579,7 @@ define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-devel.log
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -$(MAKEFLAGS) -e test-code
+	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-user.log
