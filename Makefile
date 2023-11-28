@@ -145,7 +145,8 @@ PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
 PYTHON_ALL_ENVS=$(PYTHON_ENVS) build
 PYTHON_OTHER_ENVS=$(filter-out $(PYTHON_HOST_ENV),$(PYTHON_ENVS))
-PYTHON_EXTRAS=test devel
+PYTHON_REQUIREMENTS_INS=$(wildcard ./requirements/*.txt.in)
+PYTHON_REQUIREMENTS_BASENAMES=$(PYTHON_REQUIREMENTS_INS:./requirements/%.in=%)
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
 export PYTHON_WHEEL=
@@ -333,12 +334,10 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
 ## Compile fixed/pinned dependency versions if necessary.
 define build_requirements_template=
-build-requirements-$(1): ./requirements/$(1)/user.txt \
-	$$(PYTHON_EXTRAS:%=./requirements/$(1)/%.txt) \
-	./requirements/$(1)/build.txt
+build-requirements-$(1): $(PYTHON_REQUIREMENTS_BASENAMES:%=./requirements/$(1)/%)
 endef
-$(foreach python_env,$(PYTHON_ENVS),$(eval \
-    $(call build_requirements_template,$(python_env))))
+$(foreach python_env,$(PYTHON_ENVS),\
+    $(eval $(call build_requirements_template,$(python_env))))
 
 .PHONY: build-requirements-compile
 ## Compile the requirements for one Python version and one type/extra.
@@ -1032,33 +1031,16 @@ clean:
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
-define build_requirements_user_template=
-./requirements/$(1)/user.txt: ./requirements/user.txt.in ./.tox/.log/$(1)-bootstrap.log
+define build_requirements_template=
+./requirements/$(1)/$(2): ./requirements/$(2).in ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
-	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/user.txt=%)" \
-	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
-endef
-$(foreach python_env,$(PYTHON_ENVS),$(eval \
-    $(call build_requirements_user_template,$(python_env))))
-define build_requirements_extra_template=
-./requirements/$(1)/$(2).txt: ./requirements/$(2).txt.in ./.tox/.log/$(1)-bootstrap.log
-	true DEBUG Updated prereqs: $$(?)
-	extra_basename="$$$$(basename "$$(@)")"
-	$$(MAKE) -e PYTHON_ENV="$$$$(basename "$$$$(dirname "$$(@)")")" \
+	$$(MAKE) -e PYTHON_ENV="$(1)" \
 	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" \
 	    build-requirements-compile
 endef
-$(foreach python_env,$(PYTHON_ENVS),$(foreach extra,$(PYTHON_EXTRAS),\
-    $(eval $(call build_requirements_extra_template,$(python_env),$(extra)))))
-define build_requirements_build_template=
-./requirements/$(1)/build.txt: ./requirements/build.txt.in \
-		./.tox/.log/$(1)-bootstrap.log
-	true DEBUG Updated prereqs: $$(?)
-	$$(MAKE) -e PYTHON_ENV="$$(@:requirements/%/build.txt=%)" \
-	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" build-requirements-compile
-endef
-$(foreach python_env,$(PYTHON_ENVS),$(eval \
-    $(call build_requirements_build_template,$(python_env))))
+$(foreach python_env,$(PYTHON_ENVS),\
+    $(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES),\
+    $(eval $(call build_requirements_template,$(python_env),$(basename)))))
 
 # Set up release publishing authentication, useful in automation such as CI:
 ~/.pypirc.~out~: ./home/.pypirc.in
