@@ -240,9 +240,6 @@ TOX_RUN_ARGS=run-parallel --parallel auto --parallel-live
 ifeq ($(words $(PYTHON_MINORS)),1)
 TOX_RUN_ARGS=run
 endif
-ifneq ($(PYTHON_WHEEL),)
-TOX_RUN_ARGS+= --installpkg "$(PYTHON_WHEEL)"
-endif
 export TOX_RUN_ARGS
 # The options that support running arbitrary commands in the venvs managed by tox
 # without Tox's startup time:
@@ -801,7 +798,8 @@ release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
 		./var-docker/$(1)/log/build-user.log \
 		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
 		./.tox/build/.tox-info.json \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/build-pkgs.log
 	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
 # Build other platforms in emulation and rely on the layer cache for bundling the
 # native images built before into the manifests:
@@ -815,9 +813,9 @@ release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
 # Push the development manifest and images:
 	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
 # Push the end-user manifest and images:
-	PYTHON_WHEEL="$$$$(ls -t ./dist/*.whl | head -n 1)"
 	$$(MAKE) -e DOCKER_BUILD_ARGS="$$$${DOCKER_BUILD_ARGS}\
-	    --build-arg PYTHON_WHEEL=$$$${PYTHON_WHEEL}" build-docker-build
+	    --build-arg PYTHON_WHEEL=$$$$(ls -t ./dist/*.whl | head -n 1)" \
+	    build-docker-build
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
 .PHONY: release-docker-readme
@@ -1029,7 +1027,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		$(DOCKER_VARIANT_DEFAULT_VAR)/log/build-devel.log
+		$(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	rm -vf ./dist/*
 	mkdir -pv "$(dir $(@))"
 # Build Python packages/distributions from the development Docker container for
@@ -1151,15 +1149,11 @@ define build_docker_user_template=
 		./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 # Build the user image after building all required artifacts:
-	if test "$$(PYTHON_WHEEL)" = ""
-	then
-	    $$(MAKE) -e "build-pkgs"
-	    PYTHON_WHEEL="$$$$(ls -t ./dist/*.whl | head -n 1)"
-	fi
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
 	    DOCKER_BUILD_ARGS="$$(DOCKER_BUILD_ARGS) --build-arg \
-	PYTHON_WHEEL=$$$${PYTHON_WHEEL}" build-docker-build | tee -a "$$(@)"
+	PYTHON_WHEEL=$$$$(ls -t ./dist/*.whl | head -n 1)" build-docker-build |
+	    tee -a "$$(@)"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_user_template,$(variant))))
