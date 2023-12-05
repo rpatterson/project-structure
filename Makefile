@@ -126,23 +126,10 @@ export TZ
 export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
-# Find the latest installed Python version of the supported versions:
-PYTHON_BASENAMES=$(PYTHON_SUPPORTED_MINORS:%=python%)
-PYTHON_AVAIL_EXECS:=$(foreach \
-    PYTHON_BASENAME,$(PYTHON_BASENAMES),$(shell which $(PYTHON_BASENAME)))
-PYTHON_LATEST_EXEC=$(firstword $(PYTHON_AVAIL_EXECS))
-PYTHON_LATEST_BASENAME=$(notdir $(PYTHON_LATEST_EXEC))
+# Find the installed supported Python versions:
+export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=python%),\
+    $(shell which "python$(python_minor)" && echo "$(python_minor)"))
 PYTHON_MINOR=$(PYTHON_HOST_MINOR)
-ifeq ($(PYTHON_MINOR),)
-# Fallback to the latest installed supported Python version
-PYTHON_MINOR=$(PYTHON_LATEST_BASENAME:python%=%)
-endif
-PYTHON_MINORS=$(PYTHON_SUPPORTED_MINORS)
-ifeq ($(PYTHON_MINOR),)
-PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
-else ifeq ($(findstring $(PYTHON_MINOR),$(PYTHON_MINORS)),)
-PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
-endif
 export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
