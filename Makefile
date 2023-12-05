@@ -198,6 +198,7 @@ DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) devhelp pdf info
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
 include $(wildcard .env)
+export WORKING_DIR_SUFFIX:=$(shell echo "$${PWD#$(CHECKOUT_DIR)}")
 
 # Finished with `$(shell)`, echo recipe commands going forward
 .SHELLFLAGS+= -x
@@ -419,8 +420,9 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    git worktree remove "$${worktree_path}"
 	fi
 	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
-	cp "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
-	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
+	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
+	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
+	    "./.env.~out~"
 	$(MAKE) -e -C "./build-host/" build
 	docker compose run --rm --workdir "$${worktree_path}" build-host
 
