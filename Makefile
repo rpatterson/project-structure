@@ -51,6 +51,9 @@ COMMA=,
 SPACE=$(EMPTY) $(EMPTY)
 # Useful to update targets only one time per run including sub-makes:
 export MAKE_RUN_UUID:=$(shell python  -c "import uuid; print(uuid.uuid4())")
+# Workaround missing VCS glob wildcard matches under an editor:
+# https://magit.vc/manual/magit/My-Git-hooks-work-on-the-command_002dline-but-not-inside-Magit.html
+unexport GIT_LITERAL_PATHSPECS
 
 # Values used to install host operating system packages:
 HOST_PREFIX=/usr
