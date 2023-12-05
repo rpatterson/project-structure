@@ -345,8 +345,11 @@ test: test-lint test-code
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
 test-code: $(PYTHON_ENVS:%=./.tox/%/.tox-info.json) \
-		$(PYTHON_ENVS:%=build-requirements-%)
-	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
+		$(PYTHON_ENVS:%=build-requirements-%) \
+		./var/log/build-pkgs.log
+	tox $(TOX_RUN_ARGS) \
+	    --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
+	    -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
@@ -514,12 +517,12 @@ release: ./var/log/build-pkgs.log $(HOME)/.local/bin/tox ~/.pypirc.~out~
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 # https://twine.readthedocs.io/en/latest/#using-twine
-	tox exec -e "build" -- twine check ./.tox/.pkg/tmp/dist/*
+	tox exec -e "build" -- twine check ./dist/*
 # The VCS remote should reflect the release before publishing the release to ensure that
 # a published release is never *not* reflected in VCS.
 	$(MAKE) -e test-clean
 	tox exec -e "build" -- twine upload -s -r "$(PYPI_REPO)" \
-	    ./.tox/.pkg/tmp/dist/*
+	    ./dist/*
 endif
 
 .PHONY: release-bump
@@ -720,6 +723,9 @@ clean:
 	mkdir -pv "$(dir $(@))"
 	tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
+# Copy to a location that following tox runs won't remove:
+	rm -vf ./dist/*
+	cp -lfv ./.tox/.pkg/tmp/dist/* "./dist/"
 
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
