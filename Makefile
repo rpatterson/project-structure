@@ -49,6 +49,8 @@ export PS4?=:$$LINENO+
 EMPTY=
 COMMA=,
 SPACE=$(EMPTY) $(EMPTY)
+# Useful to update targets only one time per run including sub-makes:
+export MAKE_RUN_UUID:=$(shell python  -c "import uuid; print(uuid.uuid4())")
 
 # Values used to install host operating system packages:
 HOST_PREFIX=/usr
@@ -216,12 +218,6 @@ build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		./.tox/build/.tox-info.json ./var/log/npm-install.log
 # <!--alex enable hooks-->
 
-.PHONY: build-pkgs
-## Ensure the built package is current.
-build-pkgs:
-	touch "./.cz.toml"
-	$(MAKE) "./var/log/build-pkgs.log"
-
 .PHONY: build-docs
 ## Render the static HTML form of the Sphinx documentation
 build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
@@ -257,11 +253,6 @@ build-docs-pdf: build-docs-latex
 # Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
-
-.PHONY: build-date
-# A prerequisite that always triggers it's target.
-build-date:
-	date
 
 
 ### Test Targets:
@@ -438,7 +429,7 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 
 .PHONY: release
 ## Publish installable packages if conventional commits require a release.
-release: build-pkgs
+release: ./var/log/build-pkgs.log
 	$(MAKE) -e test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
@@ -503,20 +494,20 @@ endif
 	tox exec -e "build" -- cz bump $${cz_bump_args}
 ifeq ($(VCS_BRANCH),main)
 # Merge the bumped version back into `develop`:
-	$(MAKE) VCS_BRANCH="main" VCS_MERGE_BRANCH="develop" \
+	$(MAKE) -e VCS_BRANCH="main" VCS_MERGE_BRANCH="develop" \
 	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
-	$(MAKE) test-clean
+	$(MAKE) -e test-clean
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
 release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
-	$(MAKE) test-push test
-	$(MAKE) release
-	$(MAKE) test-clean
+	$(MAKE) -e test-push test
+	$(MAKE) -e release
+	$(MAKE) -e test-clean
 
 
 ### Development Targets:
@@ -569,7 +560,7 @@ devel-upgrade-js: ./var/log/npm-install.log
 ## Update the Vale style rule definitions.
 devel-upgrade-vale:
 	touch "./.vale.ini" "./styles/code.ini"
-	$(MAKE) "./var/log/vale-rule-levels.log"
+	$(MAKE) -e "./var/log/vale-rule-levels.log"
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -629,13 +620,14 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./.cz.toml ./var/log/git-fetch.log
+./var/log/build-pkgs.log: ./var/log/git-fetch.log \
+		./var/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
-	true "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
+	echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log:
-	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
+	$(MAKE) -e "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
@@ -677,7 +669,7 @@ endif
 endif
 	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
-./var/log/git-ls-files.log: build-date
+./var/log/git-ls-files.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git ls-files >"$(@).~new~"
 	if diff -u "$(@)" "$(@).~new~"
@@ -726,11 +718,11 @@ endif
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npm install | tee -a "$(@)"
 ./package.json:
-	$(MAKE) "./var/log/nvm-install.log"
+	$(MAKE) -e "./var/log/nvm-install.log"
 # https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
 	~/.nvm/nvm-exec npm init --yes --scope="@$(NPM_SCOPE)"
 ./var/log/nvm-install.log: ./.nvmrc
-	$(MAKE) "$(HOME)/.nvm/nvm.sh"
+	$(MAKE) -e "$(HOME)/.nvm/nvm.sh"
 	mkdir -pv "$(dir $(@))"
 	set +x
 	. "$(HOME)/.nvm/nvm.sh" || true
@@ -770,20 +762,20 @@ $(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
 	python3 -m pipx ensurepath
 	touch "$(@)"
 $(HOST_PREFIX)/bin/pip3:
-	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
 
 # Tools needed by Sphinx builders:
 $(HOST_PREFIX)/bin/makeinfo:
-	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_MAKEINFO)"
 $(HOST_PREFIX)/bin/latexmk:
-	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_LATEXMK)"
 
 # Manage tools in containers:
 $(HOST_TARGET_DOCKER):
-	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_DOCKER)"
 	docker info
 ifeq ($(HOST_PKG_BIN),brew)
@@ -802,6 +794,12 @@ $(STATE_DIR)/log/host-update.log:
 	    false
 	fi
 	$(HOST_PKG_CMD) update | tee -a "$(@)"
+
+# Useful to update targets only one time per run including sub-makes:
+./var/log/make-runs/$(MAKE_RUN_UUID).log:
+	mkdir -pv "$(dir $(@))"
+	rm -rf $(dir $(@))/*.log
+	date | tee -a "$(@)"
 
 
 ### Makefile "functions":
@@ -907,7 +905,7 @@ endef
 # use that target in a sub-make instead of a prerequisite:
 #
 #     ./var/log/bar.log:
-#         $(MAKE) "./var/log/qux.log"
+#         $(MAKE) -e "./var/log/qux.log"
 #
 # This project uses some more Make features than these core features and welcome further
 # use of such features:
