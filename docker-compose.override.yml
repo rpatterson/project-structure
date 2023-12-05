@@ -44,6 +44,7 @@ services:
     environment:
       # Continue parallel make inside the container:
       MAKEFLAGS: "${MAKEFLAGS:-}"
+      MAKE_RUN_UUID: "${MAKE_RUN_UUID:-}"
       # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:

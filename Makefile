@@ -326,8 +326,8 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): build-pkgs
-	$$(MAKE) "./var-docker/$(1)/log/build-devel.log" \
+build-docker-$(1): ./var/log/build-pkgs.log
+	$$(MAKE) -e "./var-docker/$(1)/log/build-devel.log" \
 	    "./var-docker/$(1)/log/build-user.log"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
@@ -409,7 +409,7 @@ endif
 # Workaround broken interactive session detection:
 	docker pull "buildpack-deps"
 # Assemble the tags for all the variant permutations:
-	$(MAKE) "./var/log/git-fetch.log"
+	$(MAKE) -e "./var/log/git-fetch.log"
 	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
 ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
@@ -922,7 +922,7 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_user_template,$(variant))))
 # https://docs.docker.com/build/building/multi-platform/#building-multi-platform-images
 $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
-	$(MAKE) "$(HOST_TARGET_DOCKER)"
+	$(MAKE) -e "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if ! docker context inspect "multi-platform" |& tee -a "$(@)"
 	then
@@ -936,7 +936,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    ) |& tee -a "$(@)"
 	fi
 ./var/log/docker-login-DOCKER.log: ./.env.~out~
-	$(MAKE) "$(HOST_TARGET_DOCKER)"
+	$(MAKE) -e "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"
 	then
@@ -961,7 +961,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(call expand_template,$(<),$(@))
 
 ./README.md: README.rst
-	$(MAKE) "$(HOST_TARGET_DOCKER)"
+	$(MAKE) -e "$(HOST_TARGET_DOCKER)"
 	docker compose run --rm -T "pandoc"
 
 
