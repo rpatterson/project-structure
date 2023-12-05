@@ -48,6 +48,7 @@ export PS1?=$$
 export PS4?=:$$LINENO+ 
 EMPTY=
 COMMA=,
+SPACE=$(EMPTY) $(EMPTY)
 
 # Values used to install host operating system packages:
 HOST_PREFIX=/usr
