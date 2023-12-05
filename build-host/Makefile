@@ -8,17 +8,12 @@
 #     https://tech.davis-hansson.com/p/make/
 SHELL:=bash
 .ONESHELL:
-.SHELLFLAGS:=-eu -o pipefail -c
+.SHELLFLAGS:=-xeu -o pipefail -c
 .SILENT:
 .DELETE_ON_ERROR:
 MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 PS1?=$$
-EMPTY=
-COMMA=,
-
-# Done with `$(shell)`, echo recipe commands going forward
-.SHELLFLAGS+= -x
 
 DOCKER_IMAGE=merpatterson/project-structure
 
