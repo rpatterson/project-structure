@@ -683,7 +683,7 @@ endif
 # <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
 # <!--alex enable hooks-->
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
+	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
 
@@ -696,13 +696,13 @@ endif
 # Map formats unknown by Vale to a common default format:
 ./var/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
 		./var/log/git-ls-files.log
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
+	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
 ./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
+	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
