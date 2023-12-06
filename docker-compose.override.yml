@@ -16,9 +16,8 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-/usr/local/src/project-structure}/"
-    working_dir: >-
-      ${CHECKOUT_DIR:-/usr/local/src/project-structure}${WORKING_DIR_SUFFIX:-}
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
       hadolint "./Dockerfile"
 
@@ -30,9 +29,8 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-/usr/local/src/project-structure}/"
-    working_dir: >-
-      ${CHECKOUT_DIR:-/usr/local/src/project-structure}${WORKING_DIR_SUFFIX:-}
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
       lint
 
@@ -44,9 +42,8 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-/usr/local/src/project-structure}"
-    working_dir: >-
-      ${CHECKOUT_DIR:-/usr/local/src/project-structure}${WORKING_DIR_SUFFIX:-}
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
       .
 
@@ -66,10 +63,10 @@ services:
     privileged: true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
-      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/build-host/bin/init-job.sh\
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/build-host/bin/init-job.sh\
         :/usr/local/bin/init-job.sh"
-      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/build-host/bin/entrypoint.sh\
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/build-host/bin/entrypoint.sh\
         :/usr/local/bin/entrypoint.sh"
       # Share local authentication inside the container:
       - "~/.ssh/:/home/runner/.ssh/"
@@ -77,13 +74,15 @@ services:
         :${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       - "~/.gnupg/:/home/runner/.gnupg/"
       - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
       SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
+      # Pass the bind volume source paths along as seen from the host `# dockerd`:
+      CHECKOUT_DIR: "${CHECKOUT_DIR:-.}"
       # DEBUG: "true"
-    working_dir: "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}"
     command: >-
       make -O -j -e release-all

@@ -109,7 +109,10 @@ endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
 export PUID:=$(shell id -u)
 export PGID:=$(shell id -g)
+# Capture the path of the checkout directory as seen by the real host running `#
+# dockerd` so that following bind volumes have the correct source paths:
 export CHECKOUT_DIR=$(PWD)
+export WORKTREE_REL=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
 STATE_DIR=$(HOME)/.local/state/$(PROJECT_NAME)
@@ -198,7 +201,6 @@ DOCS_SPHINX_ALL_FORMATS=$(DOCS_SPHINX_BUILDERS) devhelp pdf info
 # Override variable values if present in `./.env` and if not overridden on the
 # command-line:
 include $(wildcard .env)
-export WORKING_DIR_SUFFIX:=$(shell echo "$${PWD#$(CHECKOUT_DIR)}")
 
 # Finished with `$(shell)`, echo recipe commands going forward
 .SHELLFLAGS+= -x
@@ -413,18 +415,25 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	worktree_path="$(CHECKOUT_DIR)/worktrees/$${worktree_branch}"
-	if git worktree list --porcelain | grep "^worktree $${worktree_path}\$$"
-	then
-	    git worktree remove "$${worktree_path}"
-	fi
-	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
-	$(MAKE) -e -C "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/" \
-	    TEMPLATE_IGNORE_EXISTING="true" CHECKOUT_DIR="$${worktree_path}" \
-	    "./.env.~out~"
 	$(MAKE) -e -C "./build-host/" build
-	docker compose run --rm --workdir "$${worktree_path}" build-host
+	docker compose run --rm build-host \
+	    make -e $(@:test-worktree-%=test-worktree-add-%)
+	worktree_rel="worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	$(MAKE) -e -C "./$${worktree_rel}/" TEMPLATE_IGNORE_EXISTING="true" \
+	    WORKTREE_REL="$${worktree_rel}" "./.env.~out~"
+	docker compose run --rm \
+	    --workdir "/usr/local/src/project-structure/$${worktree_rel}" build-host
+.PHONY: test-worktree-add-%
+## Create a new worktree based on the current branch adding a suffix.
+test-worktree-add-%:
+	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-add-%=%)"
+	worktree_rel="worktrees/$${worktree_branch}"
+	if git worktree list --porcelain |
+	    grep -E "^worktree .+/project-structure/$${worktree_rel}\$$"
+	then
+	    git worktree remove "./$${worktree_rel}"
+	fi
+	git worktree add -B "$${worktree_branch}" "./$${worktree_rel}"
 
 
 ### Release Targets:
