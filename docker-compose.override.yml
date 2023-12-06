@@ -55,15 +55,19 @@ services:
       # DEBUG: "true"
     volumes:
       # Reflect local changes inside the container:
-      - "${CHECKOUT_DIR:-.}/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
-      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/bin/entrypoint.sh\
+        :/usr/local/bin/entrypoint.sh"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/:/usr/local/src/project-structure/"
       # Preserve user configuration, data, and caches between containers and variants:
-      - "${CHECKOUT_DIR:-.}/home/.config/:/home/project-structure/.config/"
-      - "${CHECKOUT_DIR:-.}/home/.local/share/:/home/project-structure/.local/share/"
-      - "${CHECKOUT_DIR:-.}/home/.cache/:/home/project-structure/.cache/"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/home/.config/\
+        :/home/project-structure/.config/"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/home/.local/share/\
+        :/home/project-structure/.local/share/"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/home/.cache/\
+        :/home/project-structure/.cache/"
       # Avoid any clashes between image variants and the local host at both build and
       # runtime.
-      - "${CHECKOUT_DIR:-.}/var-docker/${DOCKER_VARIANT:-debian}/\
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/var-docker/${DOCKER_VARIANT:-debian}/\
         :/usr/local/src/project-structure/var/"
 
   # https://github.com/hadolint/hadolint#how-to-use
@@ -74,8 +78,9 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/"
+      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-/usr/local/src/project-structure}/"
+    working_dir: >-
+      ${CHECKOUT_DIR:-/usr/local/src/project-structure}${WORKING_DIR_SUFFIX:-}
     command: >-
       hadolint "./Dockerfile"
 
@@ -87,7 +92,9 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
+      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-/usr/local/src/project-structure}/"
+    working_dir: >-
+      ${CHECKOUT_DIR:-/usr/local/src/project-structure}${WORKING_DIR_SUFFIX:-}
     command: >-
       lint
 
@@ -99,8 +106,9 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure"
-    working_dir: "/usr/local/src/project-structure"
+      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-/usr/local/src/project-structure}"
+    working_dir: >-
+      ${CHECKOUT_DIR:-/usr/local/src/project-structure}${WORKING_DIR_SUFFIX:-}
     command: >-
       .
 
@@ -156,8 +164,10 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
-      - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
-      - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/build-host/bin/init-job.sh\
+        :/usr/local/bin/init-job.sh"
+      - "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}/build-host/bin/entrypoint.sh\
+        :/usr/local/bin/entrypoint.sh"
       # Share local authentication inside the container:
       - "~/.ssh/:/home/runner/.ssh/"
       - "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}\
@@ -172,6 +182,6 @@ services:
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
       SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       # DEBUG: "true"
-    working_dir: "${CHECKOUT_DIR:-.}"
+    working_dir: "${CHECKOUT_DIR:-.}${WORKING_DIR_SUFFIX:-}"
     command: >-
       make -j -O -e release-all
