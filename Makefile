@@ -327,7 +327,7 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): ./var/log/build-pkgs.log
+build-docker-$(1): ./var/log/build-pkgs.log ./.tox/build/.tox-info.json
 	$$(MAKE) -e "./var-docker/$(1)/log/build-devel.log" \
 	    "./var-docker/$(1)/log/build-user.log"
 endef
@@ -335,7 +335,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 
 .PHONY: build-docker-tags
 ## Print the list of tags for this image variant in all registries.
-build-docker-tags:
+build-docker-tags: ./.tox/build/.tox-info.json
 	$(MAKE) -e $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
@@ -667,6 +667,7 @@ define release_docker_template=
 release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
 		./var-docker/$(1)/log/build-user.log \
 		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
+		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
 # Build other platforms in emulation and rely on the layer cache for bundling the
@@ -890,6 +891,7 @@ clean:
 # Build the base layer common to both published images:
 define build_docker_base_template=
 ./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
+		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -902,6 +904,7 @@ $(foreach variant,$(DOCKER_VARIANTS),\
 define build_docker_devel_template=
 ./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
 		./var-docker/$(1)/log/build-base.log \
+		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
@@ -914,6 +917,7 @@ $(foreach variant,$(DOCKER_VARIANTS),\
 define build_docker_user_template=
 ./var-docker/$(1)/log/build-user.log: ./Dockerfile \
 		./var-docker/$(1)/log/build-base.log \
+		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
