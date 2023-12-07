@@ -272,9 +272,7 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./var/log/npm-install.log \
-		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-devel.log) \
-		$(DOCKER_VARIANTS:%=./var-docker/%/log/build-user.log)
+		./.tox/build/.tox-info.json ./var/log/npm-install.log build-docker
 # <!--alex enable hooks-->
 
 .PHONY: build-docs
@@ -329,9 +327,8 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): ./var/log/build-pkgs.log ./.tox/build/.tox-info.json
-	$$(MAKE) -e "./var-docker/$(1)/log/build-devel.log" \
-	    "./var-docker/$(1)/log/build-user.log"
+build-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
+		./var-docker/$(1)/log/build-user.log
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -440,7 +437,7 @@ test: test-lint test-docker
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code:
+test-code: ./var/log/build-pkgs.log
 	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-debug
@@ -458,10 +455,12 @@ define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-devel.log
+	export DOCKER_VARIANT="$(1)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-user.log
+	export DOCKER_VARIANT="$(1)"
 # TEMPLATE: Change the command to confirm the user image has a working installation of
 # the package:
 	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
@@ -927,7 +926,8 @@ define build_docker_user_template=
 ./var-docker/$(1)/log/build-user.log: ./Dockerfile \
 		./var-docker/$(1)/log/build-base.log \
 		./.tox/build/.tox-info.json \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
