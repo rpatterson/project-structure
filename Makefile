@@ -563,7 +563,7 @@ devel-upgrade-requirements:
 	    "./requirements/$(PYTHON_HOST_ENV)/build.txt"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
-devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
+devel-upgrade-pre-commit: devel-upgrade-requirements
 	tox exec -e "build" -- pre-commit autoupdate
 .PHONY: devel-upgrade-js
 ## Update tools implemented in JavaScript.
@@ -572,7 +572,7 @@ devel-upgrade-js: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-vale
 ## Update the Vale style rule definitions.
-devel-upgrade-vale:
+devel-upgrade-vale: devel-upgrade-requirements
 	touch "./.vale.ini" "./styles/code.ini"
 	$(MAKE) -e "./var/log/vale-rule-levels.log"
 
