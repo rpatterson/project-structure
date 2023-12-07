@@ -251,12 +251,12 @@ $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
 	    -j "auto" -D autosummary_generate="0" "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
-# Render the LaTeX documentation into a PDF file.
+## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
-# Render the Texinfo documentation into a `*.info` file.
+## Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
 
