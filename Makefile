@@ -302,12 +302,12 @@ $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
 	    -j "auto" -D autosummary_generate="0" "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
-# Render the LaTeX documentation into a PDF file.
+## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
-# Render the Texinfo documentation into a `*.info` file.
+## Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
 
@@ -807,14 +807,11 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
-		devel-upgrade-requirements
-.PHONY: devel-upgrade-requirements
-## Update Python tool versions to their most recent available versions.
-devel-upgrade-requirements:
-	touch "./requirements/build.txt.in"
+devel-upgrade:
+	touch "./requirements/build.txt.in" "./.vale.ini" "./styles/code.ini"
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
-	    "./requirements/$(PYTHON_HOST_ENV)/build.txt"
+	    "./requirements/$(PYTHON_HOST_ENV)/build.txt" devel-upgrade-pre-commit \
+	    devel-upgrade-js "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -824,11 +821,6 @@ devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 devel-upgrade-js: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm update
 	~/.nvm/nvm-exec npm outdated
-.PHONY: devel-upgrade-vale
-## Update the Vale style rule definitions.
-devel-upgrade-vale:
-	touch "./.vale.ini" "./styles/code.ini"
-	$(MAKE) -e "./var/log/vale-rule-levels.log"
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -1040,7 +1032,7 @@ endif
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
-./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json
+./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
 	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
