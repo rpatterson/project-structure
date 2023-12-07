@@ -437,7 +437,7 @@ test: test-lint test-docker
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: ./var/log/build-pkgs.log
+test-code:
 	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-debug
@@ -454,7 +454,7 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
 define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/$(1)/log/build-devel.log
+		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log
 	export DOCKER_VARIANT="$(1)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
 # Test that the end-user image can run commands:
@@ -881,8 +881,8 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./var/log/git-fetch.log \
-		./var/log/make-runs/$(MAKE_RUN_UUID).log
+./var/log/build-pkgs.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log \
+		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
