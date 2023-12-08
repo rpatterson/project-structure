@@ -271,7 +271,7 @@ test: test-lint test-code
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code:
+test-code: ./var/log/build-pkgs.log
 	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-lint
@@ -627,7 +627,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var/log/git-fetch.log \
-		./var/log/make-runs/$(MAKE_RUN_UUID).log
+		./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
@@ -675,7 +675,7 @@ endif
 endif
 	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
-./var/log/git-ls-files.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log
+./var/log/git-ls-files.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git ls-files >"$(@).~new~"
 	if diff -u "$(@)" "$(@).~new~"
@@ -802,7 +802,7 @@ $(STATE_DIR)/log/host-update.log:
 	$(HOST_PKG_CMD) update | tee -a "$(@)"
 
 # Useful to update targets only one time per run including sub-makes:
-./var/log/make-runs/$(MAKE_RUN_UUID).log:
+./var-host/log/make-runs/$(MAKE_RUN_UUID).log:
 	mkdir -pv "$(dir $(@))"
 	rm -rf $(dir $(@))*.log
 	date | tee -a "$(@)"
