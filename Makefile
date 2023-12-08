@@ -52,7 +52,7 @@ EMPTY=
 COMMA=,
 SPACE=$(EMPTY) $(EMPTY)
 # Useful to update targets only one time per run including sub-makes:
-export MAKE_RUN_UUID:=$(shell python  -c "import uuid; print(uuid.uuid4())")
+export MAKE_RUN_UUID:=$(shell python3 -c "import uuid; print(uuid.uuid4())")
 # Workaround missing VCS glob wildcard matches under an editor:
 # https://magit.vc/manual/magit/My-Git-hooks-work-on-the-command_002dline-but-not-inside-Magit.html
 unexport GIT_LITERAL_PATHSPECS
@@ -111,7 +111,10 @@ endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
 export PUID:=$(shell id -u)
 export PGID:=$(shell id -g)
+# Capture the path of the checkout directory as seen by the real host running `#
+# dockerd` so that following bind volumes have the correct source paths:
 export CHECKOUT_DIR=$(PWD)
+export WORKTREE_REL=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
 STATE_DIR=$(HOME)/.local/state/$(PROJECT_NAME)
@@ -316,7 +319,7 @@ build-docs-pdf: build-docs-latex
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
-# Render the Texinfo documentation into a `*.info` file.
+## Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
 
@@ -331,7 +334,7 @@ test: test-lint test-code
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: $(PYTHON_ENVS:%=./.tox/%/.tox-info.json) \
+test-code: ./var/log/build-pkgs.log $(PYTHON_ENVS:%=./.tox/%/.tox-info.json) \
 		$(PYTHON_ENVS:%=build-requirements-%) \
 		./var/log/build-pkgs.log
 	tox $(TOX_RUN_ARGS) \
@@ -479,17 +482,25 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	worktree_path="$(CHECKOUT_DIR)/worktrees/$${worktree_branch}"
-	if git worktree list --porcelain | grep "^worktree $${worktree_path}\$$"
-	then
-	    git worktree remove "$${worktree_path}"
-	fi
-	git worktree add -B "$${worktree_branch}" "$${worktree_path}"
-	cp "./.env" "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/.env"
-	cd "./worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)/"
 	$(MAKE) -e -C "./build-host/" build
-	docker compose run --rm --workdir "$${worktree_path}" build-host
+	docker compose run --rm build-host \
+	    make -e $(@:test-worktree-%=test-worktree-add-%)
+	worktree_rel="worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	$(MAKE) -e -C "./$${worktree_rel}/" TEMPLATE_IGNORE_EXISTING="true" \
+	    WORKTREE_REL="$${worktree_rel}" "./.env.~out~"
+	docker compose run --rm \
+	    --workdir "/usr/local/src/project-structure/$${worktree_rel}" build-host
+.PHONY: test-worktree-add-%
+## Create a new worktree based on the current branch adding a suffix.
+test-worktree-add-%:
+	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-add-%=%)"
+	worktree_rel="worktrees/$${worktree_branch}"
+	if git worktree list --porcelain |
+	    grep -E "^worktree .+/project-structure/$${worktree_rel}\$$"
+	then
+	    git worktree remove "./$${worktree_rel}"
+	fi
+	git worktree add -B "$${worktree_branch}" "./$${worktree_rel}"
 
 
 ### Release Targets:
@@ -624,13 +635,11 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade: devel-upgrade-pre-commit devel-upgrade-js devel-upgrade-vale \
-		devel-upgrade-requirements
-.PHONY: devel-upgrade-requirements
-## Update all locked or frozen dependencies to their most recent available versions.
-devel-upgrade-requirements:
-	touch ./requirements/*.txt.in
-	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(PYTHON_ENVS:%=build-requirements-%)
+devel-upgrade:
+	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
+	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
+	    $(PYTHON_ENVS:%=build-requirements-%) devel-upgrade-pre-commit \
+	    devel-upgrade-js "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -640,11 +649,6 @@ devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 devel-upgrade-js: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm update
 	~/.nvm/nvm-exec npm outdated
-.PHONY: devel-upgrade-vale
-## Update the Vale style rule definitions.
-devel-upgrade-vale:
-	touch "./.vale.ini" "./styles/code.ini"
-	$(MAKE) -e "./var/log/vale-rule-levels.log"
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -704,9 +708,8 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./var/log/git-fetch.log \
-		./var/log/make-runs/$(MAKE_RUN_UUID).log \
-		./.tox/$(PYTHON_ENV)/.tox-info.json ./pyproject.toml
+./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
+		./.tox/$(PYTHON_ENV)/.tox-info.json
 	mkdir -pv "$(dir $(@))"
 	tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
@@ -751,7 +754,7 @@ $(foreach python_env,$(PYTHON_ENVS),\
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var/log/job-date.log
+./var/log/git-fetch.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -777,7 +780,7 @@ endif
 endif
 	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
-./var/log/git-ls-files.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log
+./var/log/git-ls-files.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git ls-files >"$(@).~new~"
 	if diff -u "$(@)" "$(@).~new~"
@@ -788,26 +791,21 @@ endif
 # <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
 # <!--alex enable hooks-->
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
+	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
-
-# Use as a prerequisite to update those targets for each CI/CD run:
-./var/log/job-date.log:
-	mkdir -pv "$(dir $(@))"
-	date | tee -a "$(@)"
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
 ./var/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
 		./var/log/git-ls-files.log
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
+	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
-./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json
-	$(MAKE) -e "$(HOME)/.local/bin/tox"
+./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
+	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
@@ -916,9 +914,9 @@ $(STATE_DIR)/log/host-update.log:
 	$(call expand_template,$(<),$(@))
 
 # Useful to update targets only one time per run including sub-makes:
-./var/log/make-runs/$(MAKE_RUN_UUID).log:
+./var-host/log/make-runs/$(MAKE_RUN_UUID).log:
 	mkdir -pv "$(dir $(@))"
-	rm -rf $(dir $(@))/*.log
+	rm -rf $(dir $(@))*.log
 	date | tee -a "$(@)"
 
 
