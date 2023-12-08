@@ -44,6 +44,7 @@ services:
     environment:
       # Continue parallel make inside the container:
       MAKEFLAGS: "${MAKEFLAGS:-}"
+      MAKE_RUN_UUID: "${MAKE_RUN_UUID:-}"
       # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
       # Make the runtime user configurable in `./.env`:
@@ -54,16 +55,21 @@ services:
       # DEBUG: "true"
     volumes:
       # Reflect local changes inside the container:
-      - "${CHECKOUT_DIR:-.}/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/bin/entrypoint.sh\
+        :/usr/local/bin/entrypoint.sh"
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
       # Preserve user configuration, data, and caches between containers and variants:
-      - "${CHECKOUT_DIR:-.}/home/.config/:/home/project-structure/.config/"
-      - "${CHECKOUT_DIR:-.}/home/.local/share/:/home/project-structure/.local/share/"
-      - "${CHECKOUT_DIR:-.}/home/.cache/:/home/project-structure/.cache/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/home/.config/\
+        :/home/project-structure/.config/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/home/.local/share/\
+        :/home/project-structure/.local/share/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/home/.cache/\
+        :/home/project-structure/.cache/"
       # Avoid any clashes between image variants and the local host at both build and
       # runtime.
-      - "${CHECKOUT_DIR:-.}/var-docker/${DOCKER_VARIANT:-debian}/\
-        :/usr/local/src/project-structure/var/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian}/\
+        :/usr/local/src/project-structure/${WORKTREE_REL:-}/var/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
 
   # https://github.com/hadolint/hadolint#how-to-use
   hadolint:
@@ -74,7 +80,7 @@ services:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
       hadolint "./Dockerfile"
 
@@ -86,7 +92,8 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
       lint
 
@@ -99,7 +106,7 @@ services:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure"
-    working_dir: "/usr/local/src/project-structure"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
       .
 
@@ -109,7 +116,8 @@ services:
       - "release"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     entrypoint: "ash"
     # Strip reStructuredText directives unsupported in Markdown before converting, for
     # example table of contents, and converted Markdown that isn't widely supported, for
@@ -132,9 +140,10 @@ services:
       DOCKER_USER: "${DOCKER_USER:-}"
       DOCKER_PASS: "${DOCKER_PASS:-}"
     volumes:
-      - "${CHECKOUT_DIR:-.}/:/data/"
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     command: >-
-      --file "/data/var/README.md"
+      --file "./var/README.md"
       --short "Project structure foundation or template"
       --debug "${DOCKER_USER:-}/project-structure"
 
@@ -145,10 +154,10 @@ services:
     environment:
       CI_JOB_TOKEN: "${CI_JOB_TOKEN:-}"
     volumes:
-      - "./:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/"
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
 
-  ## Containers related to CI/CD:
+  ## Containers for simulating CI/CD:
 
   # The container in which CI/CD runs:
   build-host:
@@ -167,9 +176,11 @@ services:
     privileged: true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "${CHECKOUT_DIR:-.}/:${CHECKOUT_DIR:-.}"
-      - "${CHECKOUT_DIR:-.}/build-host/bin/init-job.sh:/usr/local/bin/init-job.sh"
-      - "${CHECKOUT_DIR:-.}/build-host/bin/entrypoint.sh:/usr/local/bin/entrypoint.sh"
+      - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/build-host/bin/init-job.sh\
+        :/usr/local/bin/init-job.sh"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/build-host/bin/entrypoint.sh\
+        :/usr/local/bin/entrypoint.sh"
       # Share local authentication inside the container:
       - "~/.ssh/:/home/runner/.ssh/"
       - "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}\
@@ -177,14 +188,16 @@ services:
       - "~/.gnupg/:/home/runner/.gnupg/"
       - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
       - "~/.docker/:/home/runner/.docker/"
+    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
       PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
       SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
+      # Pass the bind volume source paths along as seen from the host `# dockerd`:
+      CHECKOUT_DIR: "${CHECKOUT_DIR:-.}"
       # DEBUG: "true"
-    working_dir: "${CHECKOUT_DIR:-.}"
     command: >-
       make -j -O -e release-all
 

@@ -30,6 +30,8 @@ ENV PROJECT_NAME="${PROJECT_NAME}"
 # Find the same home directory even when run as another user, for example `root`:
 ENV HOME="/home/runner"
 ENV PATH="${HOME}/.local/bin:${PATH}"
+# Render template targets without user input:
+ENV TEMPLATE_IGNORE_EXISTING=true
 # Prevent Node Version Manager (NVM) installing into `/bin/versions/**`:
 ENV NVM_DIR="${HOME}/.nvm"
 # Node.js releases compatible with Alpine Linux based on musl libc:
