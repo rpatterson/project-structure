@@ -206,6 +206,7 @@ export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 export DOCKER_PASS
+TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
@@ -437,7 +438,7 @@ test: test-lint test-docker
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code:
+test-code: $(TEST_CODE_PREREQS)
 	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-debug
@@ -456,7 +457,8 @@ define test_docker_template=
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log
 	export DOCKER_VARIANT="$(1)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -e TEST_CODE_PREREQS= test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-user.log
