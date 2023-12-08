@@ -241,6 +241,7 @@ export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 export DOCKER_PASS
+TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
 # Run Python tools in isolated environments managed by Tox:
 # Values used to run Tox:
@@ -559,7 +560,7 @@ test: test-lint test-docker
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
+test-code: $(TEST_CODE_PREREQS) $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
 	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-debug
@@ -578,7 +579,8 @@ define test_docker_template=
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log
 	export DOCKER_VARIANT="$(1)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e test-code
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -e TEST_CODE_PREREQS= test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-user.log
@@ -957,7 +959,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
 devel-upgrade:
-	touch ./requirements/*.txt.in "./.vale.ini" "./styles/code.ini"
+	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
 	    $(PYTHON_MINORS:%=build-docker-requirements-%) devel-upgrade-pre-commit \
 	    devel-upgrade-js "./var/log/vale-rule-levels.log"
@@ -1032,7 +1034,7 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log \
+./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
 		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
 	rm -vf ./dist/*
 	mkdir -pv "$(dir $(@))"
@@ -1180,7 +1182,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log
+./var/log/git-fetch.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -1206,7 +1208,7 @@ endif
 endif
 	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
-./var/log/git-ls-files.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log
+./var/log/git-ls-files.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git ls-files >"$(@).~new~"
 	if diff -u "$(@)" "$(@).~new~"
@@ -1336,7 +1338,7 @@ $(STATE_DIR)/log/host-update.log:
 	$(HOST_PKG_CMD) update | tee -a "$(@)"
 
 # Useful to update targets only one time per run including sub-makes:
-./var/log/make-runs/$(MAKE_RUN_UUID).log:
+./var-host/log/make-runs/$(MAKE_RUN_UUID).log:
 	mkdir -pv "$(dir $(@))"
 	rm -rf $(dir $(@))*.log
 	date | tee -a "$(@)"
