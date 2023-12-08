@@ -977,7 +977,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var/log/job-date.log
+./var/log/git-fetch.log: ./var/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -1017,11 +1017,6 @@ endif
 	$(MAKE) -e "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
-
-# Use as a prerequisite to update those targets for each CI/CD run:
-./var/log/job-date.log:
-	mkdir -pv "$(dir $(@))"
-	date | tee -a "$(@)"
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
