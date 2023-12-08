@@ -626,8 +626,7 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./var/log/git-fetch.log \
-		./var-host/log/make-runs/$(MAKE_RUN_UUID).log
+./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
