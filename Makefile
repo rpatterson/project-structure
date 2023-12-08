@@ -804,7 +804,7 @@ $(STATE_DIR)/log/host-update.log:
 # Useful to update targets only one time per run including sub-makes:
 ./var/log/make-runs/$(MAKE_RUN_UUID).log:
 	mkdir -pv "$(dir $(@))"
-	rm -rf $(dir $(@))/*.log
+	rm -rf $(dir $(@))*.log
 	date | tee -a "$(@)"
 
 
