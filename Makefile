@@ -554,7 +554,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
 devel-upgrade:
-	touch "./requirements/build.txt.in" "./.vale.ini" "./styles/code.ini"
+	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
 	    "./requirements/$(PYTHON_HOST_ENV)/build.txt" devel-upgrade-pre-commit \
 	    devel-upgrade-js "./var/log/vale-rule-levels.log"
