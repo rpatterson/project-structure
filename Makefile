@@ -131,24 +131,10 @@ export TZ
 export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
-# Find the latest installed Python version of the supported versions:
-PYTHON_BASENAMES=$(PYTHON_SUPPORTED_MINORS:%=python%)
-PYTHON_AVAIL_EXECS:=$(foreach \
-    PYTHON_BASENAME,$(PYTHON_BASENAMES),$(shell which $(PYTHON_BASENAME)))
-PYTHON_LATEST_EXEC=$(firstword $(PYTHON_AVAIL_EXECS))
-PYTHON_LATEST_BASENAME=$(notdir $(PYTHON_LATEST_EXEC))
-PYTHON_MINOR=$(PYTHON_HOST_MINOR)
-ifeq ($(PYTHON_MINOR),)
-# Fallback to the latest installed supported Python version
-PYTHON_MINOR=$(PYTHON_LATEST_BASENAME:python%=%)
-endif
-PYTHON_MINORS=$(PYTHON_SUPPORTED_MINORS)
-ifeq ($(PYTHON_MINOR),)
-PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
-else ifeq ($(findstring $(PYTHON_MINOR),$(PYTHON_MINORS)),)
-PYTHON_MINOR=$(firstword $(PYTHON_MINORS))
-endif
-export PYTHON_MINOR
+# Find the installed supported Python versions:
+export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=python%),\
+    $(shell which "python$(python_minor)" && echo "$(python_minor)"))
+export PYTHON_MINOR=$(PYTHON_HOST_MINOR)
 export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
@@ -561,7 +547,9 @@ test: test-lint test-docker
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
 test-code: $(TEST_CODE_PREREQS) $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
-	tox $(TOX_RUN_ARGS) --override "testenv.package=external" -e "$(TOX_ENV_LIST)"
+	tox $(TOX_RUN_ARGS) \
+	    --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
+	    -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-debug
 ## Run tests directly on the system and start the debugger on errors or failures.
@@ -787,13 +775,12 @@ release-pkgs: ./var/log/build-pkgs.log $(HOME)/.local/bin/tox ~/.pypirc.~out~
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 # https://twine.readthedocs.io/en/latest/#using-twine
-	tox exec -e "build" -- twine check \
-	    ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/*
+	tox exec -e "build" -- twine check ./dist/*
 # The VCS remote should reflect the release before publishing the release to ensure that
 # a published release is never *not* reflected in VCS:
 	$(MAKE) -e test-clean
 	tox exec -e "build" -- twine upload -s -r "$(PYPI_REPO)" \
-	    ./var-docker/$(DOCKER_VARIANT_DEFAULT)/.tox/.pkg/tmp/dist/*
+	    ./dist/*
 endif
 
 .PHONY: release-docker
@@ -961,8 +948,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 devel-upgrade:
 	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
 	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
-	    $(PYTHON_MINORS:%=build-docker-requirements-%) devel-upgrade-pre-commit \
-	    devel-upgrade-js "./var/log/vale-rule-levels.log"
+	    $(PYTHON_ENVS:%=$(DOCKER_REQUIREMENTS_TARGET_PREFIX)-%) \
+	    devel-upgrade-pre-commit devel-upgrade-js "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -1068,6 +1055,10 @@ $(foreach python_env,$(PYTHON_ENVS),\
 ./pyproject.toml:
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox exec -e "build" -- cz init
+
+# Set up release publishing authentication, useful in automation such as CI:
+~/.pypirc.~out~: ./home/.pypirc.in
+	$(call expand_template,$(<),$(@))
 
 ## Docker real targets:
 
