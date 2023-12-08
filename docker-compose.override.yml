@@ -68,7 +68,7 @@ services:
       # Avoid any clashes between image variants and the local host at both build and
       # runtime.
       - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian}/\
-        :/usr/local/src/project-structure/var/"
+        :/usr/local/src/project-structure/${WORKTREE_REL:-}/var/"
     working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
 
   # https://github.com/hadolint/hadolint#how-to-use
