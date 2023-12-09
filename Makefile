@@ -1072,10 +1072,6 @@ $(foreach python_env,$(PYTHON_ENVS),\
 	$(MAKE) -e "$(HOME)/.local/bin/tox"
 	tox exec -e "build" -- cz init
 
-# Set up release publishing authentication, useful in automation such as CI:
-~/.pypirc.~out~: ./home/.pypirc.in
-	$(call expand_template,$(<),$(@))
-
 ## Docker real targets:
 
 # Initialize Docker bind volumes to avoid parallel make run race conditions:
