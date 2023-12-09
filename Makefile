@@ -130,9 +130,9 @@ export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
 # Find the installed supported Python versions:
-export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=python%),\
-    $(shell which "python$(python_minor)" && echo "$(python_minor)"))
-PYTHON_MINOR=$(PYTHON_HOST_MINOR)
+export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=%),\
+    $(shell which "python$(python_minor)" >"/dev/null" && echo "$(python_minor)"))
+export PYTHON_MINOR=$(PYTHON_HOST_MINOR)
 export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
 PYTHON_ENVS=$(PYTHON_SHORT_MINORS:%=py%)
