@@ -336,7 +336,8 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 .PHONY: build-docker-tags
 ## Print the list of tags for this image variant in all registries.
 build-docker-tags: ./.tox/build/.tox-info.json
-	$(MAKE) -e $(DOCKER_REGISTRIES:%=build-docker-tags-%)
+	$(MAKE) -e --quiet --no-print-directory --debug=none \
+	    $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 ## Print the list of image tags for the current registry and variant.
@@ -414,7 +415,7 @@ endif
 	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
 ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
-	    $(MAKE) -e --no-print-directory build-docker-tags
+	    $(MAKE) -e --quiet --no-print-directory --debug=none build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
