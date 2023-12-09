@@ -106,6 +106,8 @@ ENV PATH="${VIRTUAL_ENV}/bin:${HOME}/.local/bin:${PATH}"
 # Remain in the checkout `WORKDIR` and make the build tools the default
 # command to run.
 ENV PATH="${HOME}/.local/bin:${PATH}"
+# Install tox in the unprivileged user's `${HOME}`:
+ENV PIPX_HOME="/${HOME}/.local/pipx"
 # Set any environment variables used as options in the `./Makefile`:
 ENV PYTHON_MINORS="${PYTHON_MINOR}"
 # Work in the checkout:
