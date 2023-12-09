@@ -535,11 +535,9 @@ endif
 define build_docker_requirements_template=
 build-docker-requirements-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-bootstrap.log \
 		./.env.~out~
-	export PYTHON_ENV="$(2)"
-	export PYTHON_MINOR="$$$$(echo $(2) | sed -nE -e 's|py([0-9])([0-9]+)|\1.\2|p')"
 	export DOCKER_VARIANT="$(1)-$(2)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e \
-	    PYTHON_MINORS="$$$${PYTHON_MINOR}" build-requirements-$$$${PYTHON_ENV}
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -e build-requirements-$(2)
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
     $(eval $(call build_docker_requirements_template,$(os),$(python_env)))))
