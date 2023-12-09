@@ -17,7 +17,7 @@ services:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
     command: >-
       hadolint "./Dockerfile"
 
@@ -30,7 +30,7 @@ services:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
     command: >-
       lint
 
@@ -43,7 +43,7 @@ services:
       TZ: "${TZ:-Etc/UTC}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
     command: >-
       .
 
@@ -74,7 +74,7 @@ services:
         :${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       - "~/.gnupg/:/home/runner/.gnupg/"
       - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
     env_file: "./.env"
     environment:
       TZ: "${TZ:-Etc/UTC}"
