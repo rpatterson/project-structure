@@ -337,8 +337,7 @@ test: test-lint test-code
 test-code: ./var/log/build-pkgs.log $(PYTHON_ENVS:%=./.tox/%/.tox-info.json) \
 		$(PYTHON_ENVS:%=build-requirements-%) \
 		./var/log/build-pkgs.log
-	tox $(TOX_RUN_ARGS) \
-	    --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
+	tox $(TOX_RUN_ARGS) --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
 	    -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-lint
