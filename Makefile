@@ -415,7 +415,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 define build_docker_devel_template=
 build-docker-devel-$(1)-$(2): ./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json
 endef
-$(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_OTHER_ENVS),\
+$(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
     $(eval $(call build_docker_devel_template,$(os),$(python_env)))))
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-user-%)
 # Update the build package and build it into the user image:
