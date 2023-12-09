@@ -354,7 +354,7 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+build-docs-watch: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
 	mkdir -pv "./build/docs/html/"
 	export DOCKER_VARIANT="$(DOCKER_VARIANT_DEFAULT)"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
@@ -366,7 +366,7 @@ build-docs-watch: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-inf
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+build-docs-devhelp: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
 	export DOCKER_VARIANT="$(DOCKER_VARIANT_DEFAULT)"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    ./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn -E \
@@ -374,8 +374,7 @@ build-docs-devhelp: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-i
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): \
-		$(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): build-docker-tox-$(DOCKER_VARIANT_DEFAULT) \
 		build-docs-devhelp
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    ./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
@@ -413,7 +412,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-devel-%)
 # Update the development image and update the bind volume contents:
 define build_docker_devel_template=
-build-docker-devel-$(1)-$(2): ./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json
+build-docker-devel-$(1)-$(2): build-docker-tox-$(1)-$(2)
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
     $(eval $(call build_docker_devel_template,$(os),$(python_env)))))
@@ -537,8 +536,7 @@ endif
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-requirements-%)
 ## Pull container images and compile fixed/pinned dependency versions if necessary.
 define build_docker_requirements_template=
-build-docker-requirements-$(1)-$(2): \
-		./var-docker/$(1)-$(2)/.tox/.log/$(2)-bootstrap.log ./.env.~out~
+build-docker-requirements-$(1)-$(2): build-docker-tox-bootstrap-$(1)-$(2) ./.env.~out~
 	export DOCKER_VARIANT="$(1)-$(2)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	    make -e build-requirements-$(2)
@@ -613,8 +611,7 @@ test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: \
-	$(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+test-lint-docs-rstcheck: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
 	export DOCKER_VARIANT="$(DOCKER_VARIANT_DEFAULT)"
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
@@ -1076,30 +1073,27 @@ $(foreach python_env,$(PYTHON_ENVS),\
 
 # Initialize Docker bind volumes to avoid parallel make run race conditions:
 define build_docker_host_tox_template=
-./var-docker/$(1)-$$(PYTHON_HOST_ENV)/.tox/$$(PYTHON_HOST_ENV)/.tox-info.json: \
+build-docker-tox-$(1)-$$(PYTHON_HOST_ENV): \
 		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/build-devel.log
-	DOCKER_VARIANT="$$(@:var-docker/%/.tox/$$(PYTHON_HOST_ENV)/.tox-info.json=%)"
-	export DOCKER_VARIANT
+	export DOCKER_VARIANT="$$(@:build-docker-tox-%=%)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e "$$(@:var-docker/$(1)-$$(PYTHON_HOST_ENV)/%=./%)"
+	    make -e "$$(@:build-docker-tox-$(1)-%=./.tox/%/.tox-info.json)"
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),\
     $(eval $(call build_docker_host_tox_template,$(os))))
 define build_docker_tox_template=
-./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json: \
-		./var-docker/$(1)-$(2)/log/build-devel.log
-	export DOCKER_VARIANT="$$(@:var-docker/%/.tox/$(2)/.tox-info.json=%)"
+build-docker-tox-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-devel.log
+	export DOCKER_VARIANT="$$(@:build-docker-tox-%=%)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e "$$(@:var-docker/$(1)-$(2)/%=./%)"
+	    make -e "$$(@:build-docker-tox-$(1)-%=./.tox/%/.tox-info.json)"
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach language,$(PYTHON_OTHER_ENVS),\
     $(eval $(call build_docker_tox_template,$(os),$(language)))))
 define build_docker_tox_bootstrap_template=
-./var-docker/$(1)-$(2)/.tox/.log/$(2)-bootstrap.log: \
-		./var-docker/$(1)-$(2)/log/build-devel.log
-	export DOCKER_VARIANT="$$(@:var-docker/%/.tox/.log/$(2)-bootstrap.log=%)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e "$$(@:var-docker/$(1)-$(2)/%=./%)"
+build-docker-tox-bootstrap-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-devel.log
+	export DOCKER_VARIANT="$$(@:build-docker-tox-bootstrap-%=%)"
+	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e \
+	    "$$(@:build-docker-tox-bootstrap-$(1)-%=./.tox/.log/%-bootstrap.log)"
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
     $(eval $(call build_docker_tox_bootstrap_template,$(os),$(language)))))
