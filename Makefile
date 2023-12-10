@@ -203,7 +203,6 @@ DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
 DOCKER_VARIANT_OS_DEFAULT=debian
-DOCKER_REQUIREMENTS_TARGET_PREFIX=build-docker-requirements-$(DOCKER_VARIANT_OS_DEFAULT)
 DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
 DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
 # TEMPLATE: Update for the project language:
@@ -222,11 +221,15 @@ DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)-$(DOCKER_VARIANT_LANGUAGE_DE
 export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)-$(DOCKER_VARIANT_LANGUAGE)
 endif
 DOCKER_VARIANT_DEFAULT_VAR=./var-docker/$(DOCKER_VARIANT_DEFAULT)
+DOCKER_VARIANT_OS_DEFAULT_VAR=./var-docker/$(DOCKER_VARIANT_OS_DEFAULT)
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
+DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(PYTHON_ENVS)\
+    ,$(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES)\
+    ,$(DOCKER_VARIANT_OS_DEFAULT_VAR)-$(language)/log/requirements/$(basename).log))
 export DOCKER_PASS
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
@@ -325,7 +328,7 @@ run: $(HOST_TARGET_DOCKER) $(DOCKER_VARIANT_DEFAULT_VAR)/log/build-user.log \
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
 		./.tox/build/.tox-info.json ./var/log/npm-install.log build-docker \
-		$(PYTHON_ENVS:%=$(DOCKER_REQUIREMENTS_TARGET_PREFIX)-%)
+		$(DOCKER_REQUIREMENTS_TARGETS)
 # <!--alex enable hooks-->
 
 .PHONY: $(PYTHON_ENVS:%=build-requirements-%)
@@ -354,7 +357,7 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
+build-docs-watch: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
 	export DOCKER_VARIANT="$(DOCKER_VARIANT_DEFAULT)"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
@@ -366,7 +369,7 @@ build-docs-watch: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
+build-docs-devhelp: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	export DOCKER_VARIANT="$(DOCKER_VARIANT_DEFAULT)"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    ./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn -E \
@@ -374,7 +377,8 @@ build-docs-devhelp: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): build-docker-tox-$(DOCKER_VARIANT_DEFAULT) \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): \
+		$(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json \
 		build-docs-devhelp
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    ./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
@@ -412,7 +416,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-devel-%)
 # Update the development image and update the bind volume contents:
 define build_docker_devel_template=
-build-docker-devel-$(1)-$(2): build-docker-tox-$(1)-$(2)
+build-docker-devel-$(1)-$(2): ./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
     $(eval $(call build_docker_devel_template,$(os),$(python_env)))))
@@ -517,12 +521,14 @@ endif
 	docker_build_args+=" --tag \
 	$(DOCKER_IMAGE):$${build_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
 ifneq ($(DOCKER_BUILD_TARGET),base)
+ifneq ($(DOCKER_BUILD_TARGET),bootstrap)
 	for image_tag in $$(
 	    $(MAKE) -e --quiet --no-print-directory --debug=none build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
 	done
+endif
 endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build --progress plain $(DOCKER_BUILD_ARGS) \
@@ -532,17 +538,6 @@ endif
 	    --build-arg VERSION="$$(
 	        tox exec -e "build" -qq -- cz version --project
 	    )" $${docker_build_args} --file "$(<)" "./"
-
-.PHONY: $(DOCKER_VARIANTS:%=build-docker-requirements-%)
-## Pull container images and compile fixed/pinned dependency versions if necessary.
-define build_docker_requirements_template=
-build-docker-requirements-$(1)-$(2): build-docker-tox-bootstrap-$(1)-$(2) ./.env.~out~
-	export DOCKER_VARIANT="$(1)-$(2)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e build-requirements-$(2)
-endef
-$(foreach os,$(DOCKER_VARIANT_OSES),$(foreach python_env,$(PYTHON_ENVS),\
-    $(eval $(call build_docker_requirements_template,$(os),$(python_env)))))
 
 
 ### Test Targets:
@@ -611,7 +606,7 @@ test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: build-docker-tox-$(DOCKER_VARIANT_DEFAULT)
+test-lint-docs-rstcheck: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	export DOCKER_VARIANT="$(DOCKER_VARIANT_DEFAULT)"
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
@@ -960,9 +955,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 ## Update requirements, dependencies, and other external versions tracked in VCS.
 devel-upgrade:
 	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
-	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
-	    $(PYTHON_ENVS:%=$(DOCKER_REQUIREMENTS_TARGET_PREFIX)-%) \
-	    devel-upgrade-pre-commit devel-upgrade-js "./var/log/vale-rule-levels.log"
+	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(DOCKER_REQUIREMENTS_TARGETS)
+	devel-upgrade-pre-commit devel-upgrade-js "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -1073,30 +1067,53 @@ $(foreach python_env,$(PYTHON_ENVS),\
 
 # Initialize Docker bind volumes to avoid parallel make run race conditions:
 define build_docker_host_tox_template=
-build-docker-tox-$(1)-$$(PYTHON_HOST_ENV): \
-		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/build-devel.log
-	export DOCKER_VARIANT="$$(@:build-docker-tox-%=%)"
+./var-docker/$(1)-$$(PYTHON_HOST_ENV)/.tox/$$(PYTHON_HOST_ENV)/.tox-info.json: \
+		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/build-devel.log ./tox.ini \
+		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/requirements/test.txt.log \
+		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/requirements/devel.txt.log
+	export DOCKER_VARIANT="$(1)-$$(PYTHON_HOST_ENV)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e "$$(@:build-docker-tox-$(1)-%=./.tox/%/.tox-info.json)"
+	    make -e "$$(@:var-docker/$(1)-$$(PYTHON_HOST_ENV)/%=./%)"
+	touch "$$(@)"
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),\
     $(eval $(call build_docker_host_tox_template,$(os))))
 define build_docker_tox_template=
-build-docker-tox-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-devel.log
-	export DOCKER_VARIANT="$$(@:build-docker-tox-%=%)"
+./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json: \
+		./var-docker/$(1)-$(2)/log/build-devel.log ./tox.ini \
+		./var-docker/$(1)-$(2)/log/requirements/test.txt.log
+	export DOCKER_VARIANT="$(1)-$(2)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e "$$(@:build-docker-tox-$(1)-%=./.tox/%/.tox-info.json)"
+	    make -e "$$(@:var-docker/$(1)-$(2)/%=./%)"
+	touch "$$(@)"
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach language,$(PYTHON_OTHER_ENVS),\
     $(eval $(call build_docker_tox_template,$(os),$(language)))))
 define build_docker_tox_bootstrap_template=
-build-docker-tox-bootstrap-$(1)-$(2): ./var-docker/$(1)-$(2)/log/build-devel.log
-	export DOCKER_VARIANT="$$(@:build-docker-tox-bootstrap-%=%)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel make -e \
-	    "$$(@:build-docker-tox-bootstrap-$(1)-%=./.tox/.log/%-bootstrap.log)"
+./var-docker/$(1)-$(2)/.tox/.log/$(2)-bootstrap.log: \
+		./var-docker/$(1)-$(2)/log/build-bootstrap.log
+	export DOCKER_VARIANT="$(1)-$(2)"
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -e "$$(@:var-docker/$(1)-$(2)/%=./%)"
+	touch "$$(@)"
 endef
 $(foreach os,$(DOCKER_VARIANT_OSES),$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
     $(eval $(call build_docker_tox_bootstrap_template,$(os),$(language)))))
+
+# Compile requirements inside the containers:
+define build_docker_requirements_template=
+./var-docker/$(1)-$(2)/log/requirements/$(3).log: \
+		./var-docker/$(1)-$(2)/.tox/.log/$(2)-bootstrap.log \
+		./requirements/$(3).in
+	export DOCKER_VARIANT="$(1)-$(2)"
+	mkdir -pv "$$(dir $$(@))"
+	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	    make -e "./requirements/$(2)/$(3)" | tee -a "$$(@)"
+endef
+$(foreach os,$(DOCKER_VARIANT_OSES),\
+    $(foreach language,$(PYTHON_ENVS),\
+    $(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES),\
+    $(eval $(call build_docker_requirements_template,$(os),$(language),$(basename))))))
 
 # Build Docker container images:
 # Build the base layer common to both published images:
@@ -1104,7 +1121,7 @@ define build_docker_base_template=
 ./var-docker/$(1)-$(2)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
 		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./requirements/$(2)/user.txt
+		./var-docker/$(1)-$(2)/log/requirements/user.txt.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)-$(2)" DOCKER_BUILD_TARGET="base" \
@@ -1154,7 +1171,7 @@ define build_docker_bootstrap_template=
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$$(DOCKER_VARIANT_OS_DEFAULT)-$(1)" \
-	    DOCKER_BUILD_TARGET="devel" build-docker-build | tee -a "$$(@)"
+	    DOCKER_BUILD_TARGET="bootstrap" build-docker-build | tee -a "$$(@)"
 endef
 $(foreach language,$(DOCKER_VARIANT_LANGUAGES),$(eval \
     $(call build_docker_bootstrap_template,$(language))))
@@ -1300,7 +1317,7 @@ $(HOME)/.nvm/nvm.sh:
 # created so other targets can use them directly to save Tox's startup time when they
 # don't need Tox's logic about when to update/recreate:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt
+		$(DOCKER_VARIANT_DEFAULT_VAR)/log/requirements/build.txt.log
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
@@ -1321,11 +1338,13 @@ $(PYTHON_ALL_ENVS:%=./.tox/.log/%-bootstrap.log): $(HOME)/.local/bin/tox ./tox.i
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/.log/%-bootstrap.log=%)" --notest |
 	    tee -a "$(@)"
 
-$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
+$(HOME)/.local/bin/tox:
+	$(MAKE) -e "$(HOME)/.local/bin/pipx"
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
 	touch "$(@)"
-$(HOME)/.local/bin/pipx: $(HOST_TARGET_PIP)
+$(HOME)/.local/bin/pipx:
+	$(MAKE) -e "$(HOST_TARGET_PIP)"
 # https://pypa.github.io/pipx/installation/#install-pipx
 	pip3 install --user "pipx"
 	python3 -m pipx ensurepath
