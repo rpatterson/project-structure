@@ -508,7 +508,7 @@ endif
 	    echo $${PYTHON_ENV} | sed -nE -e 's|py([0-9])([0-9]+)|\1.\2|p'
 	)"
 # Workaround broken interactive session detection:
-	docker pull "python:$(PYTHON_MINOR)"
+	docker pull "python:$${PYTHON_MINOR}"
 # Assemble the tags for all the variant permutations:
 	$(MAKE) -e "./var/log/git-fetch.log"
 ifeq ($(DOCKER_BUILD_TARGET),base)
@@ -533,8 +533,8 @@ endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build --progress plain $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
-	    --build-arg PYTHON_MINOR="$(PYTHON_MINOR)" \
-	    --build-arg PYTHON_ENV="$(PYTHON_ENV)" \
+	    --build-arg PYTHON_MINOR="$${PYTHON_MINOR}" \
+	    --build-arg PYTHON_ENV="$${PYTHON_ENV}" \
 	    --build-arg VERSION="$$(
 	        tox exec -e "build" -qq -- cz version --project
 	    )" $${docker_build_args} --file "$(<)" "./"

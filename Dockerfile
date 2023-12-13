@@ -14,6 +14,8 @@ SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 # Project constants:
 ARG PROJECT_NAMESPACE=rpatterson
 ARG PROJECT_NAME=project-structure
+# Image variant constants:
+ARG PYTHON_MINOR=3.11
 
 # Least volatile layers first:
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
@@ -31,6 +33,7 @@ LABEL org.opencontainers.image.base.name="docker.io/library/python:${PYTHON_MINO
 ENV PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"
 ENV PROJECT_NAME="${PROJECT_NAME}"
 ENV HOME="/home/${PROJECT_NAME}"
+ENV PYTHON_MINOR="${PYTHON_MINOR}"
 WORKDIR "${HOME}"
 ENTRYPOINT [ "entrypoint.sh" ]
 CMD [ "python" ]
