@@ -120,6 +120,8 @@ WORKDIR "/usr/local/src/${PROJECT_NAME}/"
 CMD tox -e "${PYTHON_ENV}"
 
 # Bake in tools used in the inner loop of the development cycle:
-COPY [ "./Makefile", "./" ]
+# hadolint ignore=DL3042
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    make "${HOME}/.local/bin/tox"
+    pip3 install --user "pipx==1.2.1" && \
+    python3 -m "pipx" ensurepath && \
+    pipx install "tox==4.11.3"
