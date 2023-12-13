@@ -108,3 +108,9 @@ Nice to have
 
    As such, this probably isn't worth the effort until users report significant
    platform-specific bugs.
+
+#. ``ci``: Add `self-hosted Matrix Hookshot
+   <https://matrix-org.github.io/matrix-hookshot/latest/setup.html#installation-via-docker>`_
+   to the ``./docker-compose.override.yml``, add `the GitLab integration
+   <https://matrix-org.github.io/matrix-hookshot/latest/setup/gitlab.html>`_ and
+   document any steps for template adopters.

@@ -208,7 +208,8 @@ have or better yet submit a PR with corrections.
      $ git ls-files 'logo*.png' '**/logo*.png' 'logo*.svg' '**/logo*.svg' \
      'docs/_static/favicon.ico'
 
-#. Update `the project Matrix room`_.
+#. Create `the project Matrix room`_, and set up the GitHub bot by using the ``Add
+   widgets, bridges & bots`` link at the bottom of the room info right pane.
 
 Lastly, remove this `Template usage`_ section and update the rest of this
 ``./README.rst`` for your project. When the template adds fixes and features, merge them
