@@ -345,8 +345,6 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): ./.tox/build/.tox-info.json
 	test -e "./var/log/git-fetch.log"
 	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
 	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
-# Print the fully qualified variant tag with all components:
-	echo "$${docker_image}:$${target_variant}-$(DOCKER_BRANCH_TAG)"
 # Print only the branch tag if this image variant is the default variant:
 ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
 	echo "$${docker_image}:$(DOCKER_BUILD_TARGET)-$(DOCKER_BRANCH_TAG)"
@@ -394,15 +392,17 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.js
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
+ifneq ($(DOCKER_BUILD_TARGET),base)
+ifneq ($(DOCKER_BUILD_TARGET),bootstrap)
+	pull_target="$(DOCKER_BUILD_TARGET)"
+else
+	pull_target="devel"
+endif
+endif
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the image and simulate building it here:
-ifneq ($(DOCKER_BUILD_TARGET),base)
-	target="devel"
-else
-	target="$(DOCKER_BUILD_TARGET)"
-endif
 	docker image pull --quiet "$(DOCKER_IMAGE)\
-	:$${target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
+	:$${pull_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
 	docker image ls --digests "$(
 	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
 	)" | tee -a "$(@)"
@@ -412,7 +412,15 @@ endif
 	docker pull "buildpack-deps"
 # Assemble the tags for all the variant permutations:
 	$(MAKE) -e "./var/log/git-fetch.log"
-	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
+ifeq ($(DOCKER_BUILD_TARGET),base)
+	build_target="$(DOCKER_BUILD_TARGET)"
+else
+	build_target="$${pull_target}"
+endif
+	docker_build_args="--target $${build_target}"
+# Always apply the fully qualified variant tag with all components:
+	docker_build_args+=" --tag \
+	$(DOCKER_IMAGE):$${build_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
 ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
 	    $(MAKE) -e --quiet --no-print-directory --debug=none build-docker-tags
