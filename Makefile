@@ -482,7 +482,7 @@ endif
 
 .PHONY: build-docker-build
 ## Run the actual commands used to build the Docker container image.
-build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.json \
+build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
