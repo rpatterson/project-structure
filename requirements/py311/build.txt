@@ -16,9 +16,9 @@ argcomplete==3.1.6 \
     --hash=sha256:3b1f07d133332547a53c79437527c00be48cca3807b1d4ca5cab1b26313386a6 \
     --hash=sha256:71f4683bc9e6b0be85f2b2c1224c47680f210903e23512cfebfe5a41edfd883a
     # via commitizen
-babel==2.13.1 \
-    --hash=sha256:33e0952d7dd6374af8dbf6768cc4ddf3ccfefc244f9986d4074704f2fbd18900 \
-    --hash=sha256:7077a4984b02b6727ac10f1f7294484f737443d7e2e66c5e4380e41a3ae0b4ed
+babel==2.14.0 \
+    --hash=sha256:6919867db036398ba21eb5c7a0f6b28ab8cbc3ae7a73a44ebe34ae74a4e7d363 \
+    --hash=sha256:efb1a25b7118e67ce3a259bed20545c29cb68be8ad2c784c83689981b7a57287
     # via sphinx
 build==1.0.3 \
     --hash=sha256:538aab1b64f9828977f84bc63ae570b060a8ed1be419e7870b8b4fc5e6ea553b \
@@ -203,9 +203,9 @@ decli==0.6.1 \
     --hash=sha256:7815ac58617764e1a200d7cadac6315fcaacc24d727d182f9878dd6378ccf869 \
     --hash=sha256:ed88ccb947701e8e5509b7945fda56e150e2ac74a69f25d47ac85ef30ab0c0f0
     # via commitizen
-distlib==0.3.7 \
-    --hash=sha256:2e24928bc811348f0feb63014e97aaae3037f2cf48712d51ae61df7fd6075057 \
-    --hash=sha256:9dafe54b34a028eafd95039d5e5d4851a13734540f1331060d31c9916e7147a8
+distlib==0.3.8 \
+    --hash=sha256:034db59a0b96f8ca18035f36290806a9a6e6bd9d1ff91e45a7f172eb17e51784 \
+    --hash=sha256:1530ea13e350031b6312d8580ddb6b27a104275a31106523b8f123787f494f64
     # via virtualenv
 doc8==1.1.1 \
     --hash=sha256:d97a93e8f5a2efc4713a0804657dedad83745cca4cd1d88de9186f77f9776004 \
@@ -631,9 +631,9 @@ polib==1.2.0 \
     --hash=sha256:1c77ee1b81feb31df9bca258cbc58db1bbb32d10214b173882452c73af06d62d \
     --hash=sha256:f3ef94aefed6e183e342a8a269ae1fc4742ba193186ad76f175938621dbfc26b
     # via sphinx-lint
-pre-commit==3.5.0 \
-    --hash=sha256:5804465c675b659b0862f07907f96295d490822a450c4c40e747d0b1c6ebcb32 \
-    --hash=sha256:841dc9aef25daba9a0238cd27984041fa0467b4199fc4852e27950664919f660
+pre-commit==3.6.0 \
+    --hash=sha256:c255039ef399049a5544b6ce13d135caba8f2c28c3b4033277a788f434308376 \
+    --hash=sha256:d30bad9abf165f7785c15a21a1f46da7d0677cb00ee7ff4c579fd38922efe15d
     # via -r requirements/build.txt.in
 prompt-toolkit==3.0.36 \
     --hash=sha256:3e163f254bef5a03b146397d7c1963bd3e2812f0964bb9a24e6ec761fd28db63 \
@@ -979,9 +979,9 @@ sphinx-copybutton==0.5.2 \
     --hash=sha256:4cf17c82fb9646d1bc9ca92ac280813a3b605d8c421225fd9913154103ee1fbd \
     --hash=sha256:fb543fd386d917746c9a2c50360c7905b605726b9355cd26e9974857afeae06e
     # via -r requirements/build.txt.in
-sphinx-lint==0.9.0 \
-    --hash=sha256:10321f1469458f0e3bd16ca815173c1ff6d48c53ef0f0a75abf8a870133fb0f4 \
-    --hash=sha256:43b2371ef4b54a1dd9f9a0b498cf52817458414e07bac150a5795e72a871c2b5
+sphinx-lint==0.9.1 \
+    --hash=sha256:185cee19ff1129549c45e15a3b25404daeb47c54d15112dda589cedad82957aa \
+    --hash=sha256:df34271ab65ce43676cbd90726f4dea5cd200b43b01448b2aee8f06e609edcbb
     # via -r requirements/build.txt.in
 sphinx-notfound-page==1.0.0 \
     --hash=sha256:14cd388956de5cdf8710ab4ff31776ef8d85759c4f46014ee30f368e83bd3a3b \
@@ -1011,9 +1011,9 @@ sphinxcontrib-serializinghtml==1.1.9 \
     --hash=sha256:0c64ff898339e1fac29abd2bf5f11078f3ec413cfe9c046d3120d7ca65530b54 \
     --hash=sha256:9b36e503703ff04f20e9675771df105e58aa029cfcbc23b8ed716019b7416ae1
     # via sphinx
-sphinxext-opengraph==0.9.0 \
-    --hash=sha256:4e57e25b6d56f47b9c06a5a5d68a2a00ed3577c8a39e459b52118c6bfe5e8c8b \
-    --hash=sha256:ab1eb2ffb531fb85b695e719dba7b0245b0643f6b6c0d1cc258d15a81e72a9f1
+sphinxext-opengraph==0.9.1 \
+    --hash=sha256:b3b230cc6a5b5189139df937f0d9c7b23c7c204493b22646273687969dcb760e \
+    --hash=sha256:dd2868a1e7c9497977fbbf44cc0844a42af39ca65fe1bb0272518af225d06fc5
     # via -r requirements/build.txt.in
 stevedore==5.1.0 \
     --hash=sha256:8cc040628f3cea5d7128f2e76cf486b2251a4e543c7b938f58d9a377f6694a2d \
@@ -1050,9 +1050,9 @@ typer==0.9.0 \
     # via
     #   rstcheck
     #   typer
-typing-extensions==4.8.0 \
-    --hash=sha256:8f92fc8806f9a6b641eaa5318da32b44d401efaac0f6678c9bc448ba3605faa0 \
-    --hash=sha256:df8e4339e9cb77357558cbdbceca33c303714cf861d1eef15e1070055ae8b7ef
+typing-extensions==4.9.0 \
+    --hash=sha256:23478f88c37f27d76ac8aee6c905017a143b0b1b886c3c9f66bc2fd94f9f5783 \
+    --hash=sha256:af72aea155e91adfc61c3ae9e0e342dbc0cba726d6cba4b6c72c1f34e47291cd
     # via
     #   pydantic
     #   pydantic-core
