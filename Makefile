@@ -622,14 +622,12 @@ test-lint-docs-rstcheck: $(DOCKER_VARIANT_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
 	git ls-files -z '*.rst' | xargs -r -0 -- \
-	    docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    "$(<:%/.tox-info.json=%/bin/sphinx-lint)" -e "all" -d "line-too-long"
 .PHONY: test-lint-docs-doc8
 ## Test the documentation for formatting errors with doc8.
 test-lint-docs-doc8: ./.tox/build/.tox-info.json
 	git ls-files -z '*.rst' ':!docs/news*.rst' |
-	    xargs -r -0 -- docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    "$(<:%/.tox-info.json=%/bin/doc8)"
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
 
 .PHONY: test-lint-prose
 ## Lint prose text for spelling, grammar, and style.
@@ -664,8 +662,8 @@ test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 ## Lint prose in all markup files tracked in VCS with proselint.
 test-lint-prose-proselint: ./.tox/build/.tox-info.json
 	git ls-files -z '*.rst' |
-	    xargs -r -0 -- docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    "$(<:%/.tox-info.json=%/bin/proselint)" --config "./.proselintrc.json"
+	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
+	        --config "./.proselintrc.json"
 .PHONY: test-lint-prose-write-good
 ## Lint prose in all files tracked in VCS with write-good.
 test-lint-prose-write-good: ./var/log/npm-install.log
