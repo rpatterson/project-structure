@@ -644,6 +644,7 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	worktree_rel="worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
 	$(MAKE) -e -C "./$${worktree_rel}/" TEMPLATE_IGNORE_EXISTING="true" \
 	    WORKTREE_REL="/$${worktree_rel}" "./.env.~out~"
+	cd "./$${worktree_rel}/"
 	docker compose run --rm \
 	    --workdir "/usr/local/src/project-structure/$${worktree_rel}" build-host
 .PHONY: test-worktree-add-%
