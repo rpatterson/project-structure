@@ -22,6 +22,7 @@ sphinx-autobuild
 # https://pradyunsg.me/furo/recommendations/
 sphinx-copybutton
 sphinxext-opengraph
+matplotlib
 # https://sphinx-extensions.readthedocs.io/en/latest/
 sphinx-notfound-page
 # Code documentation tools:

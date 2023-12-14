@@ -132,8 +132,8 @@ export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
 # Find the installed supported Python versions:
-export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=python%),\
-    $(shell which "python$(python_minor)" && echo "$(python_minor)"))
+export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=%),\
+    $(shell which "python$(python_minor)" >"/dev/null" && echo "$(python_minor)"))
 export PYTHON_MINOR=$(PYTHON_HOST_MINOR)
 export PYTHON_ENV=py$(subst .,,$(PYTHON_MINOR))
 PYTHON_SHORT_MINORS=$(subst .,,$(PYTHON_MINORS))
@@ -556,8 +556,7 @@ test: test-lint test-docker
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
 test-code: $(TEST_CODE_PREREQS) $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
-	tox $(TOX_RUN_ARGS) \
-	    --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
+	tox $(TOX_RUN_ARGS) --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
 	    -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-debug
