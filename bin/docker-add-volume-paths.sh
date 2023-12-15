@@ -25,6 +25,10 @@ main() {
     shift
 
     docker_services="$(sed -nE 's#^  ([^ :]+): *$#\1#p' ./docker-compose*.yml)"
+    if test "${DEBUG}" = "true"
+    then
+	docker compose config ${docker_services}
+    fi
     (
 	docker compose config ${docker_services} |
 	    sed -nE -e "s#^ *source: *${source_prefix}/(.+)#\1#p" &&
