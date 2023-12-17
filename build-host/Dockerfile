@@ -61,6 +61,7 @@ RUN \
     "imagemagick" \
     "texinfo" \
     "texlive" \
+    "librsvg" \
     "github-cli" \
     && rm -rf /var/cache/apk/*
 
