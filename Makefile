@@ -63,7 +63,7 @@ HOST_PKG_CMD_PREFIX=sudo
 HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
-HOST_PKG_NAMES_PIP=python3-pip
+HOST_PKG_NAMES_PIPX=pipx
 HOST_PKG_NAMES_MAKEINFO=texinfo
 HOST_PKG_NAMES_LATEXMK=latexmk
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
@@ -76,13 +76,11 @@ HOST_PKG_CMD_PREFIX=
 HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
-HOST_PKG_NAMES_PIP=python
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
-HOST_PKG_NAMES_PIP=py3-pip
 HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 HOST_PKG_NAMES_GHCLI=github-cli
@@ -469,7 +467,8 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 .PHONY: build-docker-tags
 ## Print the list of tags for this image variant in all registries.
 build-docker-tags: ./.tox/build/.tox-info.json
-	$(MAKE) -e $(DOCKER_REGISTRIES:%=build-docker-tags-%)
+	$(MAKE) -e --quiet --no-print-directory --debug=none \
+	    $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 ## Print the list of image tags for the current registry and variant.
@@ -477,8 +476,6 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): ./.tox/build/.tox-info.json
 	test -e "./var/log/git-fetch.log"
 	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
 	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
-# Print the fully qualified variant tag with all components:
-	echo "$${docker_image}:$${target_variant}-$(DOCKER_BRANCH_TAG)"
 # Print only the branch tag if this image variant is the default variant:
 ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
 	echo "$${docker_image}:$(DOCKER_BUILD_TARGET)-$(DOCKER_BRANCH_TAG)"
@@ -526,15 +523,17 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.js
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
+ifneq ($(DOCKER_BUILD_TARGET),base)
+ifneq ($(DOCKER_BUILD_TARGET),bootstrap)
+	pull_target="$(DOCKER_BUILD_TARGET)"
+else
+	pull_target="devel"
+endif
+endif
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the image and simulate building it here:
-ifneq ($(DOCKER_BUILD_TARGET),base)
-	target="devel"
-else
-	target="$(DOCKER_BUILD_TARGET)"
-endif
 	docker image pull --quiet "$(DOCKER_IMAGE)\
-	:$${target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
+	:$${pull_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
 	docker image ls --digests "$(
 	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
 	)" | tee -a "$(@)"
@@ -567,10 +566,18 @@ endif
 endif
 # Assemble the tags for all the variant permutations:
 	$(MAKE) -e "./var/log/git-fetch.log"
-	docker_build_args="--target $(DOCKER_BUILD_TARGET)"
+ifeq ($(DOCKER_BUILD_TARGET),base)
+	build_target="$(DOCKER_BUILD_TARGET)"
+else
+	build_target="$${pull_target}"
+endif
+	docker_build_args="--target $${build_target}"
+# Always apply the fully qualified variant tag with all components:
+	docker_build_args+=" --tag \
+	$(DOCKER_IMAGE):$${build_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
 ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
-	    $(MAKE) -e --no-print-directory build-docker-tags
+	    $(MAKE) -e --quiet --no-print-directory --debug=none build-docker-tags
 	)
 	do
 	    docker_build_args+=" --tag $${image_tag}"
@@ -751,14 +758,15 @@ test-lint-docker-volumes:
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
-	    ./bin/docker-add-volume-paths.sh "$(CHECKOUT_DIR)/$(WORKTREE_REL)" \
-	        "/usr/local/src/$(PROJECT_NAME)"
+	    ./bin/docker-add-volume-paths.sh "$(CHECKOUT_DIR)$(WORKTREE_REL)" \
+	        "/usr/local/src/$(PROJECT_NAME)$(WORKTREE_REL)"
 	)"
 	then
 	    set +x
 	    echo "\
 	ERROR: Docker bind mount paths didn't exist, force added ignore files.
 	       Review ignores above in case they need changes or followup."
+	    git status
 	    false
 	fi
 
@@ -812,22 +820,23 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	$(MAKE) -e -C "./build-host/" build
 	docker compose run --rm build-host \
 	    make -e $(@:test-worktree-%=test-worktree-add-%)
-	worktree_rel="worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	$(MAKE) -e -C "./$${worktree_rel}/" TEMPLATE_IGNORE_EXISTING="true" \
-	    WORKTREE_REL="$${worktree_rel}" "./.env.~out~"
+	export WORKTREE_REL="/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	$(MAKE) -e -C ".$${WORKTREE_REL}/" TEMPLATE_IGNORE_EXISTING="true" \
+	    "./.env.~out~"
+	cd ".$${WORKTREE_REL}/"
 	docker compose run --rm \
-	    --workdir "/usr/local/src/project-structure/$${worktree_rel}" build-host
+	    --workdir "/usr/local/src/project-structure$${WORKTREE_REL}" build-host
 .PHONY: test-worktree-add-%
 ## Create a new worktree based on the current branch adding a suffix.
 test-worktree-add-%:
 	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-add-%=%)"
-	worktree_rel="worktrees/$${worktree_branch}"
+	WORKTREE_REL="/worktrees/$${worktree_branch}"
 	if git worktree list --porcelain |
-	    grep -E "^worktree .+/project-structure/$${worktree_rel}\$$"
+	    grep -E "^worktree .+/project-structure$${WORKTREE_REL}\$$"
 	then
-	    git worktree remove "./$${worktree_rel}"
+	    git worktree remove ".$${WORKTREE_REL}"
 	fi
-	git worktree add -B "$${worktree_branch}" "./$${worktree_rel}"
+	git worktree add -B "$${worktree_branch}" ".$${WORKTREE_REL}"
 
 
 ### Release Targets:
@@ -1392,18 +1401,14 @@ ifneq ($(PYTHON_SUPPORTED_ENV),$(PYTHON_HOST_ENV))
 	mkdir -pv "$(dir $(@))"
 	ln -sv --relative --backup="numbered" "$(<)" "$(@)"
 endif
-$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
+$(HOME)/.local/bin/tox:
+	$(MAKE) -e "$(HOST_PREFIX)/bin/pipx"
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
 	touch "$(@)"
-$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
-# https://pypa.github.io/pipx/installation/#install-pipx
-	pip3 install --user "pipx"
-	python3 -m pipx ensurepath
-	touch "$(@)"
-$(HOST_PREFIX)/bin/pip3:
+$(HOST_PREFIX)/bin/pipx:
 	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIPX)"
 
 # Tools needed by Sphinx builders:
 $(HOST_PREFIX)/bin/makeinfo:
