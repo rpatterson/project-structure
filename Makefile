@@ -684,14 +684,15 @@ test-lint-docker-volumes:
 # Ensure that any bind mount volume paths exist in VCS so that `# dockerd` doesn't
 # create them as `root`:
 	if test -n "$$(
-	    ./bin/docker-add-volume-paths.sh "$(CHECKOUT_DIR)/$(WORKTREE_REL)" \
-	        "/usr/local/src/$(PROJECT_NAME)"
+	    ./bin/docker-add-volume-paths.sh "$(CHECKOUT_DIR)$(WORKTREE_REL)" \
+	        "/usr/local/src/$(PROJECT_NAME)$(WORKTREE_REL)"
 	)"
 	then
 	    set +x
 	    echo "\
 	ERROR: Docker bind mount paths didn't exist, force added ignore files.
 	       Review ignores above in case they need changes or followup."
+	    git status
 	    false
 	fi
 
@@ -739,23 +740,23 @@ test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
 	$(MAKE) -e -C "./build-host/" build
 	docker compose run --rm build-host \
 	    make -e $(@:test-worktree-%=test-worktree-add-%)
-	worktree_rel="worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	$(MAKE) -e -C "./$${worktree_rel}/" TEMPLATE_IGNORE_EXISTING="true" \
-	    WORKTREE_REL="/$${worktree_rel}" "./.env.~out~"
-	cd "./$${worktree_rel}/"
+	export WORKTREE_REL="/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	$(MAKE) -e -C ".$${WORKTREE_REL}/" TEMPLATE_IGNORE_EXISTING="true" \
+	    "./.env.~out~"
+	cd ".$${WORKTREE_REL}/"
 	docker compose run --rm \
-	    --workdir "/usr/local/src/project-structure/$${worktree_rel}" build-host
+	    --workdir "/usr/local/src/project-structure$${WORKTREE_REL}" build-host
 .PHONY: test-worktree-add-%
 ## Create a new worktree based on the current branch adding a suffix.
 test-worktree-add-%:
 	worktree_branch="$(VCS_BRANCH)-$(@:test-worktree-add-%=%)"
-	worktree_rel="worktrees/$${worktree_branch}"
+	WORKTREE_REL="/worktrees/$${worktree_branch}"
 	if git worktree list --porcelain |
-	    grep -E "^worktree .+/project-structure/$${worktree_rel}\$$"
+	    grep -E "^worktree .+/project-structure$${WORKTREE_REL}\$$"
 	then
-	    git worktree remove "./$${worktree_rel}"
+	    git worktree remove ".$${WORKTREE_REL}"
 	fi
-	git worktree add -B "$${worktree_branch}" "./$${worktree_rel}"
+	git worktree add -B "$${worktree_branch}" ".$${WORKTREE_REL}"
 
 
 ### Release Targets:

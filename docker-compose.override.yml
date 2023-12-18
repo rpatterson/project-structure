@@ -203,6 +203,7 @@ services:
       SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       # Pass the bind volume source paths along as seen from the host `# dockerd`:
       CHECKOUT_DIR: "${CHECKOUT_DIR:-.}"
+      WORKTREE_REL: "${WORKTREE_REL:-}"
       # DEBUG: "true"
     command: >-
       make -j -O -e release-all
