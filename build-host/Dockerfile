@@ -57,20 +57,19 @@ RUN \
     "git" \
     "gettext" \
     "grep" \
-    "py3-pip" \
+    "pipx" \
     "gnupg" \
     "curl" \
     "imagemagick" \
     "texinfo" \
     "texlive" \
+    "librsvg" \
     "github-cli" \
     && rm -rf /var/cache/apk/*
 
 # Bake external build dependencies into the image:
 # hadolint ignore=DL3042,DL4006,SC1091
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    pip3 install --user "pipx==1.2.1" && \
-    python3 -m "pipx" ensurepath && \
     pipx install "tox==4.11.3" && \
     wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh" | \
         bash && \

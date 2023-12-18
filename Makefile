@@ -63,7 +63,7 @@ HOST_PKG_CMD_PREFIX=sudo
 HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
-HOST_PKG_NAMES_PIP=python3-pip
+HOST_PKG_NAMES_PIPX=pipx
 HOST_PKG_NAMES_MAKEINFO=texinfo
 HOST_PKG_NAMES_LATEXMK=latexmk
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
@@ -73,13 +73,11 @@ HOST_PKG_CMD_PREFIX=
 HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
-HOST_PKG_NAMES_PIP=python
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
-HOST_PKG_NAMES_PIP=py3-pip
 HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
@@ -866,18 +864,14 @@ $(PYTHON_ALL_ENVS:%=./.tox/.log/%-bootstrap.log): $(HOME)/.local/bin/tox ./tox.i
 	tox run $(TOX_EXEC_OPTS) -e "$(@:.tox/.log/%-bootstrap.log=%)" --notest |
 	    tee -a "$(@)"
 
-$(HOME)/.local/bin/tox: $(HOME)/.local/bin/pipx
+$(HOME)/.local/bin/tox:
+	$(MAKE) -e "$(HOST_PREFIX)/bin/pipx"
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
 	touch "$(@)"
-$(HOME)/.local/bin/pipx: $(HOST_PREFIX)/bin/pip3
-# https://pypa.github.io/pipx/installation/#install-pipx
-	pip3 install --user "pipx"
-	python3 -m pipx ensurepath
-	touch "$(@)"
-$(HOST_PREFIX)/bin/pip3:
+$(HOST_PREFIX)/bin/pipx:
 	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIP)"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIPX)"
 
 # Tools needed by Sphinx builders:
 $(HOST_PREFIX)/bin/makeinfo:
