@@ -36,6 +36,9 @@
 # Mask all except `GPG_SIGNING_PRIVATE_KEY`, which is too large to mask. Protect all
 # except `CODECOV_TOKEN` and `DOCKER_PASS` which contributors need to use CI to test
 # their work before maintainers merge into `develop` or `main`.
+#
+# You can also add the `DEBUG` CI/CD variable and set it to `true` to increase debugging
+# output.
 
 variables:
   # Variables controlling behavior:
@@ -43,8 +46,6 @@ variables:
   PGID: "1001"
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
-  # Uncomment to get more debugging output:
-  # DEBUG: "true"
 
 default:
   image:
