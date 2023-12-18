@@ -947,8 +947,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 ## Update requirements, dependencies, and other external versions tracked in VCS.
 devel-upgrade:
 	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
-	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(DOCKER_REQUIREMENTS_TARGETS)
-	devel-upgrade-pre-commit devel-upgrade-js "./var/log/vale-rule-levels.log"
+	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" $(DOCKER_REQUIREMENTS_TARGETS) \
+	    devel-upgrade-pre-commit devel-upgrade-js "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
