@@ -27,7 +27,7 @@ main() {
     docker_services="$(sed -nE 's#^  ([^ :]+): *$#\1#p' ./docker-compose*.yml)"
     if test "${DEBUG}" = "true"
     then
-	docker compose config ${docker_services}
+	docker compose config ${docker_services} >&2
     fi
     (
 	docker compose config ${docker_services} |

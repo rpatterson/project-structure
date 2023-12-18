@@ -592,6 +592,7 @@ test-lint-docker-volumes:
 	    echo "\
 	ERROR: Docker bind mount paths didn't exist, force added ignore files.
 	       Review ignores above in case they need changes or followup."
+	    git status
 	    false
 	fi
 
