@@ -6,6 +6,8 @@
 Contributing
 ########################################################################################
 
+.. highlight:: console
+
 Development requires standard tools, including ``git``, ``make``, and `Docker`_. Clone
 the repository::
 
@@ -70,6 +72,15 @@ current versions::
 
 See `the TODO file`_ for known bugs and desirable features.
 
+The `Makefile`_ structure supports running target recipes in parallel wherever
+possible. Developers can use the ``-j`` option to speed up run times. This prints output
+from all recipes at the same time which makes inspecting failures a little more
+difficult. Use the ``-O`` option to group output by target and look above occurrences
+like ``make[1]: *** [Makefile:123: foo-target-name] Error 1`` in the output to inspect
+failures::
+
+  $ make -O -j test
+
 Capture changes to development processes, such as build or release processes, in the
 `Makefile`_. Tasks important enough to include in the docs are important enough to
 capture in a machine runnable form in the `Makefile`_. See the commentary at the bottom
@@ -85,4 +96,4 @@ of the `Makefile`_ for guidance.
 .. _`reuse-tool`: https://reuse.software/dev/#tool
 .. _Makefile: https://gitlab.com/rpatterson/project-structure/-/blob/main/Makefile
 .. _`the TODO file`:
-   https://gitlab.com/rpatterson/project-structure/-/blob/main/docs/todo.rst
+   https://project-structure.readthedocs.io/en/latest/todo.html

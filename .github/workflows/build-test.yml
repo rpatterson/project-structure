@@ -29,8 +29,14 @@ name: "Build and Test"
 # - `TEST_PYPI_PASSWORD`:
 #   A PyPI API token
 #
+# - Add the project logo to the GitHub Social Preview:
+#     https://github.com/rpatterson/project-structure/settings
+#
 # Add them through the web UI or use the GitHub command-line tool:
 # https://docs.github.com/en/actions/security-guides/encrypted-secrets#creating-encrypted-secrets-for-a-repository
+#
+# You can also add the `ACTIONS_STEP_DEBUG` and `DEBUG` Actions variables and set them
+# to `true` to increase debugging output.
 
 env:
   PUID: "1001"
@@ -53,8 +59,7 @@ env:
         ) && 'true'
       ) || 'false'
     }}
-  # Uncomment for debugging output:
-  DEBUG: "true"
+  DEBUG: "${{ vars.DEBUG }}"
 
 on:
   # Run only on branches, not tags:
@@ -81,13 +86,20 @@ jobs:
       checks: "write"
     strategy:
       matrix:
-        PYTHON_MINORS:
-          - "3.11"
-          - "3.12"
-          - "3.10"
-          - "3.9"
-          - "3.8"
-    name: "build-test (python${{ matrix.PYTHON_MINORS }})"
+        DOCKER_VARIANT_OS:
+          - "debian"
+        DOCKER_VARIANT_LANGUAGE:
+          - "py311"
+          - "py312"
+          - "py310"
+          - "py39"
+          - "py38"
+    env:
+      DOCKER_VARIANT_OSES: "${{ matrix.DOCKER_VARIANT_OS }}"
+      DOCKER_VARIANT_LANGUAGES: "${{ matrix.DOCKER_VARIANT_LANGUAGE }}"
+      DOCKER_VARIANT: "\
+        ${{ matrix.DOCKER_VARIANT_OS }}-${{ matrix.DOCKER_VARIANT_LANGUAGE }}"
+    name: "build-test (${DOCKER_VARIANT})"
     steps:
       # Shared or common set up:
       - name: "Checkout source from VCS"
@@ -100,9 +112,7 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
-          init-job.sh entrypoint.sh make -e PYTHON_MINORS=${{ matrix.PYTHON_MINORS }}
-          test-push test-lint build-docker-${{ matrix.PYTHON_MINORS }}
-          test-docker-${{ matrix.PYTHON_MINORS }} test-clean
+          init-job.sh entrypoint.sh make -j -O -e release-all
 
       # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage
@@ -128,7 +138,8 @@ jobs:
             )
           )
         with:
-          name: "Test Suite Reports (python${{ matrix.PYTHON_MINORS }})"
+          name: >-
+            Test Suite Reports (${{ matrix.DOCKER_VARIANT }})
           path: >-
-            ./build/reports/*/*unit.xml
+            ./build/reports/*unit.xml
           reporter: "java-junit"

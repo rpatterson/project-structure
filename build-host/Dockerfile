@@ -4,10 +4,7 @@
 
 ## Container image in which to build, test, and release projects.
 
-# I *want* something to break to let me know if something changes in the latest version
-# of the base image changes something:
-# hadolint ignore=DL3007
-FROM docker:latest
+FROM docker:dind
 
 # Least volatile layers first:
 
@@ -33,6 +30,8 @@ ENV PROJECT_NAME="${PROJECT_NAME}"
 # Find the same home directory even when run as another user, for example `root`:
 ENV HOME="/home/runner"
 ENV PATH="${HOME}/.local/bin:${PATH}"
+# Render template targets without user input:
+ENV TEMPLATE_IGNORE_EXISTING=true
 # Prevent Node Version Manager (NVM) installing into `/bin/versions/**`:
 ENV NVM_DIR="${HOME}/.nvm"
 # Node.js releases compatible with Alpine Linux based on musl libc:
@@ -56,9 +55,13 @@ RUN \
     "git" \
     "gettext" \
     "grep" \
-    "py3-pip" \
+    "pipx" \
     "gnupg" \
     "curl" \
+    "imagemagick" \
+    "texinfo" \
+    "texlive" \
+    "librsvg" \
     "tar" \
     "github-cli" \
     && rm -rf /var/cache/apk/*
@@ -67,18 +70,21 @@ RUN \
 COPY [ "./bin/install-codecov.sh", "${HOME}/.local/bin/" ]
 # hadolint ignore=DL3042,DL4006,SC1091
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    pip3 install --user "pipx==1.2.0" && \
-    python3 -m "pipx" ensurepath && \
     pipx install "tox==4.11.3" && \
-    wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh" | \
+    wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh" | \
         bash && \
     echo 'nvm_get_arch() { nvm_echo x64-musl; }' >>"${HOME}/.nvm/nvm.sh" && \
 	. "${HOME}/.nvm/nvm.sh" || true && \
-    nvm install "18" && \
+    nvm install "20" && \
     ${HOME}/.local/bin/install-codecov.sh && \
+    mkdir -pv "${HOME}/.local/state/${PROJECT_NAME}/log/"
+
+# Configure the VCS client for the image user:
+ARG USER_SIGNINGKEY
+RUN --mount=type=cache,target=/root/.cache,sharing=locked \
     git config -f "${HOME}/.gitconfig" "user.name" "CI Runner" && \
     git config -f "${HOME}/.gitconfig" "user.email" \
     "runner@build-host.${PROJECT_NAMESPACE:-rpatterson}.localhost" && \
-    mkdir -pv "${HOME}/.local/state/${PROJECT_NAME}/log/"
+    git config --global user.signingkey "${USER_SIGNINGKEY}"
 
 COPY [ "./bin/init-job.sh",  "./bin/entrypoint.sh", "/usr/local/bin/" ]

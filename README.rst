@@ -2,6 +2,9 @@
 ..
 .. SPDX-License-Identifier: MIT
 
+.. image:: ./docs/_static/logo-120.png
+.. include-above-contents-start
+
 ########################################################################################
 Project Structure
 ########################################################################################
@@ -9,72 +12,84 @@ Project Structure foundation or template
 ****************************************************************************************
 
 .. list-table::
-   :class: borderless align-right
+   :widths: 15 17 17 17 17 17
+   :class: borderless align-right docutils field-list
 
-   * - .. figure:: https://img.shields.io/pypi/v/project-structure.svg?logo=pypi&label=PyPI&logoColor=gold
+   * - Project:
+     - .. figure:: https://img.shields.io/pypi/v/project-structure.svg?logo=pypi&label=PyPI&logoColor=gold
           :alt: PyPI latest release version
           :target: https://pypi.org/project/project-structure/
-       .. figure:: https://img.shields.io/pypi/pyversions/project-structure.svg?logo=python&label=Python&logoColor=gold
+     - .. figure:: https://img.shields.io/pypi/pyversions/project-structure.svg?logo=python&label=Python&logoColor=gold
           :alt: PyPI Python versions
           :target: https://pypi.org/project/project-structure/
-       .. figure:: https://img.shields.io/badge/code%20style-black-000000.svg
+     - .. figure:: https://img.shields.io/badge/code%20style-black-000000.svg
           :alt: Python code style
           :target: https://github.com/psf/black
-       .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
+     - .. figure:: https://readthedocs.org/projects/project-structure/badge/
+          :alt: Documentation status
+          :target: https://project-structure.readthedocs.io/en/latest/
+     - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
-
+   * - GitLab:
      - .. figure:: https://gitlab.com/rpatterson/project-structure/-/badges/release.svg
           :alt: GitLab latest release
           :target: https://gitlab.com/rpatterson/project-structure/-/releases
-       .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/pipeline.svg
+     - .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/pipeline.svg
           :alt: GitLab CI/CD pipeline status
           :target: https://gitlab.com/rpatterson/project-structure/-/commits/main
-       .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/coverage.svg
+     - .. figure:: https://gitlab.com/rpatterson/project-structure/badges/main/coverage.svg
           :alt: GitLab coverage report
           :target: https://gitlab.com/rpatterson/project-structure/-/commits/main
-       .. figure:: https://img.shields.io/gitlab/stars/rpatterson/project-structure?gitlab_url=https%3A%2F%2Fgitlab.com&logo=gitlab
+     - .. figure:: https://img.shields.io/gitlab/stars/rpatterson/project-structure?logo=gitlab
           :alt: GitLab repository stars
           :target: https://gitlab.com/rpatterson/project-structure
+     -
 
+   * - GitHub:
      - .. figure:: https://img.shields.io/github/v/release/rpatterson/project-structure?logo=github
           :alt: GitHub release (latest SemVer)
           :target: https://github.com/rpatterson/project-structure/releases
-       .. figure:: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml/badge.svg
+     - .. figure:: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml/badge.svg
           :alt: GitHub Actions status
           :target: https://github.com/rpatterson/project-structure/actions/workflows/build-test.yml
-       .. figure:: https://codecov.io/github/rpatterson/project-structure/branch/main/graph/badge.svg?token=GNKVQ8VYOU
+     - .. figure:: https://codecov.io/github/rpatterson/project-structure/branch/main/graph/badge.svg?token=GNKVQ8VYOU
           :alt: Codecov test coverage
           :target: https://app.codecov.io/github/rpatterson/project-structure
-       .. figure:: https://img.shields.io/github/stars/rpatterson/project-structure?logo=github
+     - .. figure:: https://img.shields.io/github/stars/rpatterson/project-structure?logo=github
           :alt: GitHub repository stars
           :target: https://github.com/rpatterson/project-structure/
+     -
 
-     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure?sort=semver&logo=docker
+   * - Docker:
+     - .. figure:: https://img.shields.io/docker/v/merpatterson/project-structure/main?logo=docker
           :alt: Docker Hub image version
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/pulls/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image pulls count
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/stars/merpatterson/project-structure?logo=docker
           :alt: Docker Hub stars
           :target: https://hub.docker.com/r/merpatterson/project-structure
-       .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
+     - .. figure:: https://img.shields.io/docker/image-size/merpatterson/project-structure?logo=docker
           :alt: Docker Hub image size
           :target: https://hub.docker.com/r/merpatterson/project-structure
+     -
 
+   * - Author:
      - .. figure:: https://img.shields.io/keybase/pgp/rpatterson?logo=keybase
           :alt: KeyBase Pretty Good Privacy (PGP) key ID
           :target: https://keybase.io/rpatterson
-       .. figure:: https://img.shields.io/github/followers/rpatterson?style=social
+     - .. figure:: https://img.shields.io/github/followers/rpatterson?logo=github
           :alt: GitHub followers count
           :target: https://github.com/rpatterson
-       .. figure:: https://img.shields.io/liberapay/receives/rpatterson.svg?logo=liberapay
+     - .. figure:: https://img.shields.io/liberapay/receives/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay donated per week
           :target: https://liberapay.com/rpatterson/donate
-       .. figure:: https://img.shields.io/liberapay/patrons/rpatterson.svg?logo=liberapay
+     - .. figure:: https://img.shields.io/liberapay/patrons/rpatterson?logo=liberapay&color=blue
           :alt: LiberaPay patrons count
           :target: https://liberapay.com/rpatterson/donate
+     -
 
 
 This repository provides a minimal, yet opinionated baseline for `Python`_ software
@@ -94,6 +109,7 @@ projects. It includes:
   push
 - Targets that automate releases
 - Targets that automate dependency upgrades
+- Documentation built by `Sphinx`_ with `useful Sphinx extensions`_
 - Targets used for both local development and on CI/CD platforms
 - A `GitLab CI/CD`_ pipeline integrating those CI/CD recipes and targets
 - A `GitHub Actions`_ workflow integrating those CI/CD recipes and targets
@@ -121,14 +137,17 @@ variants. Real projects can also merge those changes.
    https://gitlab.com/rpatterson/project-structure/-/blob/main/.pre-commit-config.yaml
 .. _`conventional commits`: https://www.conventionalcommits.org
 .. _`Towncrier`: https://towncrier.readthedocs.io/en/stable/
+.. _`Sphinx`: https://www.sphinx-doc.org/en/master/
+.. _`useful Sphinx extensions`:
+   https://www.sphinx-doc.org/en/master/usage/extensions/index.html
 .. _`GitLab CI/CD`: https://docs.gitlab.com/ee/ci/
 .. _`GitHub Actions`: https://docs.github.com/en/actions
 .. _`Organize source by feature`:
    https://www.seancdavis.com/posts/organize-components-by-keeping-related-files-close/
 
-.. include-end-before
+.. include-above-contents-end
 .. contents:: Table of Contents
-.. include-start-after
+.. include-below-contents-start
 
 
 ****************************************************************************************
@@ -172,7 +191,9 @@ have or better yet submit a PR with corrections.
 
 #. Merge into your project:
 
-   If starting a fresh project::
+   If starting a fresh project:
+
+   .. code:: console
 
      $ git clone --origin "template" --branch "${TEMPLATE_BRANCH:?}" \
      "https://gitlab.com/rpatterson/project-structure.git" "./foo-project"
@@ -181,27 +202,45 @@ have or better yet submit a PR with corrections.
      $ git remote add "origin" "git@gitlab.com:foo-username/foo-project.git"
      $ git switch -C "main" --track "origin/main"
 
-   If merging into an existing project::
+   If merging into an existing project:
+
+   .. code:: console
 
      $ git remote add "template" \
      "https://gitlab.com/rpatterson/project-structure.git"
      $ git config remote.template.tagOpt --no-tags
      $ git merge --allow-unrelated-histories "template/${TEMPLATE_BRANCH:?}"
 
-#. Rename files and directories derived from the project name::
+#. Rename files and directories derived from the project name:
+
+   .. code:: console
 
      $ git ls-files | grep -iE 'project.?structure'
 
-#. Rename project name and template creator identity strings::
+#. Rename project name and template creator identity strings:
+
+   .. code:: console
 
      $ git grep -iE 'project.?structure|ross|Patterson'
 
 #. Make changes described in ``# TEMPLATE:`` comments:
 
    These bits need the developer's attention and reasoning. Read the comments and follow
-   them with care::
+   them with care:
+
+   .. code:: console
 
      $ git grep "TEMPLATE"
+
+#. Update the project logo images:
+
+   .. code:: console
+
+     $ git ls-files 'logo*.png' '**/logo*.png' 'logo*.svg' '**/logo*.svg' \
+     'docs/_static/favicon.ico'
+
+#. Create `the project Matrix room`_, and set up the GitHub bot by using the ``Add
+   widgets, bridges & bots`` link at the bottom of the room info right pane.
 
 Lastly, remove this `Template usage`_ section and update the rest of this
 ``./README.rst`` for your project. When the template adds fixes and features, merge them
@@ -233,6 +272,8 @@ Local Installation
 
 Install by using any tool for installing standard Python 3 distributions such as
 `pip`_::
+
+.. code:: console
 
   $ pip3 install --user project-structure
 
@@ -271,9 +312,9 @@ Releases publish multi-platform images for the following platforms:
 Contributing
 ****************************************************************************************
 
-`GitLab hosts this project`_ and `mirrors it to GitHub`_ but use GitLab for reporting
-issues, submitting pull or merge requests and any other development or maintenance
-activity. See `the contributing documentation`_ for more details on how to get started
+`GitLab hosts this project`_ and `mirrors it to GitHub`_. Use GitLab for `reporting
+issues`_ or `submitting pull or merge requests`_. Join `the project Matrix room`_ for
+discussion. See `the contributing documentation`_ for more details on how to get started
 with development.
 
 
@@ -309,7 +350,7 @@ References
 .. target-notes::
 
 .. _`the contributing documentation`:
-   https://gitlab.com/rpatterson/project-structure/-/blob/main/docs/contributing.rst
+   https://project-structure.readthedocs.io/en/latest/contributing.html
 
 .. _pip: https://pip.pypa.io/en/stable/installation/
 
@@ -322,3 +363,8 @@ References
    https://gitlab.com/rpatterson/project-structure
 .. _`mirrors it to GitHub`:
    https://github.com/rpatterson/project-structure
+.. _`reporting issues`: https://gitlab.com/rpatterson/project-structure/-/issues/new
+.. _`submitting pull or merge requests`:
+   https://gitlab.com/rpatterson/project-structure/-/merge_requests/new
+.. _`the project Matrix room`:
+   https://matrix.to/#/#rpatterson_project-structure:matrix.org

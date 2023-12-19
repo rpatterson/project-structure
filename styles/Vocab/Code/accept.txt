@@ -50,8 +50,9 @@ HEAD
 head
 via
 INFO
-NEWS
+info
 PUID
+man
 junit
 failure
 [Cc]odecov

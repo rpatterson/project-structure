@@ -8,8 +8,8 @@
     "lint:code": "npm run lint:prettier",
     "lint:prettier": "prettier --check './'",
     "lint:prose": "npm run lint:write-good && npm run lint:alex",
-    "lint:write-good": "git ls-files -co --exclude-standard -z ':!LICENSES' ':!styles/*/meta.json' ':!styles/*/*.yml' ':!requirements/**' | xargs -r -0 -t -- write-good --no-weasel --no-adverb --no-illusion",
-    "lint:alex": "git ls-files -co --exclude-standard -z ':!.gitignore' ':!**/.gitignore' ':!LICENSES' ':!styles/*/meta.json' ':!styles/*/*.yml' ':!styles/Vocab' ':!*.license' ':!docs/conf.py' ':!requirements/**' | xargs -r -0 -t -- alex",
+    "lint:write-good": "git ls-files -co --exclude-standard -z ':!LICENSES' ':!styles/*/meta.json' ':!styles/*/*.yml' ':!*.png' ':!requirements/**' ':!package-lock.json' | xargs -r -0 -t -- write-good --no-weasel --no-adverb --no-illusion",
+    "lint:alex": "git ls-files -co --exclude-standard -z ':!.gitignore' ':!**/.gitignore' ':!LICENSES' ':!styles/*/meta.json' ':!styles/*/*.yml' ':!styles/Vocab' ':!*.license' ':!docs/conf.py' ':!*.png' ':!requirements/**' | xargs -r -0 -t -- alex",
     "format": "prettier --write './'"
   },
   "keywords": [
@@ -24,15 +24,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/rpatterson/project-structure.git"
+    "url": "https://project-structure.readthedocs.io/en/latest/"
   },
   "funding": {
     "type": "liberapay",
     "url": "https://liberapay.com/rpatterson/donate"
   },
   "devDependencies": {
-    "alex": "^11.0.0",
-    "prettier": "2.8.8",
-    "write-good": "^1.0.8"
+    "@awmottaz/prettier-plugin-void-html": ">=1.1.0",
+    "alex": ">=11.0.0",
+    "prettier": ">=2.8.8",
+    "write-good": ">=1.0.8"
+  },
+  "overrides": {
+    "@awmottaz/prettier-plugin-void-html": {
+      "prettier": ">=2.8.8"
+    }
   }
 }

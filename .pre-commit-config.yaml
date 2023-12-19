@@ -9,7 +9,7 @@ repos:
 
   # Enforce conventional commit messages before pushing to a remote:
   - repo: "https://github.com/commitizen-tools/commitizen"
-    rev: "3.12.0"
+    rev: "v3.13.0"
     hooks:
       - id: "commitizen"
 
@@ -20,13 +20,13 @@ repos:
       - id: "test-push"
         name: "test-push"
         stages: ["push"]
-        entry: "make -e test-push"
+        entry: "make -j -O -e test-push"
         language: "system"
         pass_filenames: false
       # Fail fast, run the longer running tests if everything else has already passed:
       - id: "test"
         name: "test"
         stages: ["commit", "merge-commit", "push", "manual"]
-        entry: "make -e test"
+        entry: "make -j -O -e test"
         language: "system"
         pass_filenames: false

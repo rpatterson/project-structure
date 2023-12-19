@@ -36,9 +36,15 @@
 #   to the hostname, e.g.:
 #     https://token-name:token-value@gitlab.com/rpatterson/project-structure.git
 #
+# - Add the project logo to the GitLab Project avatar:
+#     https://gitlab.com/rpatterson/project-structure/edit#js-general-project-settings
+#
 # Mask all except `GPG_SIGNING_PRIVATE_KEY`, which is too large to mask. Protect all
 # except `CODECOV_TOKEN` and `DOCKER_PASS` which contributors need to use CI to test
 # their work before maintainers merge into `develop` or `main`.
+#
+# You can also add the `DEBUG` CI/CD variable and set it to `true` to increase debugging
+# output.
 
 variables:
   # Variables controlling behavior:
@@ -46,8 +52,6 @@ variables:
   PGID: "1001"
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
-  # Uncomment to get more debugging output:
-  # DEBUG: "true"
 
 default:
   image:
@@ -89,20 +93,21 @@ build-test:
   interruptible: true
   parallel:
     matrix:
-      - PYTHON_MINORS:
-          - "3.11"
-          - "3.12"
-          - "3.10"
-          - "3.9"
-          - "3.8"
+      - DOCKER_VARIANT_OS:
+          - "debian"
+      - DOCKER_VARIANT_LANGUAGE:
+          - "py311"
+          - "py312"
+          - "py310"
+          - "py39"
+          - "py38"
+  variables:
+    DOCKER_VARIANT_OSES: "$DOCKER_VARIANT_OS"
+    DOCKER_VARIANT_LANGUAGES: "$DOCKER_VARIANT_LANGUAGE"
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-
-      init-job.sh entrypoint.sh make -e
-      test-push test-lint
-      build-docker-$PYTHON_MINORS
-      test-docker-$PYTHON_MINORS
-      release-docker-$PYTHON_MINORS test-clean
+      init-job.sh entrypoint.sh make -j -O -e release-all
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     # Upload build artifacts:
@@ -141,7 +146,7 @@ release:
         && $CI_PIPELINE_SOURCE != "schedule"
   script:
     - >-
-      init-job.sh entrypoint.sh make -e release-pkgs test-clean
+      init-job.sh entrypoint.sh make -j -O -e release-pkgs
   artifacts:
     paths:
       - "./dist/project?structure-*"
@@ -154,7 +159,7 @@ merge-upgrade:
         $CI_COMMIT_BRANCH =~ /^.+-upgrade$/
   script:
     - >-
-      init-job.sh entrypoint.sh make -e VCS_BRANCH_SUFFIX="upgrade" devel-merge
+      init-job.sh entrypoint.sh make -j -O -e VCS_BRANCH_SUFFIX="upgrade" devel-merge
 
 release-bump:
   stage: "release-bump"
@@ -178,7 +183,7 @@ release-bump:
         && $CI_PIPELINE_SOURCE != "schedule"
   script:
     - >-
-      init-job.sh entrypoint.sh make -e test-push release-bump
+      init-job.sh entrypoint.sh make -j -O -e release-bump
 
 # Workaround GitLab's handling of pipeline status when pushing both a branch and a tag:
 release-version:
@@ -217,4 +222,4 @@ scheduled:
         $CI_PIPELINE_SOURCE == "schedule"
   script:
     - >-
-      init-job.sh entrypoint.sh make -e $SCHEDULED_TARGETS
+      init-job.sh entrypoint.sh make -j -O -e $SCHEDULED_TARGETS
