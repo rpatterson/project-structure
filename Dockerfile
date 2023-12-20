@@ -60,6 +60,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install --no-install-recommends -y "gosu=1.14-1+b6"
 
+# Build-time labels:
+ARG VERSION=
+LABEL org.opencontainers.image.version=${VERSION}
+
+
+## Container image for use by end users.
+
+# Stay as close to an un-customized environment as possible:
+FROM base AS user
+
 # Install dependencies with fixed versions in a separate layer to optimize build times
 # because this step takes the most time and changes the least often.
 ARG PYTHON_ENV=py311
@@ -71,16 +81,6 @@ RUN --mount=type=cache,target=/root/.cache,sharing=locked \
     source "./bin/activate" && \
     pip3 install --no-deps -r "./requirements.txt" && \
     rm -v "./requirements.txt"
-
-# Build-time labels:
-ARG VERSION=
-LABEL org.opencontainers.image.version=${VERSION}
-
-
-## Container image for use by end users.
-
-# Stay as close to an un-customized environment as possible:
-FROM base AS user
 
 # Install this package in the most common/standard Python way while still being able to
 # build the image locally.
