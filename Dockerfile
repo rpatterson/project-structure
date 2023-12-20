@@ -33,8 +33,10 @@ ENV PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"
 ENV PROJECT_NAME="${PROJECT_NAME}"
 # Find the same home directory even when run as another user, for example `root`.
 ENV HOME="/home/${PROJECT_NAME}"
+# Python-specific environment:
 ENV PYTHON_MINOR="${PYTHON_MINOR}"
-WORKDIR "${HOME}"
+ENV VIRTUAL_ENV="/opt/${PROJECT_NAMESPACE}/${PROJECT_NAME}"
+ENV PATH="${VIRTUAL_ENV}/bin:${HOME}/.local/bin:${PATH}"
 ENTRYPOINT [ "entrypoint.sh" ]
 CMD [ "python" ]
 
@@ -58,14 +60,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install --no-install-recommends -y "gosu=1.14-1+b6"
 
-WORKDIR "/usr/local/src/${PROJECT_NAME}/"
 # Install dependencies with fixed versions in a separate layer to optimize build times
 # because this step takes the most time and changes the least often.
 ARG PYTHON_ENV=py311
-COPY [ "./requirements/${PYTHON_ENV}/user.txt", "./requirements/${PYTHON_ENV}/" ]
-# hadolint ignore=DL3042
+WORKDIR "${VIRTUAL_ENV}"
+COPY [ "./requirements/${PYTHON_ENV}/user.txt", "./requirements.txt" ]
+# hadolint ignore=DL3042,SC1091
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    pip3 install --no-deps -r "./requirements/${PYTHON_ENV}/user.txt"
+    python3 -m "venv" "./" && \
+    source "./bin/activate" && \
+    pip3 install --no-deps -r "./requirements.txt" && \
+    rm -v "./requirements.txt"
 
 # Build-time labels:
 ARG VERSION=
@@ -77,17 +82,16 @@ LABEL org.opencontainers.image.version=${VERSION}
 # Stay as close to an un-customized environment as possible:
 FROM base AS user
 
-# Least volatile layers first:
-WORKDIR "/home/${PROJECT_NAME}/"
-
 # Install this package in the most common/standard Python way while still being able to
 # build the image locally.
 ARG PYTHON_WHEEL
 COPY [ "${PYTHON_WHEEL}", "${PYTHON_WHEEL}" ]
-# hadolint ignore=DL3013,DL3042
+# hadolint ignore=DL3013,DL3042,SC1091
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
+    source "./bin/activate" && \
     pip3 install "${PYTHON_WHEEL}" && \
-    rm -rfv "./dist/"
+    rm -rv "./dist/"
+WORKDIR "${HOME}"
 
 
 ## Container image for use by developers.
@@ -101,15 +105,13 @@ LABEL org.opencontainers.image.description="Project structure foundation or temp
 
 # Activate the Python virtual environment
 ENV VIRTUAL_ENV="/usr/local/src/${PROJECT_NAME}/.tox/${PYTHON_ENV}"
-ENV PATH="${VIRTUAL_ENV}/bin:${HOME}/.local/bin:${PATH}"
-# Remain in the checkout `WORKDIR` and make the build tools the default
-# command to run.
-ENV PATH="${HOME}/.local/bin:${PATH}"
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 # Install tox in the unprivileged user's `${HOME}`:
 ENV PIPX_HOME="/${HOME}/.local/pipx"
 # Set any environment variables used as options in the `./Makefile`:
 ENV PYTHON_MINORS="${PYTHON_MINOR}"
-# Work in the checkout:
+# Remain in the checkout `WORKDIR` and make the build tools the default
+# command to run:
 WORKDIR "/usr/local/src/${PROJECT_NAME}/"
 # Have to use the shell form of `CMD` because it needs variable substitution:
 # hadolint ignore=DL3025
@@ -119,11 +121,10 @@ CMD tox -e "${PYTHON_ENV}"
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get install --no-install-recommends -y \
-    "texinfo=6.8-6+b1" "texlive=2022.20230122-3" "ghostscript=10.0.0~dfsg-11+deb12u3"
+    "texinfo=6.8-6+b1" "texlive=2022.20230122-3" "ghostscript=10.0.0~dfsg-11+deb12u3" \
+    "pipx=1.1.0-1"
 
 # Bake in tools used in the inner loop of the development cycle:
 # hadolint ignore=DL3042
 RUN --mount=type=cache,target=/root/.cache,sharing=locked \
-    pip3 install --user "pipx==1.2.1" && \
-    python3 -m "pipx" ensurepath && \
     pipx install "tox==4.11.3"
