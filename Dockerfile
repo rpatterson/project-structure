@@ -63,8 +63,6 @@ LABEL org.opencontainers.image.version=${VERSION}
 
 # Stay as close to an un-customized environment as possible:
 FROM base AS user
-# Defensive shell options:
-SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # TEMPLATE: Add image setup specific to the user image, often installable packages built
 # from the project.
@@ -74,8 +72,6 @@ SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # Stay as close to the user image as possible for build cache efficiency:
 FROM base AS devel
-# Defensive shell options:
-SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # Least volatile layers first:
 LABEL org.opencontainers.image.title="Project Structure Development"
