@@ -393,10 +393,10 @@ else
 	pull_target="devel"
 endif
 endif
+	tag_suffix="$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
 ifeq ($(DOCKER_BUILD_PULL),true)
 # Pull the image and simulate building it here:
-	docker image pull --quiet "$(DOCKER_IMAGE)\
-	:$${pull_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
+	docker image pull --quiet "$(DOCKER_IMAGE):$${pull_target}-$${tag_suffix}"
 	docker image ls --digests "$(
 	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
 	)" | tee -a "$(@)"
@@ -413,8 +413,11 @@ else
 endif
 	docker_build_args="--target $${build_target}"
 # Always apply the fully qualified variant tag with all components:
-	docker_build_args+=" --tag \
-	$(DOCKER_IMAGE):$${build_target}-$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
+	for image in $(foreach \
+	    registry,$(DOCKER_REGISTRIES),$(DOCKER_IMAGE_$(registry)))
+	do
+	    docker_build_args+=" --tag $${image}:$${build_target}-$${tag_suffix}"
+	done
 ifneq ($(DOCKER_BUILD_TARGET),base)
 	for image_tag in $$(
 	    $(MAKE) -e --quiet --no-print-directory --debug=none build-docker-tags
