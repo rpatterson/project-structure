@@ -119,8 +119,7 @@ CMD tox -e "${PYTHON_ENV}"
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get install --no-install-recommends -y \
-    "texinfo=6.8-6+b1" "texlive=2022.20230122-3" "ghostscript=10.0.0~dfsg-11+deb12u2" \
-    "librsvg2-2=2.54.7+dfsg-1~deb12u1"
+    "texinfo=6.8-6+b1" "texlive=2022.20230122-3" "ghostscript=10.0.0~dfsg-11+deb12u2"
 
 # Bake in tools used in the inner loop of the development cycle:
 # hadolint ignore=DL3042
