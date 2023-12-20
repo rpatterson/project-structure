@@ -198,7 +198,6 @@ export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
 DOCKER_OSES=$(DOCKER_OS_DEFAULT)
-# TEMPLATE: Update for the project language:
 DOCKER_LANGUAGE_DEFAULT=$(PYTHON_HOST_ENV)
 DOCKER_LANGUAGES=$(PYTHON_ENVS)
 # Build all image variants in parallel:
@@ -825,8 +824,7 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
-		./var/log/npm-install.log \
-		$(DOCKER_DEFAULT_VAR)/log/build-devel.log
+		./var/log/npm-install.log $(DOCKER_DEFAULT_VAR)/log/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -1068,8 +1066,7 @@ define build_docker_host_tox_template=
 	    make -e "$$(@:var-docker/$(1)-$$(PYTHON_HOST_ENV)/%=./%)"
 	touch "$$(@)"
 endef
-$(foreach os,$(DOCKER_OSES),\
-    $(eval $(call build_docker_host_tox_template,$(os))))
+$(foreach os,$(DOCKER_OSES),$(eval $(call build_docker_host_tox_template,$(os))))
 define build_docker_tox_template=
 ./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json: \
 		./var-docker/$(1)-$(2)/log/build-devel.log ./tox.ini \
@@ -1102,8 +1099,7 @@ define build_docker_requirements_template=
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	    make -e "./requirements/$(2)/$(3)" | tee -a "$$(@)"
 endef
-$(foreach os,$(DOCKER_OSES),\
-    $(foreach language,$(PYTHON_ENVS),\
+$(foreach os,$(DOCKER_OSES),$(foreach language,$(PYTHON_ENVS),\
     $(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES),\
     $(eval $(call build_docker_requirements_template,$(os),$(language),$(basename))))))
 
