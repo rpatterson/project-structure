@@ -180,24 +180,20 @@ export DOCKER_BUILD_TARGET=user
 DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
-DOCKER_VARIANT_OS_DEFAULT=debian
-DOCKER_VARIANT_OSES=$(DOCKER_VARIANT_OS_DEFAULT)
-DOCKER_VARIANT_OS=$(firstword $(DOCKER_VARIANT_OSES))
+DOCKER_OS_DEFAULT=debian
+DOCKER_OSES=$(DOCKER_OS_DEFAULT)
 # TEMPLATE: Update for the project language:
-DOCKER_VARIANT_LANGUAGE_DEFAULT=
-DOCKER_VARIANT_LANGUAGES=$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
-DOCKER_VARIANT_LANGUAGE=$(firstword $(DOCKER_VARIANT_LANGUAGES))
+DOCKER_LANGUAGE_DEFAULT=
+DOCKER_LANGUAGES=$(DOCKER_LANGUAGE_DEFAULT)
 # Build all image variants in parallel:
-ifeq ($(DOCKER_VARIANT_LANGUAGES),)
-DOCKER_VARIANTS=$(DOCKER_VARIANT_OSES)
-DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)
-export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)
+ifeq ($(DOCKER_LANGUAGES),)
+DOCKER_VARIANTS=$(DOCKER_OSES)
+DOCKER_DEFAULT=$(DOCKER_OS_DEFAULT)
 else
-DOCKER_VARIANTS=$(foreach language,$(DOCKER_VARIANT_LANGUAGES),\
-    $(DOCKER_VARIANT_OSES:%=%-$(language)))
-DOCKER_VARIANT_DEFAULT=$(DOCKER_VARIANT_OS_DEFAULT)-$(DOCKER_VARIANT_LANGUAGE_DEFAULT)
-export DOCKER_VARIANT=$(DOCKER_VARIANT_OS)-$(DOCKER_VARIANT_LANGUAGE)
+DOCKER_VARIANTS=$(foreach language,$(DOCKER_LANGUAGES),$(DOCKER_OSES:%=%-$(language)))
+DOCKER_DEFAULT=$(DOCKER_OS_DEFAULT)-$(DOCKER_LANGUAGE_DEFAULT)
 endif
+export DOCKER_VARIANT=$(DOCKER_DEFAULT)
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
@@ -251,13 +247,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log ./.env.~out~
+		./var-docker/$(DOCKER_DEFAULT)/log/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-user.log \
+run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_DEFAULT)/log/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -344,7 +340,7 @@ $(DOCKER_REGISTRIES:%=build-docker-tags-%): ./.tox/build/.tox-info.json
 	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
 	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
 # Print only the branch tag if this image variant is the default variant:
-ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	echo "$${docker_image}:$(DOCKER_BUILD_TARGET)-$(DOCKER_BRANCH_TAG)"
 ifeq ($(DOCKER_BUILD_TARGET),user)
 	echo "$${docker_image}:$(DOCKER_BRANCH_TAG)"
@@ -371,7 +367,7 @@ ifeq ($(VCS_BRANCH),main)
 	    echo "$${docker_image}:$${target_variant}-v$${major_version}"
 	fi
 # Print the rest of the unqualified tags only for the default variant:
-ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_DEFAULT))
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	if test "v$${minor_version}" != "$(DOCKER_BRANCH_TAG)"
 	then
 	    echo "$${docker_image}:v$${minor_version}"
@@ -717,7 +713,7 @@ endif
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
 		./var/log/npm-install.log \
-		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
+		./var-docker/$(DOCKER_DEFAULT)/log/build-devel.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -893,7 +889,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		./var-docker/$(DOCKER_VARIANT_DEFAULT)/log/build-devel.log
+		./var-docker/$(DOCKER_DEFAULT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
