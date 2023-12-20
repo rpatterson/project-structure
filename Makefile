@@ -622,7 +622,7 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 	    make -e TEST_CODE_PREREQS= test-code
 # Upload any build or test artifacts to CI/CD providers
 	if test "$$(GITLAB_CI)" = "true" &&
-	    test "$(@:test-docker-devel-%=%)" = "$(DOCKER_DEFAULT)"
+	    test "$$(@:test-docker-devel-%=%)" = "$$(DOCKER_DEFAULT)"
 	then
 	    if test "$$(CODECOV_TOKEN)" != ""
 	    then
