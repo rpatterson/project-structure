@@ -910,8 +910,7 @@ release-all: ./var/log/git-fetch.log
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
-		$(HOME)/.local/bin/tox
+devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
 	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/*/meta.json' \
@@ -930,7 +929,11 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log \
 	        --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT"
 # Run source code formatting tools implemented in JavaScript:
 	~/.nvm/nvm-exec npm run format
-# Run source code formatting tools implemented in Python:
+# Format Python source code inside the canonical Docker image variant:
+	docker compose run --rm -T $(PROJECT_NAME)-devel make -e devel-format-py
+.PHONY: devel-format-py
+## Run source code formatting tools implemented in Python:
+devel-format-py: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	$(TOX_EXEC_ARGS) -- autoflake -r -i --remove-all-unused-imports \
 	    --remove-duplicate-keys --remove-unused-variables \
 	    --remove-unused-variables "./src/$(PYTHON_PROJECT_PACKAGE)/" \
