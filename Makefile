@@ -126,6 +126,7 @@ export DOCKER_GID:=$(shell getent group "docker" | cut -d ":" -f 3)
 
 # Values related to supported Python versions:
 # Find the installed supported Python versions:
+PYTHON_SUPPORTED_ENV=py$(subst .,,$(PYTHON_SUPPORTED_MINOR))
 export PYTHON_MINORS:=$(foreach python_minor,$(PYTHON_SUPPORTED_MINORS:%=%),\
     $(shell which "python$(python_minor)" >"/dev/null" && echo "$(python_minor)"))
 export PYTHON_MINOR=$(PYTHON_HOST_MINOR)
@@ -198,8 +199,10 @@ export DOCKER_BUILD_PULL=false
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
 DOCKER_OSES=$(DOCKER_OS_DEFAULT)
-DOCKER_LANGUAGE_DEFAULT=$(PYTHON_HOST_ENV)
+DOCKER_LANGUAGE_DEFAULT=$(PYTHON_SUPPORTED_ENV)
 DOCKER_LANGUAGES=$(PYTHON_ENVS)
+DOCKER_LANGUAGES_OTHER=$(filter-out \
+    $(DOCKER_LANGUAGE_DEFAULT),$(DOCKER_LANGUAGES))
 # Build all image variants in parallel:
 ifeq ($(DOCKER_LANGUAGES),)
 DOCKER_VARIANTS=$(DOCKER_OSES)
@@ -211,6 +214,7 @@ endif
 export DOCKER_VARIANT=$(DOCKER_DEFAULT)
 DOCKER_DEFAULT_VAR=./var-docker/$(DOCKER_DEFAULT)
 DOCKER_OS_DEFAULT_VAR=./var-docker/$(DOCKER_OS_DEFAULT)
+DOCKER_DEFAULT_TOX=$(DOCKER_DEFAULT_VAR)/.tox/$(DOCKER_LANGUAGE_DEFAULT)
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
@@ -254,7 +258,7 @@ DOCKER_PLATFORMS=
 ifeq ($(RELEASE_PUBLISH),true)
 PYPI_REPO=pypi
 # Only build and publish multi-platform images for the canonical Python version:
-ifeq ($(PYTHON_MINOR),$(PYTHON_HOST_MINOR))
+ifeq ($(PYTHON_MINOR),$(PYTHON_SUPPORTED_MINOR))
 # TEMPLATE: Choose the platforms on which your users run the image. These default
 # platforms should cover most common end-user platforms, including modern Apple M1 CPUs,
 # Raspberry Pi devices, and AWS Graviton instances:
@@ -341,11 +345,10 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: $(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+build-docs-watch: $(DOCKER_DEFAULT_TOX)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
-	export DOCKER_VARIANT="$(DOCKER_DEFAULT)"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    tox exec -e "$(PYTHON_HOST_ENV)" -- \
+	    tox exec -e "$(PYTHON_SUPPORTED_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 # Done as a separate target because this builder fails every other run without the
@@ -353,19 +356,18 @@ build-docs-watch: $(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: $(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	export DOCKER_VARIANT="$(DOCKER_DEFAULT)"
+build-docs-devhelp: $(DOCKER_DEFAULT_TOX)/.tox-info.json
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    ./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn -E \
+	    ./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn -E \
 	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
 $(DOCS_SPHINX_BUILDERS:%=build-docs-%): \
-		$(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json \
+		$(DOCKER_DEFAULT_TOX)/.tox-info.json \
 		build-docs-devhelp
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    ./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
+	    ./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
 	    -j "auto" -D autosummary_generate="0" -D autoapi_generate_api_docs="0" \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
@@ -594,8 +596,7 @@ test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: $(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
-	export DOCKER_VARIANT="$(DOCKER_DEFAULT)"
+test-lint-docs-rstcheck: $(DOCKER_DEFAULT_TOX)/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
@@ -603,7 +604,7 @@ test-lint-docs-rstcheck: $(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info
 #     INFO docs/news.rst:317 Duplicate implicit target name: "bugfixes".
 	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
 	    xargs -r -0 -- docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    ./.tox/$(PYTHON_HOST_ENV)/bin/rstcheck
+	    ./.tox/$(PYTHON_SUPPORTED_ENV)/bin/rstcheck
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
@@ -813,7 +814,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(var
 release-docker-readme: ./var/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
-	if TEST "$${PYTHON_ENV}" = "$(PYTHON_HOST_ENV)"
+	if TEST "$${PYTHON_ENV}" = "$(PYTHON_SUPPORTED_ENV)"
 	then
 	    $(MAKE) -e "./var/log/docker-login-DOCKER.log"
 	    docker compose pull --quiet pandoc docker-pushrm
@@ -1019,13 +1020,13 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		$(DOCKER_DEFAULT_VAR)/.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+		$(DOCKER_DEFAULT_TOX)/.tox-info.json
 	rm -vf ./dist/*
 	mkdir -pv "$(dir $(@))"
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
 	docker compose run --rm -T $(PROJECT_NAME)-devel tox run -e \
-	    "$(PYTHON_HOST_ENV)" --override "testenv.package=external" --pkg-only |
+	    "$(PYTHON_SUPPORTED_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
 	cp -lfv $(DOCKER_DEFAULT_VAR)/.tox/.pkg/tmp/dist/* "./dist/"
@@ -1056,14 +1057,15 @@ $(foreach python_env,$(PYTHON_ENVS),\
 ## Docker real targets:
 
 # Initialize Docker bind volumes to avoid parallel make run race conditions:
+DOCKER_OS_SUPPORTED_TOX=$(PYTHON_SUPPORTED_ENV)/.tox/$(PYTHON_SUPPORTED_ENV)
 define build_docker_host_tox_template=
-./var-docker/$(1)-$$(PYTHON_HOST_ENV)/.tox/$$(PYTHON_HOST_ENV)/.tox-info.json: \
-		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/build-devel.log ./tox.ini \
-		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/requirements/test.txt.log \
-		./var-docker/$(1)-$$(PYTHON_HOST_ENV)/log/requirements/devel.txt.log
-	export DOCKER_VARIANT="$(1)-$$(PYTHON_HOST_ENV)"
+./var-docker/$(1)-$(DOCKER_OS_SUPPORTED_TOX)/.tox-info.json: \
+		./var-docker/$(1)-$$(PYTHON_SUPPORTED_ENV)/log/build-devel.log ./tox.ini \
+		./var-docker/$(1)-$$(PYTHON_SUPPORTED_ENV)/log/requirements/test.txt.log \
+		./var-docker/$(1)-$$(PYTHON_SUPPORTED_ENV)/log/requirements/devel.txt.log
+	export DOCKER_VARIANT="$(1)-$$(PYTHON_SUPPORTED_ENV)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
-	    make -e "$$(@:var-docker/$(1)-$$(PYTHON_HOST_ENV)/%=./%)"
+	    make -e "$$(@:var-docker/$(1)-$$(PYTHON_SUPPORTED_ENV)/%=./%)"
 	touch "$$(@)"
 endef
 $(foreach os,$(DOCKER_OSES),$(eval $(call build_docker_host_tox_template,$(os))))
@@ -1076,7 +1078,7 @@ define build_docker_tox_template=
 	    make -e "$$(@:var-docker/$(1)-$(2)/%=./%)"
 	touch "$$(@)"
 endef
-$(foreach os,$(DOCKER_OSES),$(foreach language,$(PYTHON_OTHER_ENVS),\
+$(foreach os,$(DOCKER_OSES),$(foreach language,$(DOCKER_LANGUAGES_OTHER),\
     $(eval $(call build_docker_tox_template,$(os),$(language)))))
 define build_docker_tox_bootstrap_template=
 ./var-docker/$(1)-$(2)/.tox/.log/$(2)-bootstrap.log: \
