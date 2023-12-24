@@ -87,9 +87,12 @@ build-test:
   interruptible: true
   parallel:
     matrix:
-      - DOCKER_VARIANT_OSES:
+      - DOCKER_OS:
           - "debian"
-        # DOCKER_VARIANT_LANGUAGES: []
+      # - DOCKER_LANGUAGE: []
+  variables:
+    DOCKER_OSES: "$DOCKER_OS"
+    DOCKER_LANGUAGES: "$DOCKER_LANGUAGE"
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-

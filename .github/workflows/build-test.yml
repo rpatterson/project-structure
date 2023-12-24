@@ -80,10 +80,14 @@ jobs:
       checks: "write"
     strategy:
       matrix:
-        DOCKER_VARIANT_OSES:
+        DOCKER_OS:
           - "debian"
-        # DOCKER_VARIANT_LANGUAGES: []
-    name: "build-test"
+        # DOCKER_LANGUAGE: []
+    env:
+      DOCKER_OSES: "${{ matrix.DOCKER_OS }}"
+      DOCKER_LANGUAGES: "${{ matrix.DOCKER_LANGUAGE }}"
+      DOCKER_VARIANT: "\
+        ${{ matrix.DOCKER_OS }}-${{ matrix.DOCKER_LANGUAGE }}"
     steps:
       # Shared or common set up:
       - name: "Checkout source from VCS"
