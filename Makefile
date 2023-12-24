@@ -386,11 +386,10 @@ build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.js
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
+	pull_target="devel"
 ifneq ($(DOCKER_BUILD_TARGET),base)
 ifneq ($(DOCKER_BUILD_TARGET),bootstrap)
 	pull_target="$(DOCKER_BUILD_TARGET)"
-else
-	pull_target="devel"
 endif
 endif
 	tag_suffix="$(DOCKER_VARIANT)-$(DOCKER_BRANCH_TAG)"
