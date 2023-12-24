@@ -869,7 +869,7 @@ test-lint-docker-volumes:
 test-push: ./var/log/git-fetch.log ./.tox/build/.tox-info.json
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 ifeq ($(CI),true)
-ifneq ($(PYTHON_MINOR),$(PYTHON_HOST_MINOR))
+ifneq ($(PYTHON_MINOR),$(PYTHON_SUPPORTED_MINOR))
 # Don't waste CI time, only continue for the canonical version:
 	exit
 endif
