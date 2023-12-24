@@ -1155,7 +1155,8 @@ $(foreach variant,$(DOCKER_VARIANTS),\
 define build_docker_bootstrap_template=
 ./var-docker/$$(DOCKER_OS_DEFAULT)-$(1)/log/build-bootstrap.log: ./Dockerfile \
 		./bin/entrypoint.sh \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/docker-login-DOCKER.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$$(DOCKER_OS_DEFAULT)-$(1)" \
