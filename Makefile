@@ -902,7 +902,8 @@ clean:
 define build_docker_base_template=
 ./var-docker/$(1)/log/build-base.log: ./Dockerfile ./bin/entrypoint.sh \
 		./.tox/build/.tox-info.json \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/docker-login-DOCKER.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="base" \
@@ -915,7 +916,8 @@ define build_docker_devel_template=
 ./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
 		./var-docker/$(1)/log/build-base.log \
 		./.tox/build/.tox-info.json \
-		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
+		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
+		./var/log/docker-login-DOCKER.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="devel" \
@@ -929,7 +931,7 @@ define build_docker_user_template=
 		./var-docker/$(1)/log/build-base.log \
 		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/build-pkgs.log
+		./var/log/docker-login-DOCKER.log ./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
