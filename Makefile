@@ -388,14 +388,12 @@ endif
 ifeq ($(RELEASE_PUBLISH),true)
 PYPI_REPO=pypi
 PYPI_HOSTNAME=pypi.org
-ifeq ($(PYTHON_MINOR),$(PYTHON_HOST_MINOR))
 # Only build and publish multi-platform images for the canonical Python version:
 ifeq ($(PYTHON_MINOR),$(PYTHON_SUPPORTED_MINOR))
 # TEMPLATE: Choose the platforms on which your users run the image. These default
 # platforms should cover most common end-user platforms, including modern Apple M1 CPUs,
 # Raspberry Pi devices, and AWS Graviton instances:
 DOCKER_PLATFORMS=linux/amd64 linux/arm64 linux/arm/v7
-endif
 endif
 endif
 endif
