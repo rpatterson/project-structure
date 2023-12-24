@@ -29,9 +29,9 @@ LABEL org.opencontainers.image.authors="Ross Patterson <me@rpatterson.net>"
 LABEL org.opencontainers.image.vendor="rpatterson.net"
 LABEL org.opencontainers.image.base.name="docker.io/library/python:${PYTHON_MINOR}"
 
-# Find the same home directory even when run as another user, for example `root`.
 ENV PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"
 ENV PROJECT_NAME="${PROJECT_NAME}"
+# Find the same home directory even when run as another user, for example `root`.
 ENV HOME="/home/${PROJECT_NAME}"
 ENV PYTHON_MINOR="${PYTHON_MINOR}"
 WORKDIR "${HOME}"
@@ -76,8 +76,6 @@ LABEL org.opencontainers.image.version=${VERSION}
 
 # Stay as close to an un-customized environment as possible:
 FROM base AS user
-# Defensive shell options:
-SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # Least volatile layers first:
 WORKDIR "/home/${PROJECT_NAME}/"
@@ -96,8 +94,6 @@ RUN --mount=type=cache,target=/root/.cache,sharing=locked \
 
 # Stay as close to the user image as possible for build cache efficiency:
 FROM base AS devel
-# Defensive shell options:
-SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # Least volatile layers first:
 LABEL org.opencontainers.image.title="Project Structure Development"
