@@ -224,6 +224,7 @@ endif
 export DOCKER_BUILD_TARGET=user
 DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
+DOCKER_PULL_TARGET=devel
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
 DOCKER_OSES=$(DOCKER_OS_DEFAULT)
@@ -253,7 +254,11 @@ export DOCKER_REGISTRY_HOST
 CI_REGISTRY=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_PROJECT_NAMESPACE)
 CI_REGISTRY_IMAGE=$(CI_REGISTRY)/$(CI_PROJECT_NAME)
 DOCKER_REGISTRIES=GITLAB GITHUB DOCKER
-export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
+DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
+ifeq ($(GITHUB_ACTIONS),true)
+DOCKER_REGISTRY=GITHUB
+endif
+export DOCKER_REGISTRY
 DOCKER_IMAGE_GITLAB=$(CI_REGISTRY_IMAGE)
 DOCKER_IMAGE_GITHUB=ghcr.io/$(CI_PROJECT_NAMESPACE)/$(CI_PROJECT_NAME)
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(CI_PROJECT_NAME)
@@ -303,6 +308,7 @@ DOCKER_REGISTRIES=GITHUB
 DOCKER_IMAGES+=ghcr.io/$(GITHUB_REPOSITORY_OWNER)/$(CI_PROJECT_NAME)
 endif
 endif
+DOCKER_IMAGES+=$(DOCKER_IMAGE)
 # Take GitHub auth from the environment under GitHub actions but from secrets on other
 # project hosts:
 GITHUB_TOKEN=
@@ -538,24 +544,13 @@ endif
 	docker pull "buildpack-deps"
 # Pull images to use as build caches:
 	docker_build_caches=""
-ifeq ($(GITLAB_CI),true)
+ifeq ($(CI),true)
 # Don't cache when building final releases on `main`
-	$(MAKE) -e "./var/log/docker-login-GITLAB.log" || true
 ifneq ($(VCS_BRANCH),main)
-	if $(MAKE) -e pull-docker
+	if $(MAKE) -e DOCKER_PULL_TARGET="$${pull_target}" pull-docker
 	then
-	    docker_build_caches+=" --cache-from $(DOCKER_IMAGE_GITLAB):\
-	$${pull_target}-$${tag_suffix}"
-	fi
-endif
-endif
-ifeq ($(GITHUB_ACTIONS),true)
-	$(MAKE) -e "./var/log/docker-login-GITHUB.log" || true
-ifneq ($(VCS_BRANCH),main)
-	if $(MAKE) -e pull-docker
-	then
-	    docker_build_caches+=" --cache-from $(DOCKER_IMAGE_GITHUB):\
-	$${pull_target}-$${tag_suffix}"
+	    docker_build_caches+=" --cache-from"
+	    docker_build_caches+="  $(DOCKER_IMAGE):$${pull_target}-$${tag_suffix}"
 	fi
 endif
 endif
@@ -1663,15 +1658,13 @@ endef
 ## Pull an existing image best to use as a cache for building new images
 pull-docker: ./var/log/git-fetch.log $(HOST_TARGET_DOCKER)
 	export VERSION=$$(tox exec -e "build" -qq -- cz version --project)
+	tag_prefix="$(DOCKER_PULL_TARGET)-$(DOCKER_VARIANT)"
 	for vcs_branch in $(VCS_BRANCHES)
 	do
-	    docker_tag="$(DOCKER_VARIANT_PREFIX)$${vcs_branch}"
 	    for docker_image in $(DOCKER_IMAGES)
 	    do
-	        if docker pull "$${docker_image}:$${docker_tag}"
+	        if docker pull "$(DOCKER_IMAGE):$${tag_prefix}-$${vcs_branch}"
 	        then
-	            docker tag "$${docker_image}:$${docker_tag}" \
-	                "$(DOCKER_IMAGE_DOCKER):$${docker_tag}"
 	            exit
 	        fi
 	    done
