@@ -26,9 +26,9 @@ LABEL org.opencontainers.image.authors="Ross Patterson <me@rpatterson.net>"
 LABEL org.opencontainers.image.vendor="rpatterson.net"
 LABEL org.opencontainers.image.base.name="docker.io/library/buildpack-deps"
 
-# Find the same home directory even when run as another user, for example `root`.
 ENV PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"
 ENV PROJECT_NAME="${PROJECT_NAME}"
+# Find the same home directory even when run as another user, for example `root`.
 ENV HOME="/home/${PROJECT_NAME}"
 WORKDIR "${HOME}"
 ENTRYPOINT [ "entrypoint.sh" ]
@@ -63,8 +63,6 @@ LABEL org.opencontainers.image.version=${VERSION}
 
 # Stay as close to an un-customized environment as possible:
 FROM base AS user
-# Defensive shell options:
-SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # TEMPLATE: Add image setup specific to the user image, often installable packages built
 # from the project.
@@ -74,8 +72,6 @@ SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # Stay as close to the user image as possible for build cache efficiency:
 FROM base AS devel
-# Defensive shell options:
-SHELL ["/bin/bash", "-eu", "-o", "pipefail", "-c"]
 
 # Least volatile layers first:
 LABEL org.opencontainers.image.title="Project Structure Development"
