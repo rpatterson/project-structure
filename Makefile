@@ -1021,10 +1021,11 @@ clean:
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
 		$(DOCKER_DEFAULT_TOX)/.tox-info.json
+# Ensure only a current, successfully built package is available:
 	rm -vf ./dist/*
-	mkdir -pv "$(dir $(@))"
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
+	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel tox run -e \
 	    "$(PYTHON_SUPPORTED_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
