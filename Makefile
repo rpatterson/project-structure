@@ -708,11 +708,14 @@ clean:
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
 		./.tox/$(PYTHON_ENV)/.tox-info.json
+# Ensure only a current, successfully built package is available:
+	rm -vf ./dist/*
+# Build a package from a source distribution to reproduce as many possible packaging
+# issues as possible:
 	mkdir -pv "$(dir $(@))"
 	tox run -e "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
 # Copy to a location that following tox runs won't remove:
-	rm -vf ./dist/*
 	cp -lfv ./.tox/.pkg/tmp/dist/* "./dist/"
 
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
