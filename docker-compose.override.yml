@@ -20,7 +20,7 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         VERSION: "${VERSION:-}"
       cache_from:
-        - "${DOCKER_USER:?}/project-structure\
+        - "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
           :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
@@ -39,7 +39,7 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         VERSION: "${VERSION:-}"
       cache_from:
-        - "${DOCKER_USER:?}/project-structure\
+        - "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
           :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
