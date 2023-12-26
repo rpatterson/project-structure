@@ -20,6 +20,7 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         PYTHON_MINOR: "${PYTHON_MINOR:-3.11}"
         PYTHON_ENV: "${PYTHON_ENV:-py311}"
+        PYTHON_WHEEL: "${PYTHON_WHEEL:-}"
         VERSION: "${VERSION:-}"
       cache_from:
         - "${DOCKER_USER:?}/project-structure\
