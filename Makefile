@@ -139,7 +139,6 @@ PYTHON_REQUIREMENTS_INS=$(wildcard ./requirements/*.txt.in)
 PYTHON_REQUIREMENTS_BASENAMES=$(PYTHON_REQUIREMENTS_INS:./requirements/%.in=%)
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
-export PYTHON_WHEEL=
 
 # Values derived from Version Control Systems (VCS):
 VCS_LOCAL_BRANCH:=$(shell git branch --show-current)
@@ -214,7 +213,6 @@ endif
 export DOCKER_VARIANT=$(firstword $(DOCKER_VARIANTS))
 DOCKER_DEFAULT_VAR=./var-docker/$(DOCKER_DEFAULT)
 DOCKER_OS_DEFAULT_VAR=./var-docker/$(DOCKER_OS_DEFAULT)
-DOCKER_DEFAULT_TOX=$(DOCKER_DEFAULT_VAR)/.tox/$(DOCKER_LANGUAGE_DEFAULT)
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
@@ -345,10 +343,9 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: $(DOCKER_DEFAULT_TOX)/.tox-info.json
+build-docs-watch: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    tox exec -e "$(PYTHON_SUPPORTED_ENV)" -- \
+	tox exec -e "$(PYTHON_SUPPORTED_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 # Done as a separate target because this builder fails every other run without the
@@ -356,31 +353,26 @@ build-docs-watch: $(DOCKER_DEFAULT_TOX)/.tox-info.json
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: $(DOCKER_DEFAULT_TOX)/.tox-info.json
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    ./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn -E \
-	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+build-docs-devhelp: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
+	./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
+	    -E -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): \
-		$(DOCKER_DEFAULT_TOX)/.tox-info.json \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json \
 		build-docs-devhelp
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    ./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
+	./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
 	    -j "auto" -D autosummary_generate="0" -D autoapi_generate_api_docs="0" \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    $(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
+	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	        LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
 ## Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    $(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
+	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" info
 
 
 ## Docker Build Targets:
@@ -592,20 +584,24 @@ test-lint-code-prettier: ./var/log/npm-install.log
 
 .PHONY: test-lint-docs
 ## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
-		test-lint-docs-doc8
+test-lint-docs: test-lint-docs-docker test-lint-docs-sphinx-lint test-lint-docs-doc8
+.PHONY: test-lint-docs-docker
+## Lint documentation by using Python tools in the canonical Docker image variant.
+test-lint-docs-docker: \
+		$(DOCKER_DEFAULT_VAR)/.tox/$(DOCKER_LANGUAGE_DEFAULT)/.tox-info.json
+	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	    make -e test-lint-docs-rstcheck build-docs
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: $(DOCKER_DEFAULT_TOX)/.tox-info.json
+test-lint-docs-rstcheck: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
 # Also exclude `./docs/news*.rst` because it's duplicate headings cause:
 #     INFO docs/news.rst:317 Duplicate implicit target name: "bugfixes".
 	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
-	    xargs -r -0 -- docker compose run --rm -T $(PROJECT_NAME)-devel \
-	    ./.tox/$(PYTHON_SUPPORTED_ENV)/bin/rstcheck
+	    xargs -r -0 -- ./.tox/$(PYTHON_ENV)/bin/rstcheck
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
@@ -933,7 +929,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	docker compose run --rm -T $(PROJECT_NAME)-devel make -e devel-format-py
 .PHONY: devel-format-py
 ## Run source code formatting tools implemented in Python:
-devel-format-py: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+devel-format-py: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
 	$(TOX_EXEC_ARGS) -- autoflake -r -i --remove-all-unused-imports \
 	    --remove-duplicate-keys --remove-unused-variables \
 	    --remove-unused-variables "./src/$(PYTHON_PROJECT_PACKAGE)/" \
@@ -1028,7 +1024,7 @@ clean:
 # consistency/reproducibility.
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel tox run -e \
-	    "$(PYTHON_SUPPORTED_ENV)" --override "testenv.package=external" --pkg-only |
+	    "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
 	cp -lfv ./var-docker/$(DOCKER_VARIANT)/.tox/.pkg/tmp/dist/* "./dist/"
@@ -1311,9 +1307,9 @@ $(HOME)/.nvm/nvm.sh:
 		$(DOCKER_DEFAULT_VAR)/log/requirements/build.txt.log
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
-./.tox/$(PYTHON_HOST_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_HOST_ENV)/test.txt \
-		./requirements/$(PYTHON_HOST_ENV)/devel.txt
+./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_SUPPORTED_ENV)/test.txt \
+		./requirements/$(PYTHON_SUPPORTED_ENV)/devel.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 define tox_info_template=
