@@ -239,7 +239,7 @@ else
 DOCKER_VARIANTS=$(foreach language,$(DOCKER_LANGUAGES),$(DOCKER_OSES:%=%-$(language)))
 DOCKER_DEFAULT=$(DOCKER_OS_DEFAULT)-$(DOCKER_LANGUAGE_DEFAULT)
 endif
-export DOCKER_VARIANT=$(DOCKER_DEFAULT)
+export DOCKER_VARIANT=$(firstword $(DOCKER_VARIANTS))
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 GITLAB_CI=false
 GITHUB_ACTIONS=false
@@ -1133,7 +1133,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		./var-docker/$(DOCKER_DEFAULT)/log/build-devel.log
+		./var-docker/$(DOCKER_VARIANT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
