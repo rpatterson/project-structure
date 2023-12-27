@@ -802,8 +802,9 @@ release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
 	$$(MAKE) -e DOCKER_BUILD_TARGET="devel" build-docker-build
 # Push the end-user manifest and images:
 	$$(MAKE) -e DOCKER_BUILD_ARGS="$$$${DOCKER_BUILD_ARGS}\
-	    --build-arg PYTHON_WHEEL=$$$$(ls -t ./dist/*.whl | head -n 1)" \
-	    build-docker-build
+	    --build-arg PYTHON_WHEEL=$$$$(
+	        ls -t ./dist/$(PYTHON_PROJECT_GLOB)-*.whl | head -n 1
+	    )" build-docker-build
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
 .PHONY: release-docker-readme
@@ -1143,9 +1144,9 @@ define build_docker_user_template=
 # Build the user image after building all required artifacts:
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) -e DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
-	    DOCKER_BUILD_ARGS="$$(DOCKER_BUILD_ARGS) --build-arg \
-	PYTHON_WHEEL=$$$$(ls -t ./dist/*.whl | head -n 1)" build-docker-build |
-	    tee -a "$$(@)"
+	    DOCKER_BUILD_ARGS="$$(DOCKER_BUILD_ARGS) --build-arg PYTHON_WHEEL=$$$$(
+	        ls -t ./dist/$(PYTHON_PROJECT_GLOB)-*.whl | head -n 1
+	    )" build-docker-build | tee -a "$$(@)"
 endef
 $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_user_template,$(variant))))
