@@ -55,8 +55,9 @@ Nice to have
 #. ``base``: Build operating system packages, such as ``*.deb``, ``*.rpm``, ``*.msi``,
    including documentation.
 
-#. ``base``: Add `a badge <https://repology.org/project/python:prunerr/badges>`_ for
-   projects that publish packages to more than one repository.
+#. ``base``: Add `a badge
+   <https://repology.org/project/python:project-structure/badges>`_ for projects that
+   publish packages to more than one repository.
 
 #. ``docker``: `Docker image build-time labels
    <https://specs.opencontainers.org/image-spec/annotations/?v=v1.0.1>`_::
