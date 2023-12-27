@@ -145,6 +145,7 @@ PYTHON_REQUIREMENTS_INS=$(wildcard ./requirements/*.txt.in)
 PYTHON_REQUIREMENTS_BASENAMES=$(PYTHON_REQUIREMENTS_INS:./requirements/%.in=%)
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
+PYTHON_PKG_EXISTING=false
 
 # Values derived from Version Control Systems (VCS):
 VCS_LOCAL_BRANCH:=$(shell git branch --show-current)
@@ -1280,6 +1281,10 @@ clean:
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
 		./var-docker/$(DOCKER_VARIANT)/.tox/$(PYTHON_ENV)/.tox-info.json
+ifeq ($(PYTHON_PKG_EXISTING),true)
+# Fail if no earlier run built a package:
+	ls -t ./dist/$(PYTHON_PROJECT_GLOB)-*.whl | tee -a "$(@)"
+else
 # Ensure only a current, successfully built package is available:
 	rm -vf ./dist/*
 # Build Python packages/distributions from the development Docker container for
@@ -1290,6 +1295,7 @@ clean:
 	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
 	cp -lfv ./var-docker/$(DOCKER_VARIANT)/.tox/.pkg/tmp/dist/* "./dist/"
+endif
 
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:

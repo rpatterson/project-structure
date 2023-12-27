@@ -107,6 +107,7 @@ build-test-default:
     # Upload build artifacts:
     # https://docs.gitlab.com/ee/ci/pipelines/job_artifacts.html
     paths:
+      - "./dist/project?structure-*"
       - "./build/reports/"
     reports:
       junit:
@@ -139,14 +140,15 @@ build-test-others:
   interruptible: true
   parallel:
     matrix:
-      # TEMPLATE: Add values for image variants other than the default:
       - DOCKER_OSES:
           - "debian"
-        DOCKER_LANGUAGES:
+        DOCKER_LANGUAGE:
           - "py312"
           - "py310"
           - "py39"
           - "py38"
+  variables:
+    PYTHON_PKG_EXISTING: "true"
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-
@@ -194,12 +196,10 @@ release:
           - "py311"
   variables:
     DOCKER_BUILD_PULL: "true"
+    PYTHON_PKG_EXISTING: "true"
   script:
     - >-
       init-job.sh entrypoint.sh make -j -O -e release-pkgs
-  artifacts:
-    paths:
-      - "./dist/project?structure-*"
 
 merge-upgrade:
   stage: "merge-upgrade"
