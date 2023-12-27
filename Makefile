@@ -891,7 +891,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		./var-docker/$(DOCKER_DEFAULT)/log/build-devel.log
+		./var-docker/$(DOCKER_VARIANT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	docker compose run --rm -T $(PROJECT_NAME)-devel \
 	    echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
