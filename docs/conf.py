@@ -58,6 +58,11 @@ linkcheck_ignore = [
     "https://liberapay.com/.*",
     "https://gitlab.com/.*/(new|edit)",
     "https://github.com/.*/settings",
+# TODO: Remove when Repology's PyPI support is stable. Currently it thinks the package
+# is no longer in PyPI but the PyPI project page shows a final release:
+#     History ends, there are no longer packages for this project in any repositories
+#     known to repology, last repository was PyPI
+    "https://repology.org/project/python:.*",
 ]
 
 # -- Extension options -------------------------------------------------------
