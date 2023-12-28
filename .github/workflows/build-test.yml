@@ -35,6 +35,8 @@ name: "Build and Test"
 env:
   PUID: "1001"
   PGID: "1001"
+  DOCKER_OS_DEFAULT: "debian"
+  DOCKER_LANGUAGE_DEFAULT: ""
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
   PROJECT_NAME: "project-structure"
@@ -67,7 +69,7 @@ on:
   pull_request: {}
 
 jobs:
-  build-test:
+  build-test-default:
     runs-on: "ubuntu-latest"
     container:
       # TEMPLATE: Only change these if you customize the `./build-host/Dockerfile` image.
@@ -80,14 +82,13 @@ jobs:
       checks: "write"
     strategy:
       matrix:
-        DOCKER_OS:
-          - "debian"
-        # DOCKER_LANGUAGE: []
+        DOCKER_OSES:
+          - "${DOCKER_OS_DEFAULT}"
+        DOCKER_LANGUAGES:
+          - "${DOCKER_LANGUAGE_DEFAULT}"
     env:
-      DOCKER_OSES: "${{ matrix.DOCKER_OS }}"
-      DOCKER_LANGUAGES: "${{ matrix.DOCKER_LANGUAGE }}"
-      DOCKER_VARIANT: "\
-        ${{ matrix.DOCKER_OS }}-${{ matrix.DOCKER_LANGUAGE }}"
+      DOCKER_OSES: "${{ matrix.DOCKER_OSES }}"
+      DOCKER_LANGUAGES: "${{ matrix.DOCKER_LANGUAGES }}"
     steps:
       # Shared or common set up:
       - name: "Checkout source from VCS"
@@ -132,6 +133,75 @@ jobs:
       #     name: >-
       #       Test Suite Reports
       #       (${{ matrix.DOCKER_VARIANT_OSES }}-${{ matrix.DOCKER_VARIANT_LANGUAGES }})
+      #     path: >-
+      #       ./build/reports/*unit.xml
+      #     reporter: "java-junit"
+  build-test-others:
+    needs: ["build-test-default"]
+    runs-on: "ubuntu-latest"
+    container:
+      # TEMPLATE: Only change these if you customize the `./build-host/Dockerfile` image.
+      # Otherwise use the version of this image from the project template in your CI/CD.
+      image: "ghcr.io/rpatterson/project-structure:build-host"
+      env:
+        CHECKOUT_DIR: "${{ github.workspace }}"
+    permissions:
+      packages: "write"
+      checks: "write"
+    strategy:
+      matrix:
+        # TEMPLATE: Add values for image variants other than the default:
+        # DOCKER_OSES:
+        #   - ""
+        # DOCKER_LANGUAGES:
+        #   - ""
+    env:
+      DOCKER_OSES: "${{ matrix.DOCKER_OSES }}"
+      DOCKER_LANGUAGES: "${{ matrix.DOCKER_LANGUAGES }}"
+    steps:
+      # Shared or common set up:
+      - name: "Checkout source from VCS"
+        uses: "actions/checkout@master"
+      - name: "Download built packages"
+        uses: "actions/download-artifact@master"
+        with:
+          name: "built-pkgs"
+      # TODO: Debug stale venv issues and restore cache after fixing.
+
+      # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
+      - name: "Build image and run tests and checks in a container"
+        run: >-
+          git config --global --add safe.directory
+          /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
+          &&
+          init-job.sh entrypoint.sh make -j -O -e release-all
+
+      # Upload build artifacts:
+      # https://github.com/actions/upload-artifact#usage
+      - name: "Archive test, coverage, and lint reports"
+        uses: "actions/upload-artifact@master"
+        with:
+          name: "test-coverage-lint-reports"
+          path: |
+            ./build/reports/
+      # - name: "Publish test suite report"
+      #   uses: "dorny/test-reporter@main"
+      #   # run this step even if preceding step failed
+      #   if: >-
+      #     (success() || failure())
+      #     && (
+      #       (! github.event.pull_request)
+      #       || ! (
+      #         (github.repository_owner == '${PROJECT_NAMESPACE}')
+      #         && (
+      #           github.event.pull_request.head.repo.owner.login
+      #           != '${PROJECT_NAMESPACE}'
+      #         )
+      #       )
+      #     )
+      #   with:
+      #     name: >-
+      #       Test Suite Reports (${{ matrix.DOCKER_VARIANT }})
       #     path: >-
       #       ./build/reports/*unit.xml
       #     reporter: "java-junit"

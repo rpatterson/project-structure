@@ -44,6 +44,8 @@ variables:
   # Variables controlling behavior:
   PUID: "1001"
   PGID: "1001"
+  DOCKER_OS_DEFAULT: "debian"
+  DOCKER_LANGUAGE_DEFAULT: ""
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
 
@@ -59,15 +61,58 @@ default:
   # TODO: Debug stale venv issues and restore cache after fixing.
 
 stages:
-  - "build-test"
+  - "build-test-default"
+  - "build-test-others"
   - "release"
   - "release-bump"
   - "release-version"
   - "scheduled"
   - "merge-upgrade"
 
-build-test:
-  stage: "build-test"
+build-test-default:
+  stage: "build-test-default"
+  rules:
+    - if: >-
+        $CI_COMMIT_BRANCH != null
+        && (
+          $CI_COMMIT_BRANCH !~ /^(develop|main)$/
+          || (
+            $CI_COMMIT_BRANCH == "develop"
+            && $CI_COMMIT_TITLE =~
+        /^build\(release\): Version [0-9]+\.[0-9]+\.[0-9]+.* → [0-9]+\.[0-9]+\.[0-9]+[^0-9].+$/
+          ) || (
+            $CI_COMMIT_BRANCH == "main"
+            && $CI_COMMIT_TITLE =~
+        /^build\(release\): Version [0-9]+\.[0-9]+\.[0-9]+.* → [0-9]+\.[0-9]+\.[0-9]+$/
+          )
+        )
+        && $CI_PIPELINE_SOURCE != "schedule"
+  interruptible: true
+  variables:
+    DOCKER_OSES: "$DOCKER_OS_DEFAULT"
+    DOCKER_LANGUAGES: "$DOCKER_LANGUAGE_DEFAULT"
+  script:
+    # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
+    - >-
+      init-job.sh entrypoint.sh make -j -O -e release-all
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    # Upload build artifacts:
+    # https://docs.gitlab.com/ee/ci/pipelines/job_artifacts.html
+    paths:
+      - "./build/reports/"
+    reports:
+      junit:
+        - "./build/reports/*/*unit.xml"
+      coverage_report:
+        coverage_format: "cobertura"
+        path: "./build/reports/*/*cov*.xml"
+
+build-test-others:
+  stage: "build-test-others"
+  needs: ["build-test-default"]
+  dependencies:
+    - "build-test-default"
   rules:
     - if: >-
         $CI_COMMIT_BRANCH != null
@@ -87,12 +132,11 @@ build-test:
   interruptible: true
   parallel:
     matrix:
-      - DOCKER_OS:
-          - "debian"
-      # - DOCKER_LANGUAGE: []
-  variables:
-    DOCKER_OSES: "$DOCKER_OS"
-    DOCKER_LANGUAGES: "$DOCKER_LANGUAGE"
+      # TEMPLATE: Add values for image variants other than the default:
+      # - DOCKER_OSES:
+      #     - ""
+      #   DOCKER_LANGUAGES:
+      #     - ""
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-
@@ -112,10 +156,11 @@ build-test:
 
 release:
   stage: "release"
-  needs: ["build-test"]
-  # Avoid unnecessary artifact downloads:
-  # https://docs.gitlab.com/ee/ci/yaml/#dependencies
-  dependencies: []
+  needs:
+    - "build-test-default"
+    - "build-test-others"
+  dependencies:
+    - "build-test-default"
   variables:
     DOCKER_BUILD_PULL: "true"
   rules:
@@ -142,7 +187,7 @@ release:
 
 merge-upgrade:
   stage: "merge-upgrade"
-  needs: ["build-test"]
+  needs: ["build-test-others"]
   rules:
     - if: >-
         $CI_COMMIT_BRANCH =~ /^.+-upgrade$/
@@ -195,11 +240,11 @@ release-version:
 # - `SCHEDULED_TARGETS=devel-upgrade-branch`
 # - `TEMPLATE_IGNORE_EXISTING=true`
 #
-# The `merge-upgrade` job automatically merges `*-upgrade` branches when `build-test`
-# succeeds, so add a protected branch rule for the `*-upgrade` wildcard that allows
-# force pushing. As such, the target branch for the scheduled pipeline determines
-# whether upgrade branches publish releases after passing CI, pre-releases for `develop`
-# and final releases for `main`.
+# The `merge-upgrade` job automatically merges `*-upgrade` branches when
+# `build-test-others` succeeds, so add a protected branch rule for the `*-upgrade`
+# wildcard that allows force pushing. As such, the target branch for the scheduled
+# pipeline determines whether upgrade branches publish releases after passing CI,
+# pre-releases for `develop` and final releases for `main`.
 #
 # WARNING: Running this even no more often than every day can exhaust the gitlab.com
 # free quotas in the beginning of the month.
