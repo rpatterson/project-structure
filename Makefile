@@ -714,8 +714,7 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
-		./var/log/npm-install.log \
-		./var-docker/$(DOCKER_DEFAULT)/log/build-devel.log
+		./var/log/npm-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
