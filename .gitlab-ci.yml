@@ -44,8 +44,6 @@ variables:
   # Variables controlling behavior:
   PUID: "1001"
   PGID: "1001"
-  DOCKER_OS_DEFAULT: "debian"
-  DOCKER_LANGUAGE_DEFAULT: ""
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
 
@@ -91,9 +89,9 @@ build-test-default:
   parallel:
     matrix:
       - DOCKER_OSES:
-          - "$DOCKER_OS_DEFAULT"
+          - "debian"
         DOCKER_LANGUAGES:
-          - "$DOCKER_LANGUAGE_DEFAULT"
+          - ""
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-
@@ -136,10 +134,10 @@ build-test-others:
   parallel:
     matrix:
       # TEMPLATE: Add values for image variants other than the default:
-      # - DOCKER_OSES:
-      #     - ""
-      #   DOCKER_LANGUAGES:
-      #     - ""
+      - DOCKER_OSES:
+          - "debian"
+        DOCKER_LANGUAGES:
+          - ""
   script:
     # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
     - >-
@@ -182,9 +180,9 @@ release:
   parallel:
     matrix:
       - DOCKER_OSES:
-          - "$DOCKER_OS_DEFAULT"
+          - "debian"
         DOCKER_LANGUAGES:
-          - "$DOCKER_LANGUAGE_DEFAULT"
+          - ""
   variables:
     DOCKER_BUILD_PULL: "true"
   script:
@@ -266,9 +264,9 @@ scheduled:
   parallel:
     matrix:
       - DOCKER_OSES:
-          - "$DOCKER_OS_DEFAULT"
+          - "debian"
         DOCKER_LANGUAGES:
-          - "$DOCKER_LANGUAGE_DEFAULT"
+          - ""
   script:
     - >-
       init-job.sh entrypoint.sh make -j -O -e $SCHEDULED_TARGETS

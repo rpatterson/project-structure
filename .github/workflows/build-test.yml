@@ -35,8 +35,6 @@ name: "Build and Test"
 env:
   PUID: "1001"
   PGID: "1001"
-  DOCKER_OS_DEFAULT: "debian"
-  DOCKER_LANGUAGE_DEFAULT: ""
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
   PROJECT_NAME: "project-structure"
@@ -83,9 +81,9 @@ jobs:
     strategy:
       matrix:
         DOCKER_OSES:
-          - "${DOCKER_OS_DEFAULT}"
+          - "debian"
         DOCKER_LANGUAGES:
-          - "${DOCKER_LANGUAGE_DEFAULT}"
+          - ""
     env:
       DOCKER_OSES: "${{ matrix.DOCKER_OSES }}"
       DOCKER_LANGUAGES: "${{ matrix.DOCKER_LANGUAGES }}"
@@ -148,13 +146,13 @@ jobs:
     permissions:
       packages: "write"
       checks: "write"
+    # TEMPLATE: Add values for image variants other than the default:
     strategy:
       matrix:
-        # TEMPLATE: Add values for image variants other than the default:
-        # DOCKER_OSES:
-        #   - ""
-        # DOCKER_LANGUAGES:
-        #   - ""
+        DOCKER_OSES:
+          - "debian"
+        DOCKER_LANGUAGES:
+          - ""
     env:
       DOCKER_OSES: "${{ matrix.DOCKER_OSES }}"
       DOCKER_LANGUAGES: "${{ matrix.DOCKER_LANGUAGES }}"
@@ -162,10 +160,6 @@ jobs:
       # Shared or common set up:
       - name: "Checkout source from VCS"
         uses: "actions/checkout@master"
-      - name: "Download built packages"
-        uses: "actions/download-artifact@master"
-        with:
-          name: "built-pkgs"
       # TODO: Debug stale venv issues and restore cache after fixing.
 
       # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
