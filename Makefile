@@ -272,6 +272,11 @@ test: test-lint test-code
 test-code: ./var/log/build-pkgs.log
 	true "TEMPLATE: Always specific to the project type"
 
+.PHONY: test-debug
+## Run tests directly on the system and start the debugger on errors or failures.
+test-debug:
+	true "TEMPLATE: Always specific to the project type"
+
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
 test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
@@ -359,11 +364,6 @@ test-lint-prose-write-good: ./var/log/npm-install.log
 ## Lint prose in all files tracked in VCS with alex.
 test-lint-prose-alex: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
-
-.PHONY: test-debug
-## Run tests directly on the system and start the debugger on errors or failures.
-test-debug:
-	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
