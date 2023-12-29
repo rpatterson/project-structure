@@ -26,7 +26,7 @@ build:
 
 python:
   install:
-    - requirements: "./requirements/build.txt.in"
+    - requirements: "./requirements/py311/build.txt"
 
 sphinx:
   configuration: "./docs/conf.py"

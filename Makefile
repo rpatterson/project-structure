@@ -240,6 +240,7 @@ endif
 export DOCKER_BUILD_TARGET=user
 DOCKER_BUILD_ARGS=--load
 export DOCKER_BUILD_PULL=false
+DOCKER_PULL_TARGET=devel
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
 DOCKER_OSES=$(DOCKER_OS_DEFAULT)
@@ -280,12 +281,16 @@ endif
 export DOCKER_REGISTRY_HOST
 CI_REGISTRY=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_PROJECT_NAMESPACE)
 CI_REGISTRY_IMAGE=$(CI_REGISTRY)/$(CI_PROJECT_NAME)
-DOCKER_REGISTRIES=DOCKER GITLAB GITHUB
-export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
-DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(CI_PROJECT_NAME)
+DOCKER_REGISTRIES=GITLAB GITHUB DOCKER
+DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
+ifeq ($(GITHUB_ACTIONS),true)
+DOCKER_REGISTRY=GITHUB
+endif
+export DOCKER_REGISTRY
 DOCKER_IMAGE_GITLAB=$(CI_REGISTRY_IMAGE)
 DOCKER_IMAGE_GITHUB=ghcr.io/$(CI_PROJECT_NAMESPACE)/$(CI_PROJECT_NAME)
-DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
+DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(CI_PROJECT_NAME)
+export DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 DOCKER_IMAGES=
 ifeq ($(GITLAB_CI),true)
 DOCKER_IMAGES+=$(DOCKER_IMAGE_GITLAB)
@@ -344,6 +349,7 @@ DOCKER_REGISTRIES=GITHUB
 DOCKER_IMAGES+=ghcr.io/$(GITHUB_REPOSITORY_OWNER)/$(CI_PROJECT_NAME)
 endif
 endif
+DOCKER_IMAGES+=$(DOCKER_IMAGE)
 # Take GitHub auth from the environment under GitHub actions but from secrets on other
 # project hosts:
 GITHUB_TOKEN=
@@ -632,24 +638,13 @@ endif
 	docker pull "python:$${PYTHON_MINOR}"
 # Pull images to use as build caches:
 	docker_build_caches=""
-ifeq ($(GITLAB_CI),true)
+ifeq ($(CI),true)
 # Don't cache when building final releases on `main`
-	$(MAKE) -e "./var/log/docker-login-GITLAB.log" || true
 ifneq ($(VCS_BRANCH),main)
-	if $(MAKE) -e pull-docker
+	if $(MAKE) -e DOCKER_PULL_TARGET="$${pull_target}" pull-docker
 	then
-	    docker_build_caches+=" --cache-from $(DOCKER_IMAGE_GITLAB):\
-	$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
-	fi
-endif
-endif
-ifeq ($(GITHUB_ACTIONS),true)
-	$(MAKE) -e "./var/log/docker-login-GITHUB.log" || true
-ifneq ($(VCS_BRANCH),main)
-	if $(MAKE) -e pull-docker
-	then
-	    docker_build_caches+=" --cache-from $(DOCKER_IMAGE_GITHUB):\
-	$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$(DOCKER_BRANCH_TAG)"
+	    docker_build_caches+=" --cache-from"
+	    docker_build_caches+="  $(DOCKER_IMAGE):$${pull_target}-$${tag_suffix}"
 	fi
 endif
 endif
@@ -721,7 +716,7 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 	    make -e TEST_CODE_PREREQS= test-code
 # Upload any build or test artifacts to CI/CD providers
 	if test "$$(GITLAB_CI)" = "true" &&
-	    test "$(@:test-docker-devel-%=%)" = "$(DOCKER_VARIANT_DEFAULT)"
+	    test "$$(@:test-docker-devel-%=%)" = "$$(DOCKER_DEFAULT)"
 	then
 	    if test "$$(CODECOV_TOKEN)" != ""
 	    then
@@ -1923,15 +1918,13 @@ endef
 ## Pull an existing image best to use as a cache for building new images
 pull-docker: ./var/log/git-fetch.log $(HOST_TARGET_DOCKER)
 	export VERSION=$$(tox exec -e "build" -qq -- cz version --project)
+	tag_prefix="$(DOCKER_PULL_TARGET)-$(DOCKER_VARIANT)"
 	for vcs_branch in $(VCS_BRANCHES)
 	do
-	    docker_tag="$(DOCKER_VARIANT_PREFIX)$(PYTHON_ENV)-$${vcs_branch}"
 	    for docker_image in $(DOCKER_IMAGES)
 	    do
-	        if docker pull "$${docker_image}:$${docker_tag}"
+	        if docker pull "$(DOCKER_IMAGE):$${tag_prefix}-$${vcs_branch}"
 	        then
-	            docker tag "$${docker_image}:$${docker_tag}" \
-	                "$(DOCKER_IMAGE_DOCKER):$${docker_tag}"
 	            exit
 	        fi
 	    done

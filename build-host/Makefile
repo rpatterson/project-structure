@@ -15,7 +15,7 @@ MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 PS1?=$$
 
-DOCKER_IMAGE=merpatterson/project-structure
+DOCKER_IMAGE=registry.gitlab.com/rpatterson/project-structure
 
 ## Top-level targets
 

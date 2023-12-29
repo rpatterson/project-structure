@@ -23,7 +23,7 @@ services:
         PYTHON_ENV: "${PYTHON_ENV:-py311}"
         VERSION: "${VERSION:-}"
       cache_from:
-        - "${DOCKER_USER:?}/project-structure\
+        - "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
           :user-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
@@ -45,7 +45,7 @@ services:
         PYTHON_ENV: "${PYTHON_ENV:-py311}"
         VERSION: "${VERSION:-}"
       cache_from:
-        - "${DOCKER_USER:?}/project-structure\
+        - "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
           :devel-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
