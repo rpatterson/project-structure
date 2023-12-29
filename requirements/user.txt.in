@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# Run-time dependencies for the package itself:
+
+# TEMPLATE: Add the run-time dependencies, as opposed to build, test, or development
+# requirements, for your project.

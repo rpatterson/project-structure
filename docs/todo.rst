@@ -63,8 +63,9 @@ Nice to have
 #. ``base``: Build operating system packages, such as ``*.deb``, ``*.rpm``, ``*.msi``,
    including documentation.
 
-#. ``base``: Add `a badge <https://repology.org/project/python:prunerr/badges>`_ for
-   projects that publish packages to more than one repository.
+#. ``base``: Add `a badge
+   <https://repology.org/project/python:project-structure/badges>`_ for projects that
+   publish packages to more than one repository.
 
 #. ``docker``: `Docker image build-time labels
    <https://specs.opencontainers.org/image-spec/annotations/?v=v1.0.1>`_::
@@ -119,3 +120,7 @@ Nice to have
    document any steps for template adopters.
 
 #. ``py``: Create new branches for different frameworks, e.g.: Flask, Pyramid, Django.
+
+#. ``py-docker``: Build requirements for each ``$(DOCKER_PLATFORMS)`` as requirements
+   might differ between ``platform.machine()`` using `Environment Markers
+   <https://peps.python.org/pep-0496/#strings>`_.

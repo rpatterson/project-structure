@@ -10,8 +10,9 @@ version: "3.8"
 services:
   # Configuration specific to development:
   project-structure:
-    image: "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson\
-      /project-structure:user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+    image:
+      "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
+      :user-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
       context: "./"
@@ -23,14 +24,15 @@ services:
         VERSION: "${VERSION:-}"
       cache_from:
         - "${DOCKER_USER:?}/project-structure\
-          :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+          :user-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
 
   # Container for use by developers:
   project-structure-devel:
-    image: "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson\
-      /project-structure:devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+    image:
+      "${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
+      :devel-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-devel"
     profiles:
       - "test"
@@ -44,7 +46,7 @@ services:
         VERSION: "${VERSION:-}"
       cache_from:
         - "${DOCKER_USER:?}/project-structure\
-          :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
+          :devel-${DOCKER_VARIANT:-debian-py311}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
       MAKEFLAGS: "${MAKEFLAGS:-}"
@@ -71,15 +73,15 @@ services:
         :/home/project-structure/.cache/"
       # Avoid any clashes between image variants and the local host at both build and
       # runtime:
-      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian}/\
-        :/usr/local/src/project-structure${WORKTREE_REL:-}/var/"
-      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${PYTHON_ENV:-py311}/.tox/\
-        :/usr/local/src/project-structure${WORKTREE_REL:-}/.tox/"
-      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${PYTHON_ENV:-py311}\
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian-py311}\
+        /:/usr/local/src/project-structure${WORKTREE_REL:-}/var/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian-py311}\
+        /.tox/:/usr/local/src/project-structure${WORKTREE_REL:-}/.tox/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian-py311}\
         /project_structure.egg-info/\
         :/usr/local/src/project-structure${WORKTREE_REL:-}\
         /src/project_structure.egg-info/"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
 
   # https://github.com/hadolint/hadolint#how-to-use
   hadolint:
@@ -127,7 +129,7 @@ services:
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
     entrypoint: "ash"
     # Strip reStructuredText directives unsupported in Markdown before converting, for
     # example table of contents, and converted Markdown that isn't widely supported, for
@@ -151,7 +153,7 @@ services:
       DOCKER_PASS: "${DOCKER_PASS:-}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
     command: >-
       --file "./var/README.md"
       --short "Project structure foundation or template"
@@ -165,7 +167,7 @@ services:
       CI_JOB_TOKEN: "${CI_JOB_TOKEN:-}"
     volumes:
       - "${CHECKOUT_DIR:-.}/:/usr/local/src/project-structure/"
-    working_dir: "/usr/local/src/project-structure/${WORKTREE_REL:-}"
+    working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
 
   ## Containers for simulating CI/CD:
 

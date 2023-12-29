@@ -12,8 +12,8 @@ from . import utils  # pylint: disable=unused-import,useless-suppression
 # Manage version through the VCS CI/CD process
 __version__ = None
 try:
-    from . import version
+    from . import _version
 except ImportError:  # pragma: no cover
     pass
 else:  # pragma: no cover
-    __version__ = version.version
+    __version__ = _version.version

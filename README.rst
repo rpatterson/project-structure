@@ -31,6 +31,7 @@ Project Structure foundation or template
      - .. figure:: https://api.reuse.software/badge/gitlab.com/rpatterson/project-structure
           :alt: Reuse license status
           :target: https://api.reuse.software/info/gitlab.com/rpatterson/project-structure
+
    * - GitLab:
      - .. figure:: https://gitlab.com/rpatterson/project-structure/-/badges/release.svg
           :alt: GitLab latest release
@@ -271,7 +272,7 @@ Local Installation
 ========================================================================================
 
 Install by using any tool for installing standard Python 3 distributions such as
-`pip`_::
+`pip`_:
 
 .. code:: console
 
