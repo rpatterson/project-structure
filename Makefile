@@ -200,6 +200,7 @@ export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
 DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 export DOCKER_PASS
+DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
 # Values used for publishing releases:
@@ -462,7 +463,7 @@ define test_docker_template=
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log
 	export DOCKER_VARIANT="$(1)"
-	docker compose run --rm -T $$(PROJECT_NAME)-devel \
+	$(DOCKER_COMPOSE_RUN_CMD) $$(PROJECT_NAME)-devel \
 	    make -e TEST_CODE_PREREQS= test-code
 # Test that the end-user image can run commands:
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
@@ -470,7 +471,7 @@ test-docker-user-$(1): ./var/log/docker-compose-network.log \
 	export DOCKER_VARIANT="$(1)"
 # TEMPLATE: Change the command to confirm the user image has a working installation of
 # the package:
-	docker compose run --no-deps --rm -T $$(PROJECT_NAME) true
+	$(DOCKER_COMPOSE_RUN_CMD) --no-deps $$(PROJECT_NAME) true
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
 
@@ -482,7 +483,7 @@ test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
 .PHONY: test-lint-licenses
 ## Lint copyright and license annotations for all files tracked in VCS.
 test-lint-licenses: ./var/log/docker-compose-network.log
-	docker compose run --rm -T "reuse"
+	$(DOCKER_COMPOSE_RUN_CMD) "reuse"
 
 .PHONY: test-lint-code
 ## Lint source code for errors, style, and other issues.
@@ -529,14 +530,14 @@ test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z \
 	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
-	    xargs -r -0 -t -- docker compose run --rm -T vale
+	    xargs -r -0 -t -- $(DOCKER_COMPOSE_RUN_CMD) vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
 test-lint-prose-vale-code: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z \
 	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
 	    xargs -r -0 -t -- \
-	    docker compose run --rm -T vale --config="./styles/code.ini"
+	    $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
 ## Lint source code files tracked in VCS but without extensions with Vale.
 test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
@@ -544,7 +545,7 @@ test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	    while read -d $$'\0'
 	    do
 	        cat "$${REPLY}" |
-	            docker compose run --rm -T vale --config="./styles/code.ini" \
+	            $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini" \
 	                --ext=".pl"
 	    done
 .PHONY: test-lint-prose-proselint
@@ -569,7 +570,7 @@ test-lint-docker: ./var/log/docker-compose-network.log \
 		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
-	    xargs -0 -- docker compose run --rm -T hadolint hadolint
+	    xargs -0 -- $(DOCKER_COMPOSE_RUN_CMD) hadolint hadolint
 .PHONY: $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 ## Prevent Docker volumes owned by `root` for one Python version.
 $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
@@ -808,7 +809,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	        echo "$${REPLY}"
 	    fi
 	done | xargs -r -t -- \
-	    docker compose run --rm -T "reuse" annotate --skip-unrecognised \
+	    $(DOCKER_COMPOSE_RUN_CMD) "reuse" annotate --skip-unrecognised \
 	        --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT"
 # Run source code formatting tools implemented in JavaScript:
 	~/.nvm/nvm-exec npm run format
@@ -892,7 +893,7 @@ clean:
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
 		./var-docker/$(DOCKER_VARIANT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
-	docker compose run --rm -T $(PROJECT_NAME)-devel \
+	$(DOCKER_COMPOSE_RUN_CMD) $(PROJECT_NAME)-devel \
 	    echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
 # Build Docker container images:
@@ -949,8 +950,9 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    grep -q '^ *Endpoint: *multi-platform *'
 	then
 	    (
-	        docker buildx create --use "multi-platform" --bootstrap || true
-	    ) |& tee -a "$(@)"
+	        docker buildx create --use "multi-platform" --bootstrap
+	        2>"/dev/null" || true
+	    ) | tee -a "$(@)"
 	fi
 ./var/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) -e "$(HOST_TARGET_DOCKER)"
@@ -971,7 +973,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
-	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
+	$(DOCKER_COMPOSE_RUN_CMD) --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
@@ -979,7 +981,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 
 ./README.md: README.rst
 	$(MAKE) -e "$(HOST_TARGET_DOCKER)"
-	docker compose run --rm -T "pandoc"
+	$(DOCKER_COMPOSE_RUN_CMD) "pandoc"
 
 
 ### Development Tools:
@@ -1045,8 +1047,8 @@ endif
 # Update style rule definitions from the remotes:
 ./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
 		./styles/code.ini
-	docker compose run --rm -T vale sync
-	docker compose run --rm -T vale sync --config="./styles/code.ini"
+	$(DOCKER_COMPOSE_RUN_CMD) vale sync
+	$(DOCKER_COMPOSE_RUN_CMD) vale sync --config="./styles/code.ini"
 
 # Editor and IDE support and integration:
 ./.dir-locals.el.~out~: ./.dir-locals.el.in
