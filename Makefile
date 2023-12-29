@@ -332,8 +332,7 @@ test: test-lint test-code
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: ./var/log/build-pkgs.log $(PYTHON_ENVS:%=./.tox/%/.tox-info.json) \
-		./var/log/build-pkgs.log
+test-code: ./var/log/build-pkgs.log $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
 	tox $(TOX_RUN_ARGS) --installpkg \
 	    "$$(ls -t ./dist/$(PYTHON_PROJECT_GLOB)-*.whl | head -n 1)" \
 	    -e "$(TOX_ENV_LIST)"
