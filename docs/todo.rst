@@ -26,9 +26,6 @@ Required
 #. ``ci``: Publish Sphinx docs to `all available documentation hosts
    <https://www.sphinx-doc.org/en/master/faq.html#using-sphinx-with>`_.
 
-#. ``ci``: ``${{ matrix.DOCKER_VARIANT }})`` in ``./.gitlab-ci.yml`` and
-   ``./.github/workflows/build-test.yml``.
-
 
 ****************************************************************************************
 High priority

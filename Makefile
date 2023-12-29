@@ -261,14 +261,9 @@ export DOCKER_VARIANT=$(firstword $(DOCKER_VARIANTS))
 DOCKER_DEFAULT_VAR=./var-docker/$(DOCKER_DEFAULT)
 DOCKER_OS_DEFAULT_VAR=./var-docker/$(DOCKER_OS_DEFAULT)
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
-DOCKER_REGISTRIES=DOCKER
-export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
-DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
-DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(PYTHON_ENVS)\
     ,$(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES)\
     ,$(DOCKER_OS_DEFAULT_VAR)-$(language)/log/requirements/$(basename).log))
-export DOCKER_PASS
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
 GITLAB_CI=false
 GITHUB_ACTIONS=false
@@ -375,7 +370,6 @@ PYPI_REPO=testpypi
 # hosts/indexes/registries:
 PYPI_HOSTNAME=test.pypi.org
 GITHUB_RELEASE_ARGS=--prerelease
-DOCKER_PLATFORMS=
 # Only publish releases from the `main` or `develop` branches and only under the
 # canonical CI/CD platform:
 ifeq ($(GITLAB_CI),true)
@@ -516,7 +510,7 @@ $(DOCS_SPHINX_BUILDERS:%=build-docs-%): \
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
-	        LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
+	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
 ## Render the Texinfo documentation into a `*.info` file.
 build-docs-info: build-docs-texinfo
@@ -574,6 +568,7 @@ ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 ifeq ($(DOCKER_BUILD_TARGET),user)
 	echo "$${docker_image}:$(DOCKER_BRANCH_TAG)"
 endif
+endif
 # Print any other unqualified or default tags only for images built from the `main`
 # branch.  Users can count on these to be stable:
 ifeq ($(VCS_BRANCH),main)
@@ -607,11 +602,10 @@ ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	echo "$${docker_image}:latest"
 endif
 endif
-endif
 
 .PHONY: build-docker-build
 ## Run the actual commands used to build the Docker container image.
-build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) \
+build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.json \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/git-fetch.log \
 		./var/log/docker-login-DOCKER.log
@@ -680,6 +674,7 @@ endif
 	    --build-arg VERSION="$$(
 	        tox exec -e "build" -qq -- cz version --project
 	    )" $${docker_build_args} $${docker_build_caches} --file "$(<)" "./"
+
 
 ### Test Targets:
 #
@@ -824,7 +819,7 @@ test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 test-lint-prose-proselint: ./.tox/build/.tox-info.json
 	git ls-files -z '*.rst' |
 	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
-	        --config "./.proselintrc.json"
+	    --config "./.proselintrc.json"
 .PHONY: test-lint-prose-write-good
 ## Lint prose in all files tracked in VCS with write-good.
 test-lint-prose-write-good: ./var/log/npm-install.log
@@ -991,8 +986,7 @@ ifeq ($(RELEASE_PUBLISH),true)
 	    create $${release_cli_args}
 # Create a GitHub release
 	gh release create "v$${VERSION}" $(GITHUB_RELEASE_ARGS) \
-	    --notes-file "./NEWS-VERSION.rst" \
-	    ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
+	    --notes-file "./NEWS-VERSION.rst" ./dist/project?structure-*
 endif
 
 .PHONY: release-docker
@@ -1085,6 +1079,9 @@ ifeq ($(RELEASE_PUBLISH),true)
 # Import the private signing key from CI secrets
 	$(MAKE) -e ./var/log/gpg-import.log
 endif
+# Capture the release notes for *only this* release for creating the GitHub release.
+# Have to run before the real `$ towncrier build` run without the `--draft` option
+# because it deletes the `newsfragments`.
 	next_version=$$(
 	    tox exec -e "build" -qq -- cz bump $${cz_bump_args} --yes --dry-run |
 	    sed -nE 's|.* ([^ ]+) *→ *([^ ]+).*|\2|p;q'
@@ -1448,7 +1445,6 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	        docker buildx create --use "multi-platform" --bootstrap || true
 	    ) |& tee -a "$(@)"
 	fi
-# Authenticated to Docker image registries:
 ./var/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) -e "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
@@ -1787,9 +1783,6 @@ $(HOST_PREFIX)/bin/gh:
 #
 # Snippets used several times, including in different recipes:
 # https://www.gnu.org/software/make/manual/html_node/Call-Function.html
-
-# Return the most recent built package:
-current_pkg=$(shell ls -t ./dist/*$(1) | head -n 1)
 
 # Have to use a placeholder `*.~out~` target instead of the real expanded template
 # because targets can't disable `.DELETE_ON_ERROR` on a per-target basis.
