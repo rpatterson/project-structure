@@ -97,7 +97,7 @@ PYTHON_HOST_MINOR:=$(shell python3 -c \
     'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 endif
 export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
-PIP_COMPILE_ARGS=
+export PIP_COMPILE_ARGS=
 
 # Values derived from the environment:
 USER_NAME:=$(shell id -u -n)
@@ -209,7 +209,6 @@ TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
 # project hosting services, indexes, and registries:
-export PIP_COMPILE_ARGS=
 RELEASE_PUBLISH=false
 PYPI_REPO=testpypi
 # Publish releases from the `main` or `develop` branches:
