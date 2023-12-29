@@ -159,7 +159,6 @@ services:
 
   ## Containers for simulating CI/CD:
 
-  # The container in which CI/CD runs:
   build-host:
     image: "\
       ${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\

@@ -1677,9 +1677,7 @@ pull-docker: ./var/log/git-fetch.log $(HOST_TARGET_DOCKER)
 # `./var/log/docker-login*.log` targets for the authentication environment variables to
 # set or login to those container registries manually and `$ touch` these targets.
 .PHONY: bootstrap-project
-bootstrap-project: \
-		./var/log/docker-login-GITLAB.log \
-		./var/log/docker-login-GITHUB.log
+bootstrap-project: ./var/log/docker-login-GITLAB.log ./var/log/docker-login-GITHUB.log
 # Initially seed the build host Docker image to bootstrap CI/CD environments
 # GitLab CI/CD:
 	$(MAKE) -e -C "./build-host/" DOCKER_IMAGE="$(DOCKER_IMAGE_GITLAB)" release
