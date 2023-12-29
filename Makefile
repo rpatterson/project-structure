@@ -490,9 +490,9 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
+build-docs-watch: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 	mkdir -pv "./build/docs/html/"
-	tox exec -e "$(PYTHON_SUPPORTED_ENV)" -- \
+	tox exec -e "$(PYTHON_HOST_ENV)" -- \
 	    sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
 # Done as a separate target because this builder fails every other run without the
@@ -500,15 +500,16 @@ build-docs-watch: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
-	./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
-	    -E -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
+build-docs-devhelp: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
+	./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn -E \
+	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): \
+		./.tox/$(PYTHON_HOST_ENV)/.tox-info.json \
 		build-docs-devhelp
-	./.tox/$(PYTHON_SUPPORTED_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
+	./.tox/$(PYTHON_HOST_ENV)/bin/sphinx-build -b "$(@:build-docs-%=%)" -Wn \
 	    -j "auto" -D autosummary_generate="0" -D autoapi_generate_api_docs="0" \
 	    "./docs/" "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: build-docs-pdf
@@ -770,14 +771,14 @@ test-lint-docs-docker: \
 # TODO: Audit what checks all tools perform and remove redundant tools.
 .PHONY: test-lint-docs-rstcheck
 ## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json
+test-lint-docs-rstcheck: ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 # Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
 # `.. include:: ../README.rst` directive breaks `$ rstcheck`:
 #     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
 # Also exclude `./docs/news*.rst` because it's duplicate headings cause:
 #     INFO docs/news.rst:317 Duplicate implicit target name: "bugfixes".
 	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
-	    xargs -r -0 -- ./.tox/$(PYTHON_ENV)/bin/rstcheck
+	    xargs -r -0 -- ./.tox/$(PYTHON_HOST_ENV)/bin/rstcheck
 .PHONY: test-lint-docs-sphinx-lint
 ## Test the documentation for formatting errors with sphinx-lint.
 test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
@@ -957,12 +958,12 @@ ifeq ($(RELEASE_PUBLISH),true)
 # Import the private signing key from CI secrets
 	$(MAKE) -e "./var/log/gpg-import.log"
 # https://twine.readthedocs.io/en/latest/#using-twine
-	tox exec -e "build" -- twine check ./dist/*
+	tox exec -e "build" -- twine check ./dist/$(PYTHON_PROJECT_GLOB)-*
 # The VCS remote should reflect the release before publishing the release to ensure that
 # a published release is never *not* reflected in VCS:
 	$(MAKE) -e test-clean
 	tox exec -e "build" -- twine upload -s -r "$(PYPI_REPO)" \
-	    ./dist/*
+	    ./dist/$(PYTHON_PROJECT_GLOB)-*
 	export VERSION=$$(tox exec -e "build" -qq -- cz version --project)
 # Create a GitLab release
 	./.tox/build/bin/twine upload -s -r "gitlab" \
