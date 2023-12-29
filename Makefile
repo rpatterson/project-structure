@@ -541,7 +541,8 @@ test: test-lint test-docker
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
 test-code: $(TEST_CODE_PREREQS) $(PYTHON_ENVS:%=./.tox/%/.tox-info.json)
-	tox $(TOX_RUN_ARGS) --installpkg "$$(ls -t ./dist/*.whl | head -n 1)" \
+	tox $(TOX_RUN_ARGS) --installpkg \
+	    "$$(ls -t ./dist/$(PYTHON_PROJECT_GLOB)-*.whl | head -n 1)" \
 	    -e "$(TOX_ENV_LIST)"
 
 .PHONY: test-debug
