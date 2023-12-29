@@ -12,3 +12,4 @@ author
 Author
 rinohtype
 Pylint
+pipx

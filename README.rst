@@ -192,12 +192,13 @@ straight to final release. For example they can decide that:
 Installation
 ****************************************************************************************
 
-Install by using any tool for installing standard Python 3 distributions such as
-`pip`_:
+Install by using any tool for installing standard Python 3 distributions. The
+recommended tool is `pipx`_ to prevent affecting the system Python installation and to
+isolate from other packages:
 
 .. code:: console
 
-  $ pip3 install --user project-structure
+  $ pipx install tox
 
 
 ****************************************************************************************
@@ -244,7 +245,7 @@ References
 .. _`the contributing documentation`:
    https://gitlab.com/rpatterson/project-structure/-/blob/main/docs/contributing.rst
 
-.. _pip: https://pip.pypa.io/en/stable/installation/
+.. _pipx: https://pipx.pypa.io/stable/installation/#installing-pipx
 
 .. _`GitLab hosts this project`:
    https://gitlab.com/rpatterson/project-structure
