@@ -150,10 +150,10 @@ build-test-others:
       - "./build/reports/"
     reports:
       junit:
-        - "./build/reports/*unit.xml"
+        - "./build/reports/*/*unit.xml"
       coverage_report:
         coverage_format: "cobertura"
-        path: "./build/reports/*cov*.xml"
+        path: "./build/reports/*/*cov*.xml"
 
 release:
   stage: "release"

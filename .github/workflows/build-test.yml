@@ -132,7 +132,7 @@ jobs:
       #       Test Suite Reports
       #       (${{ matrix.DOCKER_VARIANT_OSES }}-${{ matrix.DOCKER_VARIANT_LANGUAGES }})
       #     path: >-
-      #       ./build/reports/*unit.xml
+      #       ./build/reports/*/*unit.xml
       #     reporter: "java-junit"
   build-test-others:
     needs: ["build-test-default"]
@@ -197,5 +197,5 @@ jobs:
       #     name: >-
       #       Test Suite Reports (${{ matrix.DOCKER_VARIANT }})
       #     path: >-
-      #       ./build/reports/*unit.xml
+      #       ./build/reports/*/*unit.xml
       #     reporter: "java-junit"
