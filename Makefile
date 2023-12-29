@@ -211,7 +211,7 @@ else
 DOCKER_VARIANTS=$(foreach language,$(DOCKER_LANGUAGES),$(DOCKER_OSES:%=%-$(language)))
 DOCKER_DEFAULT=$(DOCKER_OS_DEFAULT)-$(DOCKER_LANGUAGE_DEFAULT)
 endif
-export DOCKER_VARIANT=$(DOCKER_DEFAULT)
+export DOCKER_VARIANT=$(firstword $(DOCKER_VARIANTS))
 DOCKER_DEFAULT_VAR=./var-docker/$(DOCKER_DEFAULT)
 DOCKER_OS_DEFAULT_VAR=./var-docker/$(DOCKER_OS_DEFAULT)
 DOCKER_DEFAULT_TOX=$(DOCKER_DEFAULT_VAR)/.tox/$(DOCKER_LANGUAGE_DEFAULT)
@@ -826,7 +826,7 @@ endif
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
-		./var/log/npm-install.log $(DOCKER_DEFAULT_VAR)/log/build-devel.log
+		./var/log/npm-install.log
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -1021,7 +1021,7 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		$(DOCKER_DEFAULT_TOX)/.tox-info.json
+		./var-docker/$(DOCKER_VARIANT)/.tox/$(PYTHON_ENV)/.tox-info.json
 # Ensure only a current, successfully built package is available:
 	rm -vf ./dist/*
 # Build Python packages/distributions from the development Docker container for
@@ -1031,7 +1031,7 @@ clean:
 	    "$(PYTHON_SUPPORTED_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
-	cp -lfv $(DOCKER_DEFAULT_VAR)/.tox/.pkg/tmp/dist/* "./dist/"
+	cp -lfv ./var-docker/$(DOCKER_VARIANT)/.tox/.pkg/tmp/dist/* "./dist/"
 
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
