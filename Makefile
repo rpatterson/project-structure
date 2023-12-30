@@ -552,7 +552,8 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
 define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
 test-docker-devel-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log
+		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log \
+		./var-docker/$(1)/log/requirements/build.txt.log
 	export DOCKER_VARIANT="$(1)"
 	docker compose run --rm -T $$(PROJECT_NAME)-devel \
 	    make -e TEST_CODE_PREREQS= test-code
@@ -1034,6 +1035,15 @@ clean:
 # Manage fixed/pinned versions in `./requirements/**.txt` files. Must run for each
 # python version in the virtual environment for that Python version:
 # https://github.com/jazzband/pip-tools#cross-environment-usage-of-requirementsinrequirementstxt-and-pip-compile
+define build_requirements_build_template=
+./requirements/$(1)/build.txt: ./.tox/.log/$(1)-bootstrap.log
+	true DEBUG Updated prereqs: $$(?)
+	$$(MAKE) -e PYTHON_ENV="$(1)" \
+	    PIP_COMPILE_SRC="$$(<)" PIP_COMPILE_OUT="$$(@)" \
+	    build-requirements-compile
+endef
+$(foreach python_env,$(PYTHON_ENVS),\
+    $(eval $(call build_requirements_build_template,$(python_env)))))
 define build_requirements_template=
 ./requirements/$(1)/$(2): ./requirements/$(2).in ./.tox/.log/$(1)-bootstrap.log
 	true DEBUG Updated prereqs: $$(?)
@@ -1042,7 +1052,7 @@ define build_requirements_template=
 	    build-requirements-compile
 endef
 $(foreach python_env,$(PYTHON_ENVS),\
-    $(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES),\
+    $(foreach basename,$(filter-out build.txt,$(PYTHON_REQUIREMENTS_BASENAMES)),\
     $(eval $(call build_requirements_template,$(python_env),$(basename)))))
 
 # Set up release publishing authentication, useful in automation such as CI:
@@ -1306,7 +1316,7 @@ $(HOME)/.nvm/nvm.sh:
 # created so other targets can use them directly to save Tox's startup time when they
 # don't need Tox's logic about when to update/recreate:
 ./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		$(DOCKER_DEFAULT_VAR)/log/requirements/build.txt.log
+		./requirements/$(PYTHON_HOST_ENV)/build.txt
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
