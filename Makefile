@@ -45,7 +45,12 @@ MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 export PS1?=$$
 # Prefix echoed recipe commands with the recipe line number for debugging:
-export PS4?=:$$LINENO+ 
+export PS4?=:$$LINENO+
+# Support for debugging make logic:
+DEBUG?=false
+ifeq ($(DEBUG),true)
+MAKEFLAGS+=--debug=basic
+endif
 EMPTY=
 COMMA=,
 SPACE=$(EMPTY) $(EMPTY)
