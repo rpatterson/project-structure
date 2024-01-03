@@ -16,7 +16,7 @@ export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
 export NPM_SCOPE=rpattersonnet
 export DOCKER_NAMESPACE=merpatterson
-export DOCKER_USER=$(DOCKER_NAMESPACE)
+export DOCKER_USER?=$(DOCKER_NAMESPACE)
 # Match the same Python version available in the `./build-host/` Docker image:
 # https://pkgs.alpinelinux.org/packages?name=python3&branch=edge&repo=main&arch=x86_64&maintainer=
 PYTHON_SUPPORTED_MINOR=3.11
@@ -185,9 +185,9 @@ VCS_BRANCH_SUFFIX=upgrade
 VCS_MERGE_BRANCH=$(VCS_BRANCH:%-$(VCS_BRANCH_SUFFIX)=%)
 
 # Values used to build Docker images:
-export DOCKER_BUILD_TARGET=user
-DOCKER_BUILD_ARGS=--load
-export DOCKER_BUILD_PULL=false
+export DOCKER_BUILD_TARGET?=user
+export DOCKER_BUILD_ARGS?=--load
+export DOCKER_BUILD_PULL?=false
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
 DOCKER_OSES=$(DOCKER_OS_DEFAULT)
@@ -202,13 +202,13 @@ else
 DOCKER_VARIANTS=$(foreach language,$(DOCKER_LANGUAGES),$(DOCKER_OSES:%=%-$(language)))
 DOCKER_DEFAULT=$(DOCKER_OS_DEFAULT)-$(DOCKER_LANGUAGE_DEFAULT)
 endif
-export DOCKER_VARIANT=$(firstword $(DOCKER_VARIANTS))
+export DOCKER_VARIANT?=$(firstword $(DOCKER_VARIANTS))
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
 DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
-DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(PROJECT_NAME)
-DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
-export DOCKER_PASS
+DOCKER_IMAGE_DOCKER=$(DOCKER_NAMESPACE)/$(PROJECT_NAME)
+export DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
+export DOCKER_PASS?=
 DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
