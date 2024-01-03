@@ -14,14 +14,15 @@
 export PROJECT_NAMESPACE=rpatterson
 export PROJECT_NAME=project-structure
 # TEMPLATE: Create an Node Package Manager (NPM) organization and set its name here:
-NPM_SCOPE=rpattersonnet
-export DOCKER_USER=merpatterson
+export NPM_SCOPE=rpattersonnet
+export DOCKER_NAMESPACE=merpatterson
+export DOCKER_USER=$(DOCKER_NAMESPACE)
 # Match the same Python version available in the `./build-host/` Docker image:
 # https://pkgs.alpinelinux.org/packages?name=python3&branch=edge&repo=main&arch=x86_64&maintainer=
 PYTHON_SUPPORTED_MINOR=3.11
 
 # Option variables that control behavior:
-export TEMPLATE_IGNORE_EXISTING=false
+export TEMPLATE_IGNORE_EXISTING?=false
 
 
 ### "Private" Variables:
@@ -118,7 +119,7 @@ export PGID:=$(shell id -g)
 # Capture the path of the checkout directory as seen by the real host running `#
 # dockerd` so that following bind volumes have the correct source paths:
 export CHECKOUT_DIR=$(PWD)
-export WORKTREE_REL=
+export WORKTREE_REL?=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
 STATE_DIR=$(HOME)/.local/state/$(PROJECT_NAME)
@@ -421,15 +422,15 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	$(MAKE) -e -C "./build-host/" build
+	$(MAKE) -C "./build-host/" build
 	docker compose run --rm build-host \
-	    make -e $(@:test-worktree-%=test-worktree-add-%)
-	worktree_rel="worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
-	$(MAKE) -e -C "./$${worktree_rel}/" TEMPLATE_IGNORE_EXISTING="true" \
-	    WORKTREE_REL="/$${worktree_rel}" "./.env.~out~"
-	cd "./$${worktree_rel}/"
+	    make $(@:test-worktree-%=test-worktree-add-%)
+	export WORKTREE_REL="/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
+	$(MAKE) -C ".$${WORKTREE_REL}/" TEMPLATE_IGNORE_EXISTING="true" \
+	    "./.env.~out~"
+	cd ".$${WORKTREE_REL}/"
 	docker compose run --rm \
-	    --workdir "/usr/local/src/project-structure/$${worktree_rel}" build-host
+	    --workdir "/usr/local/src/project-structure$${WORKTREE_REL}" build-host
 .PHONY: test-worktree-add-%
 ## Create a new worktree based on the current branch adding a suffix.
 test-worktree-add-%:
@@ -451,7 +452,7 @@ test-worktree-add-%:
 .PHONY: release
 ## Publish installable packages if conventional commits require a release.
 release: ./var/log/build-pkgs.log
-	$(MAKE) -e test-clean
+	$(MAKE) test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
 	true "TEMPLATE: Always specific to the project type"
@@ -515,20 +516,20 @@ endif
 	tox exec -e "build" -- cz bump $${cz_bump_args}
 ifeq ($(VCS_BRANCH),main)
 # Merge the bumped version back into `develop`:
-	$(MAKE) -e VCS_BRANCH="main" VCS_MERGE_BRANCH="develop" \
+	$(MAKE) VCS_BRANCH="main" VCS_MERGE_BRANCH="develop" \
 	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
-	$(MAKE) -e test-clean
+	$(MAKE) test-clean
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
 release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
-	$(MAKE) -e test-push test
-	$(MAKE) -e release
-	$(MAKE) -e test-clean
+	$(MAKE) test-push test
+	$(MAKE) release
+	$(MAKE) test-clean
 
 
 ### Development Targets:
@@ -562,7 +563,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 ## Update requirements, dependencies, and other external versions tracked in VCS.
 devel-upgrade:
 	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
-	$(MAKE) -e PIP_COMPILE_ARGS="--upgrade" \
+	$(MAKE) PIP_COMPILE_ARGS="--upgrade" \
 	    "./requirements/$(PYTHON_HOST_ENV)/build.txt" devel-upgrade-pre-commit \
 	    devel-upgrade-js "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
@@ -579,8 +580,8 @@ devel-upgrade-js: ./var/log/npm-install.log
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
 devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	now=$$(date -u)
-	$(MAKE) -e TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
-	if $(MAKE) -e "test-clean"
+	$(MAKE) TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
+	if $(MAKE) "test-clean"
 	then
 # No changes from upgrade, exit signaling success but push nothing:
 	    exit
@@ -598,7 +599,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 # Create or reset the feature branch for merge or pull requests:
 	git switch -C "$(VCS_BRANCH)-upgrade"
 # Fail if upgrading left un-tracked files in VCS:
-	$(MAKE) -e "test-clean"
+	$(MAKE) "test-clean"
 
 .PHONY: devel-merge
 ## Merge this branch with a suffix back into its un-suffixed upstream.
@@ -639,7 +640,7 @@ clean:
 
 # Create the Docker compose network a single time under parallel make:
 ./var/log/docker-compose-network.log:
-	$(MAKE) -e "$(HOST_TARGET_DOCKER)" "./.env.~out~"
+	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
@@ -692,7 +693,7 @@ endif
 # <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
 # <!--alex enable hooks-->
-	$(MAKE) -e "./.tox/build/.tox-info.json"
+	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
 
@@ -700,13 +701,13 @@ endif
 # Map formats unknown by Vale to a common default format:
 ./var/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
 		./var/log/git-ls-files.log
-	$(MAKE) -e "./.tox/build/.tox-info.json"
+	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
 ./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
-	$(MAKE) -e "./.tox/build/.tox-info.json"
+	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
@@ -725,11 +726,11 @@ endif
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npm install | tee -a "$(@)"
 ./package.json:
-	$(MAKE) -e "./var/log/nvm-install.log"
+	$(MAKE) "./var/log/nvm-install.log"
 # https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
 	~/.nvm/nvm-exec npm init --yes --scope="@$(NPM_SCOPE)"
 ./var/log/nvm-install.log: ./.nvmrc
-	$(MAKE) -e "$(HOME)/.nvm/nvm.sh"
+	$(MAKE) "$(HOME)/.nvm/nvm.sh"
 	mkdir -pv "$(dir $(@))"
 	set +x
 	. "$(HOME)/.nvm/nvm.sh" || true
@@ -760,29 +761,29 @@ ifneq ($(PYTHON_SUPPORTED_ENV),$(PYTHON_HOST_ENV))
 	ln -sv --relative --backup="numbered" "$(<)" "$(@)"
 endif
 $(HOME)/.local/bin/tox:
-	$(MAKE) -e "$(HOST_PREFIX)/bin/pipx"
+	$(MAKE) "$(HOST_PREFIX)/bin/pipx"
 # https://tox.wiki/en/latest/installation.html#via-pipx
 	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
 	touch "$(@)"
 $(HOST_PREFIX)/bin/pipx:
-	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_PIPX)
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIPX)"
 
 # Tools needed by Sphinx builders:
 $(HOST_PREFIX)/bin/makeinfo:
-	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_MAKEINFO)
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_MAKEINFO)"
 $(HOST_PREFIX)/bin/latexmk:
-	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_LATEXMK)
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_LATEXMK)"
 $(HOST_PREFIX)/bin/convert:
-	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_IMAGEMAGICK)
 
 # Manage tools in containers:
 $(HOST_TARGET_DOCKER):
-	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_DOCKER)
+	$(MAKE) "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_DOCKER)"
 	docker info
 ifeq ($(HOST_PKG_BIN),brew)
 # https://formulae.brew.sh/formula/docker-compose#default
@@ -911,7 +912,7 @@ endef
 # use that target in a sub-make instead of a prerequisite:
 #
 #     ./var/log/bar.log:
-#         $(MAKE) -e "./var/log/qux.log"
+#         $(MAKE) "./var/log/qux.log"
 #
 # This project uses some more Make features than these core features and welcome further
 # use of such features:
@@ -941,4 +942,4 @@ endef
 .PHONY: bootstrap-project
 bootstrap-project:
 # Reproduce an isolated, clean build in a Docker image to reproduce build issues:
-	$(MAKE) -e -C "./build-host/" build
+	$(MAKE) -C "./build-host/" build
