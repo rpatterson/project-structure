@@ -625,7 +625,7 @@ clean:
 	    || true
 	tox exec -e "build" -- pre-commit clean || true
 	git clean -dfx -e "/var" -e "/.env" -e "*~"
-	rm -rfv "./var/log/"
+	git clean -dfx './var/log/*'
 
 
 ### Real Targets:
