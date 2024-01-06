@@ -221,6 +221,7 @@ DOCKER_VARIANTS=$(foreach language,$(DOCKER_LANGUAGES),$(DOCKER_OSES:%=%-$(langu
 DOCKER_DEFAULT=$(DOCKER_OS_DEFAULT)-$(DOCKER_LANGUAGE_DEFAULT)
 endif
 export DOCKER_VARIANT?=$(firstword $(DOCKER_VARIANTS))
+DOCKER_VARIANT_HOST=$(DOCKER_OS_DEFAULT)-$(PYTHON_HOST_ENV)
 DOCKER_DEFAULT_VAR=./var-docker/$(DOCKER_DEFAULT)
 DOCKER_OS_DEFAULT_VAR=./var-docker/$(DOCKER_OS_DEFAULT)
 export DOCKER_BRANCH_TAG=$(subst /,-,$(VCS_BRANCH))
@@ -233,6 +234,9 @@ DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(PYTHON_ENVS)\
     ,$(DOCKER_OS_DEFAULT_VAR)-$(language)/log/requirements/$(basename).log))
 export DOCKER_PASS?=
 DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
+ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_HOST))
+TOX_BUILD_PREREQS=./var-docker/$(DOCKER_VARIANT_HOST)/log/requirements/build.txt.log
+endif
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
 # Run Python tools in isolated environments managed by Tox:
@@ -1349,8 +1353,7 @@ $(HOME)/.nvm/nvm.sh:
 # Targets used as pre-requisites to ensure virtual environments managed by tox have been
 # created so other targets can use them directly to save Tox's startup time when they
 # don't need Tox's logic about when to update/recreate:
-./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt
+./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini $(TOX_BUILD_PREREQS)
 	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
 	touch "$(@)"
 ./.tox/$(PYTHON_SUPPORTED_ENV)/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
