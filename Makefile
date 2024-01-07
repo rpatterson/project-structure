@@ -62,6 +62,7 @@ HOST_PKG_BIN=apt-get
 HOST_PKG_INSTALL_ARGS=install -y
 HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIPX=pipx
+HOST_PKG_NAMES_IMAGEMAGICK=imagemagick inkscape
 HOST_PKG_NAMES_MAKEINFO=texinfo
 HOST_PKG_NAMES_LATEXMK=latexmk
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
@@ -71,11 +72,13 @@ HOST_PKG_CMD_PREFIX=
 HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
+HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
+HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
 HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
@@ -244,7 +247,7 @@ build-docs-devhelp: ./.tox/build/.tox-info.json
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
 $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
-		build-docs-devhelp
+		build-docs-devhelp $(HOST_PREFIX)/bin/convert
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn \
 	    -j "auto" -D autosummary_generate="0" "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
@@ -758,20 +761,23 @@ $(HOME)/.local/bin/tox:
 	touch "$(@)"
 $(HOST_PREFIX)/bin/pipx:
 	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_PIPX)"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_PIPX)
 
 # Tools needed by Sphinx builders:
 $(HOST_PREFIX)/bin/makeinfo:
 	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_MAKEINFO)"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_MAKEINFO)
 $(HOST_PREFIX)/bin/latexmk:
 	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_LATEXMK)"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_LATEXMK)
+$(HOST_PREFIX)/bin/convert:
+	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_IMAGEMAGICK)
 
 # Manage tools in containers:
 $(HOST_TARGET_DOCKER):
 	$(MAKE) -e "$(STATE_DIR)/log/host-update.log"
-	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_DOCKER)"
+	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_DOCKER)
 	docker info
 ifeq ($(HOST_PKG_BIN),brew)
 # https://formulae.brew.sh/formula/docker-compose#default
@@ -814,7 +820,7 @@ define expand_template=
 if ! which envsubst
 then
     $(HOST_PKG_CMD) update | tee -a "$(STATE_DIR)/log/host-update.log"
-    $(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_ENVSUBST)"
+    $(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) $(HOST_PKG_NAMES_ENVSUBST)
 fi
 if test "$(2:%.~out~=%)" -nt "$(1)"
 then
