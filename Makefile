@@ -339,14 +339,13 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 ## Lint prose in all markup files tracked in VCS with Vale.
 test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
-	git ls-files -co --exclude-standard -z \
-	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
+	git ls-files -co --exclude-standard -z ':!docs/news*.rst' ':!LICENSES' \
+	    ':!styles/**' ':!requirements/**' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
 test-lint-prose-vale-code: ./var/log/docker-compose-network.log
-	git ls-files -co --exclude-standard -z \
-	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
+	git ls-files -co --exclude-standard -z ':!styles/**' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
@@ -543,8 +542,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
-	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/*/meta.json' \
-	    ':!styles/*/*.yml' ':!requirements/*/*.txt' |
+	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/**' \
+	    ':!requirements/*/*.txt' |
 	while read -d $$'\0'
 	do
 	    if ! (
@@ -587,10 +586,10 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 # No changes from upgrade, exit signaling success but push nothing:
 	    exit
 	fi
-# Only add changes upgrade-related changes:
+# Only add changes related to the upgrades:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./package-lock.json" "./.vale.ini" "./styles/"
-	git add './styles/*/*.yml'
+	    "./package-lock.json" "./.vale.ini"
+	git add "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"

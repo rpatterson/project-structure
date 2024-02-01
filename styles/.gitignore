@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 # Exclude downloaded styles from formatting and linting but include in VCS:
-!/*/meta.json
-!/*/*.yml
-!/Vocab/*
-!/local/*
+!*
+/*/[Rr][Ee][Aa][Dd][Mm][Ee]*
 
 # Restore general ignores:
 *~
