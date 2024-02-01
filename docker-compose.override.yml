@@ -160,7 +160,7 @@ services:
   ## Containers for simulating CI/CD:
 
   build-host:
-    image: "${DOCKER_USER:-}/project-structure:build-host"
+    image: "${DOCKER_NAMESPACE:-merpatterson}/project-structure:build-host"
     profiles:
       - "ci"
     build:
@@ -169,7 +169,7 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         USER_SIGNINGKEY: "${USER_SIGNINGKEY:-}"
       cache_from:
-        - "${DOCKER_USER:-}/project-structure:build-host"
+        - "${DOCKER_NAMESPACE:-merpatterson}/project-structure:build-host"
     privileged: true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
@@ -197,4 +197,4 @@ services:
       WORKTREE_REL: "${WORKTREE_REL:-}"
       # DEBUG: "true"
     command: >-
-      make -j -O -e release-all
+      make -j -O release-all
