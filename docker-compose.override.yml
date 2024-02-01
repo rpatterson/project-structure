@@ -205,7 +205,3 @@ services:
       # DEBUG: "true"
     command: >-
       make -j -O release-all
-
-  gitlab-runner:
-    profiles:
-      - "ci"
