@@ -376,7 +376,6 @@ test-lint-prose-alex: ./var/log/npm-install.log
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
 test-lint-docker: ./var/log/docker-compose-network.log
-	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- docker compose run --rm -T hadolint hadolint
 
@@ -565,7 +564,7 @@ devel-upgrade:
 	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
 	$(MAKE) PIP_COMPILE_ARGS="--upgrade" \
 	    "./requirements/$(PYTHON_HOST_ENV)/build.txt" devel-upgrade-pre-commit \
-	    devel-upgrade-js "./var/log/vale-rule-levels.log"
+	    devel-upgrade-js devel-upgrade-docker "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -575,6 +574,30 @@ devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 devel-upgrade-js: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm update
 	~/.nvm/nvm-exec npm outdated
+.PHONY: devel-upgrade-docker
+## Update the container images of development tools.
+devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
+# Define the image tag to track in `./docker-compose*.yml` in the default values for the
+# `${DOCKER_*_DIGEST}` environment variables and track the locked/frozen image digests
+# in `./.env.in` in VCS:
+	mv -v "./.env" "./.env.~upgrade~"
+	docker compose config --profiles | while read
+	do
+	    docker compose --profile "$${REPLY}" config --services
+	done | sort | uniq | grep -Ev '^($(PROJECT_NAME)|build-host)' | while read
+	do
+	    docker compose pull "$${REPLY}"
+	    env_var="DOCKER_$${REPLY^^}_DIGEST"
+	    env_var="$${env_var//-/_}"
+	    digest="$$(
+	        docker compose config --resolve-image-digests --format "json" \
+	            "$${REPLY}" |
+	            jq -r ".services.\"$${REPLY}\".image" | cut -d "@" -f "2-"
+	    )"
+	    sed -Ei "s|^$${env_var}=.*|$${env_var}=@$${digest}|" "./.env.in"
+	    sed -Ei "s|^$${env_var}=.*|$${env_var}=@$${digest}|" "./.env.~upgrade~"
+	done
+	mv -v "./.env.~upgrade~" "./.env"
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -587,8 +610,8 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	    exit
 	fi
 # Only add changes related to the upgrades:
-	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./package-lock.json" "./.vale.ini"
+	git add --update '.env.in' './requirements/*/*.txt' \
+	    "./.pre-commit-config.yaml" "./package-lock.json" "./.vale.ini"
 	git add "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
@@ -644,7 +667,7 @@ clean:
 	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
-	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
+	docker compose pull --quiet "vale" | tee -a "$(@)"
 	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
