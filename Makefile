@@ -740,7 +740,7 @@ endif
 # https://github.com/nvm-sh/nvm#install--update-script
 $(HOME)/.nvm/nvm.sh:
 	set +x
-	wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh"
+	wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh"
 	    | bash
 
 # Manage Python tools:
