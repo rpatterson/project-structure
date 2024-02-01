@@ -888,8 +888,8 @@ clean:
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
 	tox exec -e "build" -- pre-commit clean || true
-	git clean -dfx -e "/var" -e "/.env" -e "*~"
-	git clean -dfx './var/log/*' './var-docker/log/*'
+	git clean -dfx -e "/var" -e "/.env" -e "*~" -e "/var-docker"
+	git clean -dfx './var/log/*' './var-docker/*/log/*'
 
 
 ### Real Targets:
