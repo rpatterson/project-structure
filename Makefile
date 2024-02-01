@@ -590,6 +590,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 # Only add changes upgrade-related changes:
 	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
 	    "./package-lock.json" "./.vale.ini" "./styles/"
+	git add './styles/*/*.yml'
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
