@@ -41,7 +41,6 @@ main() {
         then
             addgroup ${ADDUSER_ARGS} --gid "${PGID}" "${PROJECT_NAME}"
         fi
-        group_name=$(getent group "${PGID}" | cut -d ":" -f 1)
         if ! id "${PUID}" >"/dev/null" 2>&1
         then
             # Add a user to the `passwd` DB to support looking up the
