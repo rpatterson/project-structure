@@ -55,12 +55,8 @@ main() {
         # Ensure the user can talk to `# dockerd`:
         if test -e "/var/run/docker.sock"
         then
-            docker_gid=$(stat -c "%g" "/var/run/docker.sock")
-            if ! getent group ${docker_gid} >"/dev/null"
-            then
-                addgroup -g "${docker_gid}" "docker"
-            fi
-            if ! id -G "${user_name}" | grep -qw "${docker_gid}"
+            if ! id -G "${user_name}" |
+		    grep -qw "$(stat -c "%g" "/var/run/docker.sock")"
             then
                 adduser "${user_name}" "$(stat -c "%G" "/var/run/docker.sock")"
             fi
