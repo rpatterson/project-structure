@@ -583,18 +583,21 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	mv -v --backup="numbered" "./.env.in.~upgrade~" "./.env.in"
 	grep -vE "DOCKER_[A-Z0-9_]+_DIGEST=@.*" <"./.env" >"./.env.~upgrade~"
 	mv -v --backup="numbered" "./.env.~upgrade~" "./.env"
-	docker compose config --profiles | while read
+	services="$$(
+	    docker compose config --profiles | while read
+	    do
+	        docker compose --profile "$${REPLY}" config --services
+	    done | sort | uniq | grep -Ev '^$(PROJECT_NAME)'
+	)"
+	docker compose pull $${services}
+	for service in $${services}
 	do
-	    docker compose --profile "$${REPLY}" config --services
-	done | sort | uniq | grep -Ev '^$(PROJECT_NAME)' | while read
-	do
-	    docker compose pull "$${REPLY}"
-	    env_var="DOCKER_$${REPLY^^}_DIGEST"
+	    env_var="DOCKER_$${service^^}_DIGEST"
 	    env_var="$${env_var//-/_}"
 	    digest="$$(
 	        docker compose config --resolve-image-digests --format "json" \
-	            "$${REPLY}" |
-	            jq -r ".services.\"$${REPLY}\".image" | cut -d "@" -f "2-"
+	            "$${service}" |
+	            jq -r ".services.\"$${service}\".image" | cut -d "@" -f "2-"
 	    )"
 	    echo "$${env_var}=@$${digest}" >>"./.env.in"
 	    echo "$${env_var}=@$${digest}" >>"./.env"
