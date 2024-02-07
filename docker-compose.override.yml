@@ -53,7 +53,9 @@ services:
   ## Containers for simulating CI/CD:
 
   build-host:
-    image: "${DOCKER_NAMESPACE:-merpatterson}/project-structure:build-host"
+    image: "\
+      ${DOCKER_NAMESPACE:-merpatterson}/project-structure\
+      ${DOCKER_BUILD_HOST_DIGEST:-:build-host}"
     profiles:
       - "ci"
     build:

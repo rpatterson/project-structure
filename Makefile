@@ -420,7 +420,6 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	$(MAKE) -C "./build-host/" build
 	docker compose run --rm build-host \
 	    make $(@:test-worktree-%=test-worktree-add-%)
 	export WORKTREE_REL="/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
@@ -580,11 +579,14 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 # Define the image tag to track in `./docker-compose*.yml` in the default values for the
 # `${DOCKER_*_DIGEST}` environment variables and track the locked/frozen image digests
 # in `./.env.in` in VCS:
-	mv -v "./.env" "./.env.~upgrade~"
+	grep -vE "DOCKER_[A-Z0-9_]+_DIGEST=@.*" <"./.env.in" >"./.env.in.~upgrade~"
+	mv -v --backup="numbered" "./.env.in.~upgrade~" "./.env.in"
+	grep -vE "DOCKER_[A-Z0-9_]+_DIGEST=@.*" <"./.env" >"./.env.~upgrade~"
+	mv -v --backup="numbered" "./.env.~upgrade~" "./.env"
 	docker compose config --profiles | while read
 	do
 	    docker compose --profile "$${REPLY}" config --services
-	done | sort | uniq | grep -Ev '^($(PROJECT_NAME)|build-host)' | while read
+	done | sort | uniq | grep -Ev '^$(PROJECT_NAME)' | while read
 	do
 	    docker compose pull "$${REPLY}"
 	    env_var="DOCKER_$${REPLY^^}_DIGEST"
@@ -594,10 +596,9 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	            "$${REPLY}" |
 	            jq -r ".services.\"$${REPLY}\".image" | cut -d "@" -f "2-"
 	    )"
-	    sed -Ei "s|^$${env_var}=.*|$${env_var}=@$${digest}|" "./.env.in"
-	    sed -Ei "s|^$${env_var}=.*|$${env_var}=@$${digest}|" "./.env.~upgrade~"
+	    echo "$${env_var}=@$${digest}" >>"./.env.in"
+	    echo "$${env_var}=@$${digest}" >>"./.env"
 	done
-	mv -v "./.env.~upgrade~" "./.env"
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -966,4 +967,4 @@ endef
 .PHONY: bootstrap-project
 bootstrap-project:
 # Reproduce an isolated, clean build in a Docker image to reproduce build issues:
-	$(MAKE) -C "./build-host/" build
+	$(MAKE) -C "./build-host/" release
