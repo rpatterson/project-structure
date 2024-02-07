@@ -27,10 +27,11 @@ main() {
             echo "ERROR: Can't create a user when not run as root" 1>&2
             false
         fi
+	PGID="${PGID:-${PUID}}"
 
 	# Ensure the home directory in the image has the correct permissions.  Change
 	# permissions selectively to avoid time-consuming recursion:
-	chown ${CHOWN_ARGS} "${PUID}:${PGID:-${PUID}}" "/home/runner/" \
+	chown ${CHOWN_ARGS} "${PUID}:${PGID}" "/home/runner/" \
 	      /home/runner/.??* /home/runner/.local/* \
               "/home/runner/.local/state/${PROJECT_NAME}/" \
               "/home/runner/.local/state/${PROJECT_NAME}/log/"
@@ -54,12 +55,8 @@ main() {
         # Ensure the user can talk to `# dockerd`:
         if test -e "/var/run/docker.sock"
         then
-            docker_gid=$(stat -c "%g" "/var/run/docker.sock")
-            if ! getent group ${docker_gid} >"/dev/null"
-            then
-                addgroup -g "${docker_gid}" "docker"
-            fi
-            if ! id -G "${user_name}" | grep -qw "${docker_gid}"
+            if ! id -G "${user_name}" |
+		    grep -qw "$(stat -c "%g" "/var/run/docker.sock")"
             then
                 adduser "${user_name}" "$(stat -c "%G" "/var/run/docker.sock")"
             fi
@@ -77,14 +74,14 @@ main() {
 		if test -e "${owner_path}" && \
 			test "$(stat -c "%u" "${owner_path}")" != "${PUID}"
 		then
-		    chown ${CHOWN_ARGS} "${PUID}:${PGID:-${PUID}}" "./"
-		    chown -R ${CHOWN_ARGS} "${PUID}:${PGID:-${PUID}}" "./.git/"
+		    chown ${CHOWN_ARGS} "${PUID}:${PGID}" "./"
+		    chown -R ${CHOWN_ARGS} "${PUID}:${PGID}" "./.git/"
 		    su "${user_name}" - -c 'git ls-files -z' |
-			xargs -0 -- chown ${CHOWN_ARGS} "${PUID}:${PGID:-${PUID}}"
+			xargs -0 -- chown ${CHOWN_ARGS} "${PUID}:${PGID}"
 		    # Also parent directories:
 		    su "${user_name}" - -c 'git ls-files' |
 			sed -nE 's|(.*/)[^/]+|\1|p' | uniq |
-			xargs -- chown ${CHOWN_ARGS} "${PUID}:${PGID:-${PUID}}"
+			xargs -- chown ${CHOWN_ARGS} "${PUID}:${PGID}"
 		    break
 		fi
 	    done
@@ -94,7 +91,7 @@ main() {
     # Update some targets for each job run:
     mkdir -pv "./var/log/"
     date | tee -a "./var/log/job-date.log"
-    chown ${CHOWN_ARGS} -R "${PUID}:${PGID:-${PUID}}" "./var/"
+    chown ${CHOWN_ARGS} -R "${PUID}:${PGID}" "./var/"
 
     # Delegate to the rest of `argv`:
     exec "$@"

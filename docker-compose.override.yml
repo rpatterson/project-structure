@@ -73,7 +73,10 @@ services:
 
   # https://github.com/hadolint/hadolint#how-to-use
   hadolint:
-    image: "ghcr.io/hadolint/hadolint"
+    # For this and other development tools in container images, define the image tag to
+    # follow when upgrading as the default and `./.env` controls the specific digest
+    # used currently:
+    image: "ghcr.io/hadolint/hadolint${DOCKER_HADOLINT_DIGEST:-:latest-debian}"
     profiles:
       - "test"
     environment:
@@ -85,7 +88,7 @@ services:
       hadolint "./Dockerfile"
 
   reuse:
-    image: "docker.io/fsfe/reuse:latest-debian"
+    image: "docker.io/fsfe/reuse${DOCKER_REUSE_DIGEST:-:latest-debian}"
     profiles:
       - "lint"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
@@ -98,7 +101,7 @@ services:
       lint
 
   vale:
-    image: "docker.io/jdkato/vale"
+    image: "docker.io/jdkato/vale${DOCKER_VALE_DIGEST:-:latest}"
     profiles:
       - "lint"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
@@ -111,7 +114,7 @@ services:
       .
 
   pandoc:
-    image: "docker.io/pandoc/core"
+    image: "docker.io/pandoc/core${DOCKER_PANDOC_DIGEST:-:latest-ubuntu}"
     profiles:
       - "release"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
@@ -129,7 +132,7 @@ services:
       '
 
   docker-pushrm:
-    image: "chko/docker-pushrm"
+    image: "chko/docker-pushrm${DOCKER_DOCKER_PUSHRM_DIGEST:-:latest}"
     depends_on:
       pandoc:
         condition: "service_completed_successfully"
@@ -148,7 +151,9 @@ services:
       --debug "${DOCKER_USER:-}/project-structure"
 
   gitlab-release-cli:
-    image: "registry.gitlab.com/gitlab-org/release-cli:latest"
+    image: "\
+      registry.gitlab.com/gitlab-org/release-cli\
+      ${DOCKER_GITLAB_RELEASE_CLI_DIGEST:-:latest}"
     profiles:
       - "release"
     environment:
@@ -162,7 +167,7 @@ services:
   build-host:
     image: "\
       ${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
-      :build-host"
+      ${DOCKER_BUILD_HOST_DIGEST:-:build-host}"
     profiles:
       - "ci"
     build:
@@ -171,7 +176,7 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         USER_SIGNINGKEY: "${USER_SIGNINGKEY:-}"
       cache_from:
-        - "${DOCKER_USER:-}/project-structure:build-host"
+        - "${DOCKER_NAMESPACE:-merpatterson}/project-structure:build-host"
     privileged: true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
@@ -199,7 +204,7 @@ services:
       WORKTREE_REL: "${WORKTREE_REL:-}"
       # DEBUG: "true"
     command: >-
-      make -j -O -e release-all
+      make -j -O release-all
 
   gitlab-runner:
     profiles:

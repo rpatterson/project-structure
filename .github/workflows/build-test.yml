@@ -99,7 +99,7 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
-          init-job.sh entrypoint.sh make -j -O -e release-all
+          init-job.sh entrypoint.sh make -j -O release-all
 
       # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage
@@ -168,7 +168,7 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
-          init-job.sh entrypoint.sh make -j -O -e release-all
+          init-job.sh entrypoint.sh make -j -O release-all
 
       # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage

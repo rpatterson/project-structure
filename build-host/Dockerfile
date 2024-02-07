@@ -59,9 +59,9 @@ RUN \
     "gnupg" \
     "curl" \
     "imagemagick" \
+    "librsvg" \
     "texinfo" \
     "texlive" \
-    "librsvg" \
     "tar" \
     "github-cli" \
     && rm -rf /var/cache/apk/*
