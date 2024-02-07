@@ -537,14 +537,13 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 ## Lint prose in all markup files tracked in VCS with Vale.
 test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
-	git ls-files -co --exclude-standard -z \
-	    ':!docs/news*.rst' ':!LICENSES' ':!styles/Vocab/*.txt' ':!requirements/**' |
+	git ls-files -co --exclude-standard -z ':!docs/news*.rst' ':!LICENSES' \
+	    ':!styles/**' ':!requirements/**' |
 	    xargs -r -0 -t -- $(DOCKER_COMPOSE_RUN_CMD) vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
 test-lint-prose-vale-code: ./var/log/docker-compose-network.log
-	git ls-files -co --exclude-standard -z \
-	    ':!styles/*/meta.json' ':!styles/*/*.yml' |
+	git ls-files -co --exclude-standard -z ':!styles/**' |
 	    xargs -r -0 -t -- \
 	    $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
@@ -577,7 +576,6 @@ test-lint-prose-alex: ./var/log/npm-install.log
 test-lint-docker: ./var/log/docker-compose-network.log \
 		./var/log/docker-login-DOCKER.log \
 		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
-	docker compose pull --quiet hadolint
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- $(DOCKER_COMPOSE_RUN_CMD) hadolint hadolint
 .PHONY: $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
@@ -644,7 +642,6 @@ test-clean:
 .PHONY: test-worktree-%
 ## Build then run all tests from a new checkout in a clean container.
 test-worktree-%: $(HOST_TARGET_DOCKER) ./.env.~out~
-	$(MAKE) -C "./build-host/" build
 	docker compose run --rm build-host \
 	    make $(@:test-worktree-%=test-worktree-add-%)
 	export WORKTREE_REL="/worktrees/$(VCS_BRANCH)-$(@:test-worktree-%=%)"
@@ -805,8 +802,8 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
-	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/*/meta.json' \
-	    ':!styles/*/*.yml' ':!requirements/*/*.txt' |
+	    ':!newsfragments/*' ':!docs/news*.rst' ':!styles/**' \
+	    ':!requirements/*/*.txt' |
 	while read -d $$'\0'
 	do
 	    if ! (
@@ -828,7 +825,7 @@ devel-upgrade:
 	touch ./requirements/*.txt.in "./.vale.ini" ./styles/*.ini
 	$(MAKE) PIP_COMPILE_ARGS="--upgrade" \
 	    "./requirements/$(PYTHON_HOST_ENV)/build.txt" devel-upgrade-pre-commit \
-	    devel-upgrade-js "./var/log/vale-rule-levels.log"
+	    devel-upgrade-js devel-upgrade-docker "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
@@ -838,6 +835,35 @@ devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
 devel-upgrade-js: ./var/log/npm-install.log
 	~/.nvm/nvm-exec npm update
 	~/.nvm/nvm-exec npm outdated
+.PHONY: devel-upgrade-docker
+## Update the container images of development tools.
+devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
+# Define the image tag to track in `./docker-compose*.yml` in the default values for the
+# `${DOCKER_*_DIGEST}` environment variables and track the locked/frozen image digests
+# in `./.env.in` in VCS:
+	grep -vE "DOCKER_[A-Z0-9_]+_DIGEST=@.*" <"./.env.in" >"./.env.in.~upgrade~"
+	mv -v --backup="numbered" "./.env.in.~upgrade~" "./.env.in"
+	grep -vE "DOCKER_[A-Z0-9_]+_DIGEST=@.*" <"./.env" >"./.env.~upgrade~"
+	mv -v --backup="numbered" "./.env.~upgrade~" "./.env"
+	services="$$(
+	    docker compose config --profiles | while read
+	    do
+	        docker compose --profile "$${REPLY}" config --services
+	    done | sort | uniq | grep -Ev '^$(PROJECT_NAME)'
+	)"
+	docker compose pull $${services}
+	for service in $${services}
+	do
+	    env_var="DOCKER_$${service^^}_DIGEST"
+	    env_var="$${env_var//-/_}"
+	    digest="$$(
+	        docker compose config --resolve-image-digests --format "json" \
+	            "$${service}" |
+	            jq -r ".services.\"$${service}\".image" | cut -d "@" -f "2-"
+	    )"
+	    echo "$${env_var}=@$${digest}" >>"./.env.in"
+	    echo "$${env_var}=@$${digest}" >>"./.env"
+	done
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -849,10 +875,10 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 # No changes from upgrade, exit signaling success but push nothing:
 	    exit
 	fi
-# Only add changes upgrade-related changes:
-	git add --update './requirements/*/*.txt' "./.pre-commit-config.yaml" \
-	    "./package-lock.json" "./.vale.ini" "./styles/"
-	git add './styles/*/*.yml'
+# Only add changes related to the upgrades:
+	git add --update '.env.in' './requirements/*/*.txt' \
+	    "./.pre-commit-config.yaml" "./package-lock.json" "./.vale.ini"
+	git add "./styles/"
 # Commit the upgrade changes
 	echo "Upgrade all requirements to the most recent versions as of" \
 	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
@@ -981,7 +1007,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
-	docker pull "docker.io/jdkato/vale:v2.28.1" | tee -a "$(@)"
+	docker compose pull --quiet "vale" | tee -a "$(@)"
 	$(DOCKER_COMPOSE_RUN_CMD) --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
@@ -1080,7 +1106,7 @@ endif
 # https://github.com/nvm-sh/nvm#install--update-script
 $(HOME)/.nvm/nvm.sh:
 	set +x
-	wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh"
+	wget -qO- "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh"
 	    | bash
 
 # Manage Python tools:

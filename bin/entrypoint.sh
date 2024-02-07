@@ -30,10 +30,11 @@ main() {
             echo "ERROR: Can't create a user when not run as root" 1>&2
             false
         fi
+	PGID="${PGID:-${PUID}}"
 
 	# Ensure the home directory in the image has the correct permissions. Change
 	# permissions selectively to avoid time-consuming recursion:
-	chown ${CHOWN_ARGS} -R "${PUID}:${PGID:-${PUID}}" "/home/${PROJECT_NAME}/"
+	chown ${CHOWN_ARGS} -R "${PUID}:${PGID}" "/home/${PROJECT_NAME}/"
 
         # Add an unprivileged user:
         if ! getent group "${PGID}" >"/dev/null"

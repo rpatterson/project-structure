@@ -10,7 +10,7 @@ version: "3.8"
 services:
   # Configuration specific to development:
   project-structure:
-    image: "${DOCKER_USER:?}/project-structure\
+    image: "${DOCKER_NAMESPACE:-merpatterson}/project-structure\
       :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-checkout"
     build:
@@ -20,14 +20,14 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         VERSION: "${VERSION:-}"
       cache_from:
-        - "${DOCKER_USER:?}/project-structure\
+        - "${DOCKER_NAMESPACE:-merpatterson}/project-structure\
           :user-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
 
   ## Contianers used for development and release:
 
   # Container for use by developers:
   project-structure-devel:
-    image: "${DOCKER_USER:?}/project-structure\
+    image: "${DOCKER_NAMESPACE:-merpatterson}/project-structure\
       :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     container_name: "project-structure-devel"
     profiles:
@@ -39,7 +39,7 @@ services:
         BUILDKIT_INLINE_CACHE: "1"
         VERSION: "${VERSION:-}"
       cache_from:
-        - "${DOCKER_USER:?}/project-structure\
+        - "${DOCKER_NAMESPACE:-merpatterson}/project-structure\
           :devel-${DOCKER_VARIANT:-debian}-${DOCKER_BRANCH_TAG:-develop}"
     environment:
       # Continue parallel make inside the container:
@@ -73,7 +73,10 @@ services:
 
   # https://github.com/hadolint/hadolint#how-to-use
   hadolint:
-    image: "ghcr.io/hadolint/hadolint"
+    # For this and other development tools in container images, define the image tag to
+    # follow when upgrading as the default and `./.env` controls the specific digest
+    # used currently:
+    image: "ghcr.io/hadolint/hadolint${DOCKER_HADOLINT_DIGEST:-:latest-debian}"
     profiles:
       - "test"
     environment:
@@ -85,7 +88,7 @@ services:
       hadolint "./Dockerfile"
 
   reuse:
-    image: "docker.io/fsfe/reuse:latest-debian"
+    image: "docker.io/fsfe/reuse${DOCKER_REUSE_DIGEST:-:latest-debian}"
     profiles:
       - "lint"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
@@ -98,7 +101,7 @@ services:
       lint
 
   vale:
-    image: "docker.io/jdkato/vale"
+    image: "docker.io/jdkato/vale${DOCKER_VALE_DIGEST:-:latest}"
     profiles:
       - "lint"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
@@ -111,7 +114,7 @@ services:
       .
 
   pandoc:
-    image: "docker.io/pandoc/core"
+    image: "docker.io/pandoc/core${DOCKER_PANDOC_DIGEST:-:latest-ubuntu}"
     profiles:
       - "release"
     user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
@@ -129,7 +132,7 @@ services:
       '
 
   docker-pushrm:
-    image: "chko/docker-pushrm"
+    image: "chko/docker-pushrm${DOCKER_DOCKER_PUSHRM_DIGEST:-:latest}"
     depends_on:
       pandoc:
         condition: "service_completed_successfully"
@@ -148,7 +151,9 @@ services:
       --debug "${DOCKER_USER:-}/project-structure"
 
   gitlab-release-cli:
-    image: "registry.gitlab.com/gitlab-org/release-cli:latest"
+    image: "\
+      registry.gitlab.com/gitlab-org/release-cli\
+      ${DOCKER_GITLAB_RELEASE_CLI_DIGEST:-:latest}"
     profiles:
       - "release"
     environment:
@@ -160,7 +165,9 @@ services:
   ## Containers for simulating CI/CD:
 
   build-host:
-    image: "${DOCKER_NAMESPACE:-merpatterson}/project-structure:build-host"
+    image: "\
+      ${DOCKER_NAMESPACE:-merpatterson}/project-structure\
+      ${DOCKER_BUILD_HOST_DIGEST:-:build-host}"
     profiles:
       - "ci"
     build:
