@@ -15,8 +15,8 @@ MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 PS1?=$$
 
-DOCKER_IMAGE?=merpatterson/project-structure
-
+DOCKER_IMAGES=merpatterson/project-structure
+DOCKER_IMAGE=$(firstword $(DOCKER_IMAGES))
 ## Top-level targets
 
 .PHONY: all
@@ -37,10 +37,10 @@ build: ./Dockerfile
 	        sed -En 's|^ssb:([^:]*:){3}([^:]*):([^:]*:){5}:[^:]*[sS][^:]*:.*|\2!|p'
 	    )" \
 	    --cache-from "$(DOCKER_IMAGE):build-host" \
-	    --tag "$(DOCKER_IMAGE):build-host" \
+	    $(DOCKER_IMAGES:%=--tag "%:build-host") \
 	    "./"
 
 .PHONY: release
 ### Publish the image to this specific CI/CD platform for future caching.
 release: build
-	docker push "$(DOCKER_IMAGE):build-host"
+	echo $(DOCKER_IMAGES:%=%:build-host) | xargs -n 1 -P 0 -- docker push
