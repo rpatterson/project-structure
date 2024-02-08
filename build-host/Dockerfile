@@ -4,7 +4,7 @@
 
 ## Container image in which to build, test, and release projects.
 
-FROM docker:dind
+FROM docker:cli
 
 # Least volatile layers first:
 
