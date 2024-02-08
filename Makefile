@@ -114,11 +114,11 @@ ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
-export PUID:=$(shell id -u)
-export PGID:=$(shell id -g)
+export PUID?=$(shell id -u)
+export PGID?=$(shell id -g)
 # Capture the path of the checkout directory as seen by the real host running `#
 # dockerd` so that following bind volumes have the correct source paths:
-export CHECKOUT_DIR=$(PWD)
+export CHECKOUT_DIR?=$(PWD)
 export WORKTREE_REL?=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
@@ -190,10 +190,10 @@ export DOCKER_BUILD_ARGS?=--load
 export DOCKER_BUILD_PULL?=false
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
-DOCKER_OSES=$(DOCKER_OS_DEFAULT)
+DOCKER_OSES?=$(DOCKER_OS_DEFAULT)
 # TEMPLATE: Update for the project language:
 DOCKER_LANGUAGE_DEFAULT=
-DOCKER_LANGUAGES=$(DOCKER_LANGUAGE_DEFAULT)
+DOCKER_LANGUAGES?=$(DOCKER_LANGUAGE_DEFAULT)
 # Build all image variants in parallel:
 ifeq ($(DOCKER_LANGUAGES),)
 DOCKER_VARIANTS=$(DOCKER_OSES)
@@ -849,7 +849,7 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    docker compose config --profiles | while read
 	    do
 	        docker compose --profile "$${REPLY}" config --services
-	    done | sort | uniq | grep -Ev '^$(PROJECT_NAME)'
+	    done | sort | uniq | grep -Ev '^($(PROJECT_NAME)|build-host)'
 	)"
 	docker compose pull $${services}
 	for service in $${services}
