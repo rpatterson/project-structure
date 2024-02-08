@@ -788,7 +788,11 @@ endif
 release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	$(MAKE) test-push test
+else
+	$(MAKE) test-docker test-lint-code
+endif
 	$(MAKE) release
 	$(MAKE) test-clean
 
