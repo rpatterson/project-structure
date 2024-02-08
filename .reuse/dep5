@@ -15,8 +15,7 @@ Comment:
 
 # TODO: What is the right declaration to make about external content managed in VCS?
 Files:
- styles/*/meta.json
- styles/*/*.yml
+ styles/**
 Copyright: 2023 Ross Patterson <me@rpatterson.net>
 License: MIT
 Comment:

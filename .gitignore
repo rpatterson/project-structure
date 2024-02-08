@@ -111,7 +111,7 @@ celerybeat-schedule
 **/.mypy_cache
 
 # Exclude downloaded styles from formatting and linting but include in VCS:
-/styles/*/*
+/styles/*
 
 # Emacs editor settings
 /.dir-locals.el
