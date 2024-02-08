@@ -48,6 +48,7 @@ CMD [ "make", "-e", "build-docker" ]
 # hadolint ignore=DL3018
 RUN \
     apk add --no-cache \
+    "shadow" \
     "coreutils" \
     "make" \
     "bash" \
@@ -63,6 +64,8 @@ RUN \
     "texinfo" \
     "texlive" \
     "github-cli" \
+    && groupdel "docker" \
+    && apk del --no-cache "shadow" \
     && rm -rf /var/cache/apk/*
 
 # Bake external build dependencies into the image:
