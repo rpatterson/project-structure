@@ -167,7 +167,7 @@ services:
   build-host:
     image: "\
       ${DOCKER_REGISTRY_HOST:-registry.gitlab.com}/rpatterson/project-structure\
-      ${DOCKER_BUILD_HOST_DIGEST:-:build-host}"
+      :build-host"
     profiles:
       - "ci"
     build:

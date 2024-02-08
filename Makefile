@@ -120,11 +120,11 @@ ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
-export PUID:=$(shell id -u)
-export PGID:=$(shell id -g)
+export PUID?=$(shell id -u)
+export PGID?=$(shell id -g)
 # Capture the path of the checkout directory as seen by the real host running `#
 # dockerd` so that following bind volumes have the correct source paths:
-export CHECKOUT_DIR=$(PWD)
+export CHECKOUT_DIR?=$(PWD)
 export WORKTREE_REL?=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
@@ -236,10 +236,10 @@ export DOCKER_BUILD_PULL?=false
 DOCKER_PULL_TARGET=devel
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
-DOCKER_OSES=$(DOCKER_OS_DEFAULT)
+DOCKER_OSES?=$(DOCKER_OS_DEFAULT)
 # TEMPLATE: Update for the project language:
 DOCKER_LANGUAGE_DEFAULT=
-DOCKER_LANGUAGES=$(DOCKER_LANGUAGE_DEFAULT)
+DOCKER_LANGUAGES?=$(DOCKER_LANGUAGE_DEFAULT)
 # Build all image variants in parallel:
 ifeq ($(DOCKER_LANGUAGES),)
 DOCKER_VARIANTS=$(DOCKER_OSES)
@@ -292,7 +292,7 @@ TEMPLATE_IGNORE_EXISTING=true
 endif
 GITHUB_REPOSITORY_OWNER?=$(CI_UPSTREAM_NAMESPACE)
 # Is this checkout a fork of the upstream project?:
-CI_IS_FORK=false
+CI_IS_FORK?=false
 ifeq ($(GITLAB_CI),true)
 USER_EMAIL=$(USER_NAME)@runners-manager.gitlab.com
 ifneq ($(VCS_BRANCH),develop)
@@ -322,7 +322,7 @@ DOCKER_IMAGES+=$(DOCKER_IMAGE)
 # Take GitHub auth from the environment under GitHub actions but from secrets on other
 # project hosts:
 GITHUB_TOKEN?=
-PROJECT_GITHUB_PAT=
+PROJECT_GITHUB_PAT?=
 ifeq ($(GITHUB_TOKEN),)
 GITHUB_TOKEN?=$(PROJECT_GITHUB_PAT)
 else ifeq ($(PROJECT_GITHUB_PAT),)
@@ -358,8 +358,8 @@ DOCKER_PLATFORMS=linux/amd64 linux/arm64 linux/arm/v7
 endif
 endif
 CI_REGISTRY_USER?=$(CI_PROJECT_NAMESPACE)
-VCS_REMOTE_PUSH_URL=
-CODECOV_TOKEN=
+VCS_REMOTE_PUSH_URL?=
+CODECOV_TOKEN?=
 CI_PROJECT_ID?=
 export CI_PROJECT_ID
 CI_JOB_TOKEN?=
@@ -1065,7 +1065,7 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    docker compose config --profiles | while read
 	    do
 	        docker compose --profile "$${REPLY}" config --services
-	    done | sort | uniq | grep -Ev '^$(PROJECT_NAME)'
+	    done | sort | uniq | grep -Ev '^($(PROJECT_NAME)|build-host)'
 	)"
 	docker compose pull $${services}
 	for service in $${services}
@@ -1484,8 +1484,8 @@ $(HOST_PREFIX)/bin/curl:
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_CURL)"
 
 # GNU Privacy Guard (GPG) signing key creation and management in CI:
-export GPG_PASSPHRASE=
-GPG_SIGNING_PRIVATE_KEY=
+export GPG_PASSPHRASE?=
+GPG_SIGNING_PRIVATE_KEY?=
 ./var/ci-cd-signing-subkey.asc: $(HOST_PREFIX)/bin/gpg
 # Signing release commits and artifacts requires a GPG private key in the CI/CD
 # environment. Use a subkey that you can revoke without affecting your main key. This
