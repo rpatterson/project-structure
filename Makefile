@@ -114,11 +114,11 @@ ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
-export PUID:=$(shell id -u)
-export PGID:=$(shell id -g)
+export PUID?=$(shell id -u)
+export PGID?=$(shell id -g)
 # Capture the path of the checkout directory as seen by the real host running `#
 # dockerd` so that following bind volumes have the correct source paths:
-export CHECKOUT_DIR=$(PWD)
+export CHECKOUT_DIR?=$(PWD)
 export WORKTREE_REL?=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
