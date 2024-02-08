@@ -587,7 +587,7 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    docker compose config --profiles | while read
 	    do
 	        docker compose --profile "$${REPLY}" config --services
-	    done | sort | uniq | grep -Ev '^$(PROJECT_NAME)'
+	    done | sort | uniq | grep -Ev '^($(PROJECT_NAME)|build-host)'
 	)"
 	docker compose pull $${services}
 	for service in $${services}
