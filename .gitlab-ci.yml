@@ -142,7 +142,7 @@ build-test-others:
     matrix:
       - DOCKER_OSES:
           - "debian"
-        DOCKER_LANGUAGE:
+        DOCKER_LANGUAGES:
           - "py312"
           - "py310"
           - "py39"
