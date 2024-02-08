@@ -37,7 +37,6 @@ env:
   PGID: "1001"
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
-  PROJECT_NAME: "project-structure"
   GPG_PASSPHRASE: "${{ secrets.GPG_PASSPHRASE }}"
   GPG_SIGNING_PRIVATE_KEY: "${{ secrets.GPG_SIGNING_PRIVATE_KEY }}"
   DOCKER_PASS: "${{ secrets.DOCKER_PASS }}"
