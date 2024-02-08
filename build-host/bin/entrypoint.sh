@@ -1,4 +1,4 @@
-#!/bin/ash
+#!/bin/bash
 
 # SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
 #
@@ -16,6 +16,12 @@ fi
 
 
 main() {
+    # Workaround Docker runner environment variable prefix:
+    # https://gitlab.com/gitlab-org/gitlab-docs/-/issues/1762
+    printenv | sed -nE 's|^DOCKER_ENV_([A-Z0-9_]+)=.*|export \1="${DOCKER_ENV_\1}"|p' \
+		   >"/tmp/docker-env.sh"
+    source "/tmp/docker-env.sh"
+
     # Run as the user from the environment:
     if test -n "${PUID:-}"
     then

@@ -4,7 +4,7 @@
 
 ## Container image in which to build, test, and release projects.
 
-FROM docker:dind
+FROM docker:cli
 
 # Least volatile layers first:
 
@@ -50,6 +50,7 @@ CMD [ "make", "-e", "build-docker" ]
 # hadolint ignore=DL3018
 RUN \
     apk add --no-cache \
+    "shadow" \
     "coreutils" \
     "make" \
     "bash" \
@@ -61,10 +62,12 @@ RUN \
     "gnupg" \
     "curl" \
     "imagemagick" \
+    "librsvg" \
     "texinfo" \
     "texlive" \
-    "librsvg" \
     "github-cli" \
+    && groupdel "docker" \
+    && apk del --no-cache "shadow" \
     && rm -rf /var/cache/apk/*
 
 # Bake external build dependencies into the image:
