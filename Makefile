@@ -366,7 +366,6 @@ CI_JOB_TOKEN=
 export CI_JOB_TOKEN
 CI_REGISTRY_PASSWORD=
 export CI_REGISTRY_PASSWORD
-GH_TOKEN=
 
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
