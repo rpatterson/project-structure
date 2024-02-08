@@ -8,9 +8,9 @@ formatter
 it's
 UTC
 May
-author
-Author
+[Aa]uthor
 rinohtype
 Codecov
 Hookshot
 Pylint
+pipx

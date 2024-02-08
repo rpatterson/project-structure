@@ -271,12 +271,13 @@ Install locally or use the Docker container image:
 Local Installation
 ========================================================================================
 
-Install by using any tool for installing standard Python 3 distributions such as
-`pip`_:
+Install by using any tool for installing standard Python 3 distributions. The
+recommended tool is `pipx`_ to prevent affecting the system Python installation and to
+isolate from other packages:
 
 .. code:: console
 
-  $ pip3 install --user project-structure
+  $ pipx install tox
 
 Docker Container Image
 ========================================================================================
@@ -353,7 +354,7 @@ References
 .. _`the contributing documentation`:
    https://project-structure.readthedocs.io/en/latest/contributing.html
 
-.. _pip: https://pip.pypa.io/en/stable/installation/
+.. _pipx: https://pipx.pypa.io/stable/installation/#installing-pipx
 
 .. _`Docker Compose`: https://docs.docker.com/compose/
 .. _`the example ./docker-compose.yml file`:
