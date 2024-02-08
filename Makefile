@@ -207,9 +207,9 @@ export DOCKER_BUILD_ARGS?=--load
 export DOCKER_BUILD_PULL?=false
 # Values used to tag built images:
 DOCKER_OS_DEFAULT=debian
-DOCKER_OSES=$(DOCKER_OS_DEFAULT)
+DOCKER_OSES?=$(DOCKER_OS_DEFAULT)
 DOCKER_LANGUAGE_DEFAULT=$(PYTHON_SUPPORTED_ENV)
-DOCKER_LANGUAGES=$(PYTHON_ENVS)
+DOCKER_LANGUAGES?=$(PYTHON_ENVS)
 DOCKER_LANGUAGES_OTHER=$(filter-out \
     $(DOCKER_LANGUAGE_DEFAULT),$(DOCKER_LANGUAGES))
 # Build all image variants in parallel:
@@ -570,7 +570,7 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 test-docker-user-$(1): ./var/log/docker-compose-network.log \
 		./var-docker/$(1)/log/build-user.log
 	export DOCKER_VARIANT="$(1)"
-	docker compose run --no-deps --rm -T $$(PROJECT_NAME) \
+	$(DOCKER_COMPOSE_RUN_CMD) --no-deps $$(PROJECT_NAME) \
 	    python -c 'import projectstructure; print(projectstructure)'
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call test_docker_template,$(variant))))
@@ -583,7 +583,7 @@ test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
 .PHONY: test-lint-licenses
 ## Lint copyright and license annotations for all files tracked in VCS.
 test-lint-licenses: ./var/log/docker-compose-network.log
-	docker compose run --rm -T "reuse"
+	$(DOCKER_COMPOSE_RUN_CMD) "reuse"
 
 .PHONY: test-lint-code
 ## Lint source code for errors, style, and other issues.
@@ -635,13 +635,13 @@ test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z ':!docs/news*.rst' ':!LICENSES' \
 	    ':!styles/**' ':!requirements/**' |
-	    xargs -r -0 -t -- docker compose run --rm -T vale
+	    xargs -r -0 -t -- $(DOCKER_COMPOSE_RUN_CMD) vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
 test-lint-prose-vale-code: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z ':!styles/**' |
 	    xargs -r -0 -t -- \
-	    docker compose run --rm -T vale --config="./styles/code.ini"
+	    $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
 ## Lint source code files tracked in VCS but without extensions with Vale.
 test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
@@ -649,7 +649,7 @@ test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	    while read -d $$'\0'
 	    do
 	        cat "$${REPLY}" |
-	            docker compose run --rm -T vale --config="./styles/code.ini" \
+	            $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini" \
 	                --ext=".pl"
 	    done
 .PHONY: test-lint-prose-proselint
@@ -673,7 +673,7 @@ test-lint-docker: ./var/log/docker-compose-network.log \
 		./var/log/docker-login-DOCKER.log \
 		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 	git ls-files -z '*Dockerfile*' |
-	    xargs -0 -- docker compose run --rm -T hadolint hadolint
+	    xargs -0 -- $(DOCKER_COMPOSE_RUN_CMD) hadolint hadolint
 .PHONY: $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 ## Prevent Docker volumes owned by `root` for one Python version.
 $(DOCKER_VARIANTS:%=test-lint-docker-volumes-%):
@@ -822,7 +822,6 @@ ifeq ($(VCS_BRANCH),main)
 	if TEST "$${PYTHON_ENV}" = "$(PYTHON_SUPPORTED_ENV)"
 	then
 	    $(MAKE) "./var/log/docker-login-DOCKER.log"
-	    docker compose pull --quiet pandoc docker-pushrm
 	    docker compose up docker-pushrm
 	fi
 endif
@@ -929,7 +928,7 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 	        echo "$${REPLY}"
 	    fi
 	done | xargs -r -t -- \
-	    docker compose run --rm -T "reuse" annotate --skip-unrecognised \
+	    $(DOCKER_COMPOSE_RUN_CMD) "reuse" annotate --skip-unrecognised \
 	        --copyright "Ross Patterson <me@rpatterson.net>" --license "MIT"
 # Run source code formatting tools implemented in JavaScript:
 	~/.nvm/nvm-exec npm run format
@@ -997,8 +996,7 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
 devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	now=$$(date -u)
-	$(MAKE) DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" \
-	    devel-upgrade
+	$(MAKE) DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
 	if $(MAKE) "test-clean"
 	then
 # No changes from upgrade, exit signaling success but push nothing:
@@ -1043,7 +1041,7 @@ clean:
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
 	tox exec -e "build" -- pre-commit clean || true
-	git clean -dfx -e "/var" -e "var-docker/" -e "/.env" -e "*~"
+	git clean -dfx -e "/var" -e "/.env" -e "*~" -e "/var-docker"
 	git clean -dfx './var/log/*' './var-docker/*/log/*' './var-docker/*/.tox/*' \
 	    './var-docker/*/project_structure.egg-info/*'
 
@@ -1061,7 +1059,7 @@ clean:
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
 	mkdir -pv "$(dir $(@))"
-	docker compose run --rm -T $(PROJECT_NAME)-devel tox run -e \
+	$(DOCKER_COMPOSE_RUN_CMD) $(PROJECT_NAME)-devel tox run -e \
 	    "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
@@ -1222,8 +1220,9 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	    grep -q '^ *Endpoint: *multi-platform *'
 	then
 	    (
-	        docker buildx create --use "multi-platform" --bootstrap || true
-	    ) |& tee -a "$(@)"
+	        docker buildx create --use "multi-platform" --bootstrap
+	        2>"/dev/null" || true
+	    ) | tee -a "$(@)"
 	fi
 # Authenticated to Docker image registries:
 ./var/log/docker-login-DOCKER.log: ./.env.~out~
@@ -1244,7 +1243,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
 	docker compose pull --quiet "vale" | tee -a "$(@)"
-	docker compose run --rm -T --entrypoint "true" vale | tee -a "$(@)"
+	$(DOCKER_COMPOSE_RUN_CMD) --entrypoint "true" vale | tee -a "$(@)"
 
 # Local environment variables and secrets from a template:
 ./.env.~out~: ./.env.in
@@ -1318,8 +1317,8 @@ endif
 # Update style rule definitions from the remotes:
 ./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
 		./styles/code.ini
-	docker compose run --rm -T vale sync
-	docker compose run --rm -T vale sync --config="./styles/code.ini"
+	$(DOCKER_COMPOSE_RUN_CMD) vale sync
+	$(DOCKER_COMPOSE_RUN_CMD) vale sync --config="./styles/code.ini"
 
 # Editor and IDE support and integration:
 ./.dir-locals.el.~out~: ./.dir-locals.el.in
