@@ -174,7 +174,9 @@ jobs:
       - name: "Archive test, coverage, and lint reports"
         uses: "actions/upload-artifact@master"
         with:
-          name: "test-coverage-lint-reports"
+          name: "\
+            test-coverage-lint-reports\
+            -${{ matrix.DOCKER_OSES }}-${{ matrix.DOCKER_LANGUAGES }}"
           path: |
             ./build/reports/
       # - name: "Publish test suite report"
