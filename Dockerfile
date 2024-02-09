@@ -121,7 +121,7 @@ CMD tox -e "${PYTHON_ENV}"
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get install --no-install-recommends -y \
-    "texinfo=6.8-6+b1" "texlive=2022.20230122-3" "latexmk=1:4.79-1" \
+    "texinfo=6.8-6+b1" "texlive-full=2022.20230122-3" "latexmk=1:4.79-1" \
     "ghostscript=10.0.0~dfsg-11+deb12u3" "inkscape=1.2.2-2+b1" "pipx=1.1.0-1"
 
 # Bake in tools used in the inner loop of the development cycle:
