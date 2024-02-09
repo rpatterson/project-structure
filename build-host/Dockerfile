@@ -64,7 +64,7 @@ RUN \
     "imagemagick" \
     "librsvg" \
     "texinfo" \
-    "texlive" \
+    "texlive-full" \
     "github-cli" \
     && groupdel "docker" \
     && apk del --no-cache "shadow" \
