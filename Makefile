@@ -715,7 +715,6 @@ release-docker-readme: ./var/log/docker-compose-network.log
 ifeq ($(VCS_BRANCH),main)
 ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	$(MAKE) "./var/log/docker-login-DOCKER.log"
-	docker compose pull --quiet pandoc docker-pushrm
 	docker compose up docker-pushrm
 endif
 endif
