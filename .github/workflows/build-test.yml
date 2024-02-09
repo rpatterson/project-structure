@@ -175,8 +175,9 @@ jobs:
         uses: "actions/download-artifact@master"
         with:
           name: "built-pkgs"
+          path: |
+            ./dist/
       # TODO: Debug stale venv issues and restore cache after fixing.
-
       # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
       - name: "Build image and run tests and checks in a container"
         run: >-
