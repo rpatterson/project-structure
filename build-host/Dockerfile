@@ -62,7 +62,7 @@ RUN \
     "imagemagick" \
     "librsvg" \
     "texinfo" \
-    "texlive" \
+    "texlive-full" \
     "tar" \
     "github-cli" \
     && groupdel "docker" \

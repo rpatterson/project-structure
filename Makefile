@@ -72,7 +72,7 @@ HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIPX=pipx
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick inkscape
 HOST_PKG_NAMES_MAKEINFO=texinfo
-HOST_PKG_NAMES_LATEXMK=latexmk
+HOST_PKG_NAMES_LATEXMK=texlive-full
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 HOST_PKG_NAMES_GPG=gnupg
 HOST_PKG_NAMES_GHCLI=gh
@@ -84,13 +84,13 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
+HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
-HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 HOST_PKG_NAMES_GHCLI=github-cli
 endif
@@ -445,6 +445,7 @@ $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
 .PHONY: build-docs-pdf
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
+# TODO: Switch to a TeX Live container for SVG support.
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
@@ -903,9 +904,10 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(var
 release-docker-readme: ./var/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	$(MAKE) "./var/log/docker-login-DOCKER.log"
-	docker compose pull --quiet pandoc docker-pushrm
 	docker compose up docker-pushrm
+endif
 endif
 
 .PHONY: release-bump
@@ -1001,7 +1003,11 @@ endif
 release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	$(MAKE) test-push test
+else
+	$(MAKE) test-docker test-lint-code
+endif
 ifeq ($(GITLAB_CI),true)
 	$(MAKE) release-docker
 endif
