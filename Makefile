@@ -70,7 +70,7 @@ HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIPX=pipx
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick inkscape
 HOST_PKG_NAMES_MAKEINFO=texinfo
-HOST_PKG_NAMES_LATEXMK=latexmk
+HOST_PKG_NAMES_LATEXMK=texlive-full
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 ifneq ($(shell which "brew"),)
 HOST_PREFIX=/usr/local
@@ -79,13 +79,13 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
+HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
-HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 endif
 HOST_PKG_CMD=$(HOST_PKG_CMD_PREFIX) $(HOST_PKG_BIN)
@@ -114,11 +114,11 @@ ifeq ($(USER_FULL_NAME),)
 USER_FULL_NAME=$(USER_NAME)
 endif
 USER_EMAIL:=$(USER_NAME)@$(shell hostname -f)
-export PUID:=$(shell id -u)
-export PGID:=$(shell id -g)
+export PUID?=$(shell id -u)
+export PGID?=$(shell id -g)
 # Capture the path of the checkout directory as seen by the real host running `#
 # dockerd` so that following bind volumes have the correct source paths:
-export CHECKOUT_DIR=$(PWD)
+export CHECKOUT_DIR?=$(PWD)
 export WORKTREE_REL?=
 # Managed user-specific directory out of the checkout:
 # https://specifications.freedesktop.org/basedir-spec/0.8/ar01s03.html
@@ -309,6 +309,7 @@ $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
 .PHONY: build-docs-pdf
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
+# TODO: Switch to a TeX Live container for SVG support.
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
@@ -849,7 +850,7 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER) ./.env.~out~
 	    docker compose config --profiles | while read
 	    do
 	        docker compose --profile "$${REPLY}" config --services
-	    done | sort | uniq | grep -Ev '^$(PROJECT_NAME)'
+	    done | sort | uniq | grep -Ev '^($(PROJECT_NAME)|build-host)'
 	)"
 	docker compose pull $${services}
 	for service in $${services}
