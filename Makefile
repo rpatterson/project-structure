@@ -212,6 +212,7 @@ DOCKER_LANGUAGE_DEFAULT=$(PYTHON_SUPPORTED_ENV)
 DOCKER_LANGUAGES?=$(PYTHON_ENVS)
 DOCKER_LANGUAGES_OTHER=$(filter-out \
     $(DOCKER_LANGUAGE_DEFAULT),$(DOCKER_LANGUAGES))
+export DOCKER_LANGUAGE?=$(firstword $(DOCKER_LANGUAGES))
 # Build all image variants in parallel:
 ifeq ($(DOCKER_LANGUAGES),)
 DOCKER_VARIANTS=$(DOCKER_OSES)
@@ -229,7 +230,7 @@ DOCKER_REGISTRIES=DOCKER
 export DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 DOCKER_IMAGE_DOCKER=$(DOCKER_NAMESPACE)/$(PROJECT_NAME)
 export DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
-DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(PYTHON_ENVS)\
+DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(DOCKER_LANGUAGES)\
     ,$(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES)\
     ,$(DOCKER_OS_DEFAULT_VAR)-$(language)/log/requirements/$(basename).log))
 export DOCKER_PASS?=
@@ -413,7 +414,7 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(varia
 define build_docker_devel_template=
 build-docker-devel-$(1)-$(2): ./var-docker/$(1)-$(2)/.tox/$(2)/.tox-info.json
 endef
-$(foreach os,$(DOCKER_OSES),$(foreach python_env,$(PYTHON_ENVS),\
+$(foreach os,$(DOCKER_OSES),$(foreach python_env,$(DOCKER_LANGUAGES),\
     $(eval $(call build_docker_devel_template,$(os),$(python_env)))))
 .PHONY: $(DOCKER_VARIANTS:%=build-docker-user-%)
 # Update the build package and build it into the user image:
@@ -1061,14 +1062,14 @@ clean:
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
 ./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		./var-docker/$(DOCKER_VARIANT)/.tox/$(PYTHON_ENV)/.tox-info.json
+		./var-docker/$(DOCKER_VARIANT)/.tox/$(DOCKER_LANGUAGE)/.tox-info.json
 # Ensure only a current, successfully built package is available:
 	rm -vf ./dist/*
 # Build Python packages/distributions from the development Docker container for
 # consistency/reproducibility.
 	mkdir -pv "$(dir $(@))"
 	$(DOCKER_COMPOSE_RUN_CMD) $(PROJECT_NAME)-devel tox run -e \
-	    "$(PYTHON_ENV)" --override "testenv.package=external" --pkg-only |
+	    "$(DOCKER_LANGUAGE)" --override "testenv.package=external" --pkg-only |
 	    tee -a "$(@)"
 # Copy to a location available in the Docker build context:
 	cp -lfv ./var-docker/$(DOCKER_VARIANT)/.tox/.pkg/tmp/dist/* "./dist/"
@@ -1152,7 +1153,7 @@ define build_docker_requirements_template=
 	$(DOCKER_COMPOSE_RUN_CMD) $$(PROJECT_NAME)-devel \
 	    make "./requirements/$(2)/$(3)" | tee -a "$$(@)"
 endef
-$(foreach os,$(DOCKER_OSES),$(foreach language,$(PYTHON_ENVS),\
+$(foreach os,$(DOCKER_OSES),$(foreach language,$(DOCKER_LANGUAGES),\
     $(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES),\
     $(eval $(call build_docker_requirements_template,$(os),$(language),$(basename))))))
 
