@@ -713,9 +713,11 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(var
 release-docker-readme: ./var/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	$(MAKE) "./var/log/docker-login-DOCKER.log"
 	docker compose pull --quiet pandoc docker-pushrm
 	docker compose up docker-pushrm
+endif
 endif
 
 .PHONY: release-bump
