@@ -100,10 +100,13 @@ jobs:
 
       # Delegate steps agnostic of the CI/CD platform to the `./Makefile`:
       - name: "Build image and run tests and checks in a container"
+        # Also perform any initial set up specific to GitHub actions including VCS
+        # checkout permissions and freeing disk space on the GitHub Actions worker:
         run: >-
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
+          rm -r /__t/*/ &&
           init-job.sh entrypoint.sh make -j -O release-all
 
       # Upload build artifacts:
