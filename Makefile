@@ -74,7 +74,7 @@ HOST_PKG_NAMES_ENVSUBST=gettext-base
 HOST_PKG_NAMES_PIPX=pipx
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick inkscape
 HOST_PKG_NAMES_MAKEINFO=texinfo
-HOST_PKG_NAMES_LATEXMK=latexmk
+HOST_PKG_NAMES_LATEXMK=texlive-full
 HOST_PKG_NAMES_DOCKER=docker-ce-cli docker-compose-plugin
 HOST_PKG_NAMES_GPG=gnupg
 HOST_PKG_NAMES_GHCLI=gh
@@ -86,13 +86,13 @@ HOST_PKG_BIN=brew
 HOST_PKG_INSTALL_ARGS=install
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
+HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker docker-compose
 else ifneq ($(shell which "apk"),)
 HOST_PKG_BIN=apk
 HOST_PKG_INSTALL_ARGS=add
 HOST_PKG_NAMES_ENVSUBST=gettext
 HOST_PKG_NAMES_IMAGEMAGICK=imagemagick librsvg
-HOST_PKG_NAMES_LATEXMK=texlive
 HOST_PKG_NAMES_DOCKER=docker-cli docker-cli-compose
 HOST_PKG_NAMES_GHCLI=github-cli
 endif
@@ -155,13 +155,13 @@ PYTHON_REQUIREMENTS_INS=$(wildcard ./requirements/*.txt.in)
 PYTHON_REQUIREMENTS_BASENAMES=$(PYTHON_REQUIREMENTS_INS:./requirements/%.in=%)
 PYTHON_PROJECT_PACKAGE=$(subst -,,$(PROJECT_NAME))
 PYTHON_PROJECT_GLOB=$(subst -,?,$(PROJECT_NAME))
-PYTHON_PKG_EXISTING=false
+PYTHON_PKG_EXISTING?=false
 
 # Values derived from Version Control Systems (VCS):
 VCS_LOCAL_BRANCH:=$(shell git branch --show-current)
-CI_COMMIT_BRANCH=
-GITHUB_REF_TYPE=
-GITHUB_REF_NAME=
+CI_COMMIT_BRANCH?=
+GITHUB_REF_TYPE?=
+GITHUB_REF_NAME?=
 ifeq ($(VCS_LOCAL_BRANCH),)
 ifneq ($(CI_COMMIT_BRANCH),)
 VCS_LOCAL_BRANCH=$(CI_COMMIT_BRANCH)
@@ -170,7 +170,7 @@ VCS_LOCAL_BRANCH=$(GITHUB_REF_NAME)
 endif
 endif
 VCS_TAG=
-CI_COMMIT_TAG=
+CI_COMMIT_TAG?=
 ifeq ($(VCS_TAG),)
 ifneq ($(CI_COMMIT_TAG),)
 VCS_TAG=$(CI_COMMIT_TAG)
@@ -276,18 +276,18 @@ DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(PYTHON_ENVS)\
     ,$(foreach basename,$(PYTHON_REQUIREMENTS_BASENAMES)\
     ,$(DOCKER_OS_DEFAULT_VAR)-$(language)/log/requirements/$(basename).log))
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
-GITLAB_CI=false
-GITHUB_ACTIONS=false
-CI_PROJECT_NAMESPACE=$(CI_UPSTREAM_NAMESPACE)
-CI_TEMPLATE_REGISTRY_HOST=registry.gitlab.com
+GITLAB_CI?=false
+GITHUB_ACTIONS?=false
+CI_PROJECT_NAMESPACE?=$(CI_UPSTREAM_NAMESPACE)
+CI_TEMPLATE_REGISTRY_HOST?=registry.gitlab.com
 ifeq ($(GITHUB_ACTIONS),true)
 DOCKER_REGISTRY_HOST=ghcr.io
 else
 DOCKER_REGISTRY_HOST=$(CI_TEMPLATE_REGISTRY_HOST)
 endif
 export DOCKER_REGISTRY_HOST
-CI_REGISTRY=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_PROJECT_NAMESPACE)
-CI_REGISTRY_IMAGE=$(CI_REGISTRY)/$(CI_PROJECT_NAME)
+CI_REGISTRY?=$(CI_TEMPLATE_REGISTRY_HOST)/$(CI_PROJECT_NAMESPACE)
+CI_REGISTRY_IMAGE?=$(CI_REGISTRY)/$(CI_PROJECT_NAME)
 DOCKER_REGISTRIES=GITLAB GITHUB DOCKER
 DOCKER_REGISTRY=$(firstword $(DOCKER_REGISTRIES))
 ifeq ($(GITHUB_ACTIONS),true)
@@ -296,7 +296,7 @@ endif
 export DOCKER_REGISTRY
 DOCKER_IMAGE_GITLAB=$(CI_REGISTRY_IMAGE)
 DOCKER_IMAGE_GITHUB=ghcr.io/$(CI_PROJECT_NAMESPACE)/$(CI_PROJECT_NAME)
-DOCKER_IMAGE_DOCKER=$(DOCKER_USER)/$(CI_PROJECT_NAME)
+DOCKER_IMAGE_DOCKER=$(DOCKER_NAMESPACE)/$(PROJECT_NAME)
 export DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 DOCKER_IMAGES=
 ifeq ($(GITLAB_CI),true)
@@ -306,6 +306,9 @@ DOCKER_IMAGES+=$(DOCKER_IMAGE_GITHUB)
 else
 DOCKER_IMAGES+=$(DOCKER_IMAGE_DOCKER)
 endif
+export DOCKER_PASS?=
+DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
+TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
 # Run Python tools in isolated environments managed by Tox:
 # Values used to run Tox:
@@ -324,13 +327,13 @@ TOX_BUILD_BINS=pre-commit cz towncrier rstcheck sphinx-build sphinx-autobuild \
 
 # Values derived from or overridden by CI environments:
 CI_UPSTREAM_NAMESPACE=$(PROJECT_NAMESPACE)
-CI_PROJECT_NAME=$(PROJECT_NAME)
+CI_PROJECT_NAME?=$(PROJECT_NAME)
 ifeq ($(CI),true)
 TEMPLATE_IGNORE_EXISTING=true
 endif
-GITHUB_REPOSITORY_OWNER=$(CI_UPSTREAM_NAMESPACE)
+GITHUB_REPOSITORY_OWNER?=$(CI_UPSTREAM_NAMESPACE)
 # Is this checkout a fork of the upstream project?:
-CI_IS_FORK=false
+CI_IS_FORK?=false
 ifeq ($(GITLAB_CI),true)
 USER_EMAIL=$(USER_NAME)@runners-manager.gitlab.com
 ifneq ($(VCS_BRANCH),develop)
@@ -359,14 +362,14 @@ endif
 DOCKER_IMAGES+=$(DOCKER_IMAGE)
 # Take GitHub auth from the environment under GitHub actions but from secrets on other
 # project hosts:
-GITHUB_TOKEN=
-PROJECT_GITHUB_PAT=
+GITHUB_TOKEN?=
+PROJECT_GITHUB_PAT?=
 ifeq ($(GITHUB_TOKEN),)
-GITHUB_TOKEN=$(PROJECT_GITHUB_PAT)
+GITHUB_TOKEN?=$(PROJECT_GITHUB_PAT)
 else ifeq ($(PROJECT_GITHUB_PAT),)
 PROJECT_GITHUB_PAT=$(GITHUB_TOKEN)
 endif
-GH_TOKEN=$(GITHUB_TOKEN)
+GH_TOKEN?=$(GITHUB_TOKEN)
 export GH_TOKEN
 export GITHUB_TOKEN
 export PROJECT_GITHUB_PAT
@@ -402,23 +405,20 @@ DOCKER_PLATFORMS=linux/amd64 linux/arm64 linux/arm/v7
 endif
 endif
 endif
-CI_REGISTRY_USER=$(CI_PROJECT_NAMESPACE)
+CI_REGISTRY_USER?=$(CI_PROJECT_NAMESPACE)
 # Avoid undefined variables warnings when running under local development:
 PYPI_PASSWORD?=
 export PYPI_PASSWORD
 TEST_PYPI_PASSWORD?=
 export TEST_PYPI_PASSWORD
-VCS_REMOTE_PUSH_URL=
-CODECOV_TOKEN=
-DOCKER_PASS=
-export DOCKER_PASS
-CI_PROJECT_ID=
+VCS_REMOTE_PUSH_URL?=
+CODECOV_TOKEN?=
+CI_PROJECT_ID?=
 export CI_PROJECT_ID
-CI_JOB_TOKEN=
+CI_JOB_TOKEN?=
 export CI_JOB_TOKEN
-CI_REGISTRY_PASSWORD=
+CI_REGISTRY_PASSWORD?=
 export CI_REGISTRY_PASSWORD
-GH_TOKEN=
 
 # https://www.sphinx-doc.org/en/master/usage/builders/index.html
 # Run these Sphinx builders to test the correctness of the documentation:
@@ -518,6 +518,7 @@ $(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/$(PYTHON_HOST_ENV)/.tox-info.json
 .PHONY: build-docs-pdf
 ## Render the LaTeX documentation into a PDF file.
 build-docs-pdf: build-docs-latex
+# TODO: Switch to a TeX Live container for SVG support.
 	$(MAKE) -C "./build/docs/$(<:build-docs-%=%)/" \
 	    LATEXMKOPTS="-f -interaction=nonstopmode" all-pdf || true
 .PHONY: build-docs-info
@@ -726,10 +727,8 @@ test-docker-devel-$(1): ./var/log/docker-compose-network.log \
 	    if test "$$(CODECOV_TOKEN)" != ""
 	    then
 	        $$(MAKE) "$$(HOME)/.local/bin/codecov"
-# TEMPLATE: Write coverage results in Cobertura XML format to
-# `./build/reports/coverage.xml` and un-comment:
-#	        codecov --nonZero -t "$$(CODECOV_TOKEN)" --file \
-#	            "./build/reports/coverage.xml"
+	        codecov --nonZero -t "$$(CODECOV_TOKEN)" --file \
+	            "./build/reports/$(DOCKER_LANGUAGE_DEFAULT)/coverage.xml"
 	    elif test "$$(CI_IS_FORK)" != "true"
 	    then
 	        set +x
@@ -951,8 +950,9 @@ release: release-pkgs release-docker
 
 .PHONY: release-pkgs
 ## Publish installable Python packages to PyPI if conventional commits require.
-release-pkgs: ./var/log/build-pkgs.log $(HOME)/.local/bin/tox ~/.pypirc.~out~ \
-		./var/log/docker-compose-network.log ./var/log/git-fetch.log
+release-pkgs: ./var/log/build-pkgs.log ./var/log/docker-compose-network.log \
+		./var/log/git-fetch.log $(HOST_PREFIX)/bin/gh $(HOME)/.local/bin/tox \
+		~/.pypirc.~out~
 	$(MAKE) test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
@@ -968,7 +968,7 @@ ifeq ($(RELEASE_PUBLISH),true)
 	export VERSION=$$(tox exec -e "build" -qq -- cz version --project)
 # Create a GitLab release
 	./.tox/build/bin/twine upload -s -r "gitlab" \
-	    ./var-docker/$(PYTHON_ENV)/.tox/.pkg/tmp/dist/*
+	    ./dist/$(PYTHON_PROJECT_GLOB)-*
 	release_cli_args="--description ./NEWS-VERSION.rst"
 	release_cli_args+=" --tag-name v$${VERSION}"
 	release_cli_args+=" --assets-link {\
@@ -1031,11 +1031,10 @@ $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(var
 release-docker-readme: ./var/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
-	if TEST "$${PYTHON_ENV}" = "$(PYTHON_SUPPORTED_ENV)"
-	then
-	    $(MAKE) "./var/log/docker-login-DOCKER.log"
-	    docker compose up docker-pushrm
-	fi
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
+	$(MAKE) "./var/log/docker-login-DOCKER.log"
+	docker compose up docker-pushrm
+endif
 endif
 
 .PHONY: release-bump
@@ -1137,7 +1136,11 @@ endif
 release-all: ./var/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
+ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
 	$(MAKE) test-push test
+else
+	$(MAKE) test-docker test-lint-code
+endif
 ifeq ($(GITLAB_CI),true)
 	$(MAKE) release-docker
 endif
@@ -1753,8 +1756,8 @@ $(HOST_PREFIX)/bin/curl:
 	$(HOST_PKG_CMD) $(HOST_PKG_INSTALL_ARGS) "$(HOST_PKG_NAMES_CURL)"
 
 # GNU Privacy Guard (GPG) signing key creation and management in CI:
-export GPG_PASSPHRASE=
-GPG_SIGNING_PRIVATE_KEY=
+export GPG_PASSPHRASE?=
+GPG_SIGNING_PRIVATE_KEY?=
 ./var/ci-cd-signing-subkey.asc: $(HOST_PREFIX)/bin/gpg
 # Signing release commits and artifacts requires a GPG private key in the CI/CD
 # environment. Use a subkey that you can revoke without affecting your main key. This
@@ -1983,7 +1986,6 @@ pull-docker: ./var/log/git-fetch.log $(HOST_TARGET_DOCKER)
 # `./var/log/docker-login*.log` targets for the authentication environment variables to
 # set or login to those container registries manually and `$ touch` these targets.
 .PHONY: bootstrap-project
-bootstrap-project: ./var/log/docker-login-GITLAB.log ./var/log/docker-login-GITHUB.log \
-		./var/log/docker-login-DOCKER.log
-# Reproduce an isolated, clean build in a Docker image to reproduce build issues:
+bootstrap-project: ./var/log/docker-login-GITLAB.log ./var/log/docker-login-GITHUB.log
+# Initially seed the build host Docker image to bootstrap CI/CD environments
 	$(MAKE) -C "./build-host/" release

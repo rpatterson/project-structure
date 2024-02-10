@@ -43,7 +43,6 @@ env:
   PGID: "1001"
   # Project specific values:
   PROJECT_NAMESPACE: "rpatterson"
-  PROJECT_NAME: "project-structure"
   GPG_PASSPHRASE: "${{ secrets.GPG_PASSPHRASE }}"
   GPG_SIGNING_PRIVATE_KEY: "${{ secrets.GPG_SIGNING_PRIVATE_KEY }}"
   DOCKER_PASS: "${{ secrets.DOCKER_PASS }}"
@@ -105,7 +104,7 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
-          init-job.sh entrypoint.sh make -j -O -e release-all
+          init-job.sh entrypoint.sh make -j -O release-all
 
       # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage
@@ -141,7 +140,7 @@ jobs:
             Test Suite Reports
             (${{ matrix.DOCKER_OSES }}-${{ matrix.DOCKER_LANGUAGES }})
           path: >-
-            ./build/reports/*unit.xml
+            ./build/reports/*/*unit.xml
           reporter: "java-junit"
   build-test-others:
     needs: ["build-test-default"]
@@ -184,14 +183,16 @@ jobs:
           git config --global --add safe.directory
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
-          init-job.sh entrypoint.sh make -j -O -e release-all
+          init-job.sh entrypoint.sh make -j -O release-all
 
       # Upload build artifacts:
       # https://github.com/actions/upload-artifact#usage
       - name: "Archive test, coverage, and lint reports"
         uses: "actions/upload-artifact@master"
         with:
-          name: "test-coverage-lint-reports"
+          name: "\
+            test-coverage-lint-reports\
+            -${{ matrix.DOCKER_OSES }}-${{ matrix.DOCKER_LANGUAGES }}"
           path: |
             ./build/reports/
       - name: "Publish test suite report"
@@ -214,5 +215,5 @@ jobs:
             Test Suite Reports
             (${{ matrix.DOCKER_OSES }}-${{ matrix.DOCKER_LANGUAGES }})
           path: >-
-            ./build/reports/*unit.xml
+            ./build/reports/*/*unit.xml
           reporter: "java-junit"

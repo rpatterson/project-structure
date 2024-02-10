@@ -15,7 +15,10 @@ MAKEFLAGS+=--warn-undefined-variables
 MAKEFLAGS+=--no-builtin-rules
 PS1?=$$
 
-DOCKER_IMAGES=registry.gitlab.com/rpatterson/project-structure
+DOCKER_IMAGES=\
+    registry.gitlab.com/rpatterson/project-structure \
+    ghcr.io/rpatterson/project-structure \
+    merpatterson/project-structure
 DOCKER_IMAGE=$(firstword $(DOCKER_IMAGES))
 
 
