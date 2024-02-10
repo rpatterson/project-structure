@@ -235,6 +235,7 @@ DOCKER_REQUIREMENTS_TARGETS=$(foreach language,$(DOCKER_LANGUAGES)\
     ,$(DOCKER_OS_DEFAULT_VAR)-$(language)/log/requirements/$(basename).log))
 export DOCKER_PASS?=
 DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
+TOX_BUILD_PREREQS=
 ifeq ($(DOCKER_VARIANT),$(DOCKER_VARIANT_HOST))
 TOX_BUILD_PREREQS=./var-docker/$(DOCKER_VARIANT_HOST)/log/requirements/build.txt.log
 endif
