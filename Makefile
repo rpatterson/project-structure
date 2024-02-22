@@ -221,7 +221,7 @@ VCS_COMPARE_BRANCH=$(VCS_BRANCH)
 endif
 # Under CI, verify commits and release notes by comparing this branch with the branch
 # maintainers would merge this branch into:
-CI=false
+CI?=false
 ifeq ($(CI),true)
 ifeq ($(VCS_COMPARE_BRANCH),develop)
 VCS_COMPARE_BRANCH=main
