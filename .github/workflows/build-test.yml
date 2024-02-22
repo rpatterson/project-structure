@@ -107,6 +107,7 @@ jobs:
           /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
           &&
           rm -r /__t/*/ &&
+          df -h && du -xh | sort -rh | head -n 100 &&
           init-job.sh entrypoint.sh make -j -O release-all
 
       # Upload build artifacts:
