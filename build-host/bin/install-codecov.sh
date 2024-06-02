@@ -1,17 +1,17 @@
 #!/bin/bash
+#
+# Install the CodeCov coverage uploader into the user's `${HOME}/`.
 
 # SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
 #
 # SPDX-License-Identifier: MIT
 
-# Install the CodeCov coverage uploader into the user's `${HOME}/`.
-
 set -eu -o pipefail
 shopt -s inherit_errexit
+export PS4='+$(basename "${0}"):${LINENO}+'
 if test "${DEBUG:=false}" = "true"
 then
     # Echo commands for easier debugging
-    PS4='$0:$LINENO+'
     set -x
 fi
 

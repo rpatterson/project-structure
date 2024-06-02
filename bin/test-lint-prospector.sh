@@ -1,18 +1,18 @@
 #!/bin/bash
+#
+# Run the Python kitchen sink linter as fast as possible.
 
 # SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
 #
 # SPDX-License-Identifier: MIT
 
-# Run the Python kitchen sink linter as fast as possible.
-
 set -eu -o pipefail
 shopt -s inherit_errexit
+export PS4='+$(basename "${0}"):${LINENO}+'
 if test "${DEBUG:=false}" = "true"
 then
     # Echo commands for easier debugging
     set -x
-    PS4='$0:$LINENO+'
 fi
 
 
