@@ -88,7 +88,9 @@ services:
       # Pass the bind volume source paths along as seen from the host `# dockerd`:
       CHECKOUT_DIR: "${CHECKOUT_DIR:-.}"
       WORKTREE_REL: "${WORKTREE_REL:-}"
-      # DEBUG: "true"
+      # Pass in from the environment or set to `true` here to get more verbose `DEBUG`
+      # logging:
+      DEBUG: "${DEBUG:-}"
     user: "0:0"
     command: >-
       make -j -O release-all
