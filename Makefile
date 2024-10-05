@@ -216,7 +216,7 @@ DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
 DOCKER_COMPOSE_UPGRADE=false
 TEST_CODE_PREREQS=./var/log/build-pkgs.log
 
-APT_LOCK_FILES=$(wildcard ./apt/*-lock.txt)
+APT_LOCK_INS=$(wildcard ./apt/*/*-lock.txt.in)
 
 # Values used for publishing releases:
 # Safe defaults for testing the release process without publishing to the official
@@ -875,8 +875,8 @@ devel-upgrade-compose: $(HOST_TARGET_DOCKER)
 .PHONY: devel-upgrade-apt
 ## Update the versions of APT packages installed into the container image:
 devel-upgrade-apt:
-	touch ./apt/*-lock.txt
-	$(MAKE) $(APT_LOCK_FILES)
+	touch $(APT_LOCK_INS)
+	$(MAKE) $(APT_LOCK_INS:%.in=%)
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -949,20 +949,25 @@ clean:
 
 # Lock installed operating system package versions for reproducible image builds:
 define devel_upgrade_apt_template=
-$(1): ./var-docker/$(DOCKER_DEFAULT)/log/build-$(1:./apt/%-lock.txt=%).log
-	docker run --rm --entrypoint "dpkg-query" \
-	    $$(DOCKER_IMAGE):$(1:./apt/%-lock.txt=%)-$$(DOCKER_DEFAULT_TAG) \
-	    -f='$$$${binary:Package}=$$$${Version}\n' -W >"$$(@)"
+$(1:%.in=%): $(1)
+# Preserve checkout file ownership:
+	truncate --size="0" "$$(@)"
+	DOCKER_BASE_DIGEST="" $$(DOCKER_COMPOSE_RUN_CMD) --user root --entrypoint bash \
+	    base -xeu -o pipefail -c '\
+	        apt-get update && xargs -t -- \
+	        apt-get install --no-install-recommends -y <"$$(<)" && \
+	        dpkg-query -f="\$$$${binary:Package}=\$$$${Version}\\n" -W >>"$$(@)" \
+	    '
 endef
-$(foreach lock_file,$(APT_LOCK_FILES),\
-    $(eval $(call devel_upgrade_apt_template,$(lock_file))))
+$(foreach lock_in,$(APT_LOCK_INS),\
+    $(eval $(call devel_upgrade_apt_template,$(lock_in))))
 
 # Build Docker container images:
 # Build the base layer common to both published images:
 define build_docker_base_template=
 ./var-docker/$(1)/log/build-base.log: \
-		./Dockerfile ./container/usr/local/bin/entrypoint.sh \
-		./.tox/build/.tox-info.json \
+		./Dockerfile ./apt/base-lock.txt \
+		./container/usr/local/bin/entrypoint.sh ./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/docker-login-DOCKER.log
 	true DEBUG Updated prereqs: $$(?)
@@ -974,8 +979,8 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_base_template,$(variant))))
 # Build the development image:
 define build_docker_devel_template=
-./var-docker/$(1)/log/build-devel.log: ./Dockerfile \
-		./var-docker/$(1)/log/build-base.log \
+./var-docker/$(1)/log/build-devel.log:
+		./Dockerfile ./var-docker/$(1)/log/build-base.log \
 		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/docker-login-DOCKER.log
@@ -989,8 +994,7 @@ $(foreach variant,$(DOCKER_VARIANTS),\
 # Build the user image:
 define build_docker_user_template=
 ./var-docker/$(1)/log/build-user.log: ./Dockerfile \
-		./var-docker/$(1)/log/build-base.log \
-		./.tox/build/.tox-info.json \
+		./var-docker/$(1)/log/build-base.log ./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
 		./var/log/docker-login-DOCKER.log ./var/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
