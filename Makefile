@@ -450,7 +450,7 @@ endif
 # https://github.com/moby/moby/issues/39003#issuecomment-879441675
 	docker buildx build --progress plain $(DOCKER_BUILD_ARGS) \
 	    --build-arg BUILDKIT_INLINE_CACHE="1" \
-	    --build-arg DOCKER_BASE_DIGEST="$(DOCKER_BASE_DIGEST)" \
+	    --build-arg DOCKER_BASE_DIGEST="$(DOCKER_BASE_DIGEST_$(DOCKER_VARIANT))" \
 	    --build-arg VERSION="$$(
 	        tox exec -e "build" -qq -- cz version --project
 	    )" $${docker_build_args} --file "$(<)" "./"
@@ -952,8 +952,10 @@ define devel_upgrade_apt_template=
 $(1:%.in=%): $(1)
 # Preserve checkout file ownership:
 	truncate --size="0" "$$(@)"
-	DOCKER_BASE_DIGEST="" $$(DOCKER_COMPOSE_RUN_CMD) --user root --entrypoint bash \
-	    base -xeu -o pipefail -c '\
+	export DOCKER_VARIANT="TODO"
+	export DOCKER_TODO_DIGEST=""
+	$$(DOCKER_COMPOSE_RUN_CMD) --user root \
+	    --entrypoint bash project-structure-$(TODO) -xeu -o pipefail -c '\
 	        apt-get update && xargs -t -- \
 	        apt-get install --no-install-recommends -y <"$$(<)" && \
 	        dpkg-query -f="\$$$${binary:Package}=\$$$${Version}\\n" -W >>"$$(@)" \
@@ -1092,6 +1094,8 @@ ifeq ($(DOCKER_COMPOSE_UPGRADE),true)
 	    )"
 	    echo "$${env_var}=@$${digest}" >>"$(@)"
 	done
+# Pull and write the digests for the base image of each variant:
+	TODO Separate targets per-variant for parallel execution
 # Restore the user's possibly customized `./.env` but with the new image digests:
 	if test -e "$(@:%.in=%).~upgrade~"
 	then

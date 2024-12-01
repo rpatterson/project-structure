@@ -86,7 +86,7 @@ services:
         :/usr/local/src/project-structure${WORKTREE_REL:-}/build/"
     working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
 
-  base:
+  project-structure-base:
     <<: *service
     image: "docker.io/buildpack-deps${DOCKER_BASE_DIGEST:-:stable}"
     profiles:
