@@ -10,6 +10,9 @@ services:
   project-structure:
     image: "merpatterson/project-structure"
     container_name: "project-structure"
+    # Uncomment and customize to your deployment:
+    # domainname: "example.com"
+    # hostname: "project-structure.example.com"
     environment:
       # Match the time zone of the host through `./.env`:
       TZ: "${TZ:-Etc/UTC}"
