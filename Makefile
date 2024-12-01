@@ -565,9 +565,13 @@ test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
-	        cat "$${REPLY}" |
-	            $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini" \
-	                --ext=".pl"
+	        if test -f "$${REPLY}"
+	        then
+	            cat "$${REPLY}" |
+	                $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini" \
+	                docker compose run --rm -T vale --config="./styles/code.ini" \
+	                    --ext=".pl"
+	        fi
 	    done
 .PHONY: test-lint-prose-proselint
 ## Lint prose in all markup files tracked in VCS with proselint.
@@ -735,6 +739,7 @@ endif
 ## Bump the package version if conventional commits require a release.
 release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
 		./var/log/npm-install.log
+# Fail if there are existing uncommitted changes:
 	if ! git diff --cached --exit-code
 	then
 	    set +x
@@ -748,36 +753,36 @@ endif
 # Update the local branch to the forthcoming version bump commit:
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 	exit_code=0
+# On the `main` branch, make a final release from the last pre-release regardless of
+# whether any commits on `main` require a release:
 	if test "$(VCS_BRANCH)" = "main" &&
 	    tox exec -e "build" -- python ./bin/get-base-version.py $$(
 	        tox exec -e "build" -qq -- cz version --project
 	    )
 	then
-# Make a final release from the last pre-release:
 	    true
-	else
 # Do the conventional commits require a release?:
+	else
 	    tox exec -e "build" -- python ./bin/cz-check-bump.py || exit_code=$$?
 	    if (( $$exit_code == 3 || $$exit_code == 21 ))
 	    then
-# No commits require a release:
+# No commits require a release, proceed without a bump commit:
 	        exit
 	    elif (( $$exit_code != 0 ))
 	    then
 	        exit $$exit_code
 	    fi
 	fi
-# Collect the versions involved in this release according to conventional commits:
+# Collect the version involved in this release according to conventional commits:
 	cz_bump_args="--check-consistency --no-verify"
 ifneq ($(VCS_BRANCH),main)
 	cz_bump_args+=" --prerelease beta"
 endif
-# Build and stage the release notes:
 	next_version=$$(
 	    tox exec -e "build" -qq -- cz bump $${cz_bump_args} --yes --dry-run |
 	    sed -nE 's|.* ([^ ]+) *→ *([^ ]+).*|\2|p;q'
 	) || true
-# Assemble the release notes for this next version:
+# Build and stage the release notes for this next version:
 	tox exec -e "build" -qq -- \
 	    towncrier build --version "$${next_version}" --draft --yes \
 	    >"./docs/news-version.rst"
@@ -786,14 +791,15 @@ endif
 # Bump the version in the NPM package metadata:
 	~/.nvm/nvm-exec npm --no-git-tag-version version "$${next_version}"
 	git add -- "./package*.json"
-# Increment the version in VCS
+# Increment the version in VCS:
 	tox exec -e "build" -- cz bump $${cz_bump_args}
 ifeq ($(VCS_BRANCH),main)
-# Merge the bumped version back into `develop`:
+# Merge the bumped version back into `develop` for final releases on `main`:
 	$(MAKE) VCS_BRANCH="main" VCS_MERGE_BRANCH="develop" \
 	    VCS_REMOTE="$(VCS_COMPARE_REMOTE)" VCS_MERGE_BRANCH="develop" devel-merge
 	git switch -C "$(VCS_BRANCH)" "$$(git rev-parse HEAD)"
 endif
+# Fail if this process left uncommitted changes:
 	$(MAKE) test-clean
 
 .PHONY: release-all
@@ -839,16 +845,23 @@ devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
 
 .PHONY: devel-upgrade
 ## Update requirements, dependencies, and other external versions tracked in VCS.
-devel-upgrade:
-	touch ./requirements/*.txt.in ./apt/*-lock.txt "./.env.in.~prereq~" "./.vale.ini" ./styles/*.ini
-	$(MAKE) PIP_COMPILE_ARGS="--upgrade" DOCKER_COMPOSE_UPGRADE=true \
-	    "./requirements/$(PYTHON_HOST_ENV)/build.txt" devel-upgrade-pre-commit \
-	    devel-upgrade-js "./.env.~out~" devel-upgrade-apt \
-	    "./var/log/vale-rule-levels.log"
+devel-upgrade: \
+		devel-upgrade-pre-commit devel-upgrade-py devel-upgrade-js \
+		devel-upgrade-compose devel-upgrade-vale devel-upgrade-apt
+.PHONY: devel-upgrade-py
+## Update tools implemented in Python.
+devel-upgrade-py:
+	touch ./requirements/*.txt.in
+	$(MAKE) PIP_COMPILE_ARGS="--upgrade" "./.tox/build/.tox-info.json"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
-devel-upgrade-pre-commit: ./.tox/build/.tox-info.json
+devel-upgrade-pre-commit: devel-upgrade-py
 	tox exec -e "build" -- pre-commit autoupdate
+.PHONY: devel-upgrade-vale
+## Update the container images of development tools.
+devel-upgrade-vale: devel-upgrade-py
+	touch "./.vale.ini" ./styles/*.ini
+	$(MAKE) "./var/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-js
 ## Update tools implemented in JavaScript.
 devel-upgrade-js: ./var/log/npm-install.log
@@ -861,7 +874,9 @@ devel-upgrade-compose: $(HOST_TARGET_DOCKER)
 	$(MAKE) DOCKER_COMPOSE_UPGRADE=true "./.env.~out~"
 .PHONY: devel-upgrade-apt
 ## Update the versions of APT packages installed into the container image:
-devel-upgrade-apt: $(APT_LOCK_FILES)
+devel-upgrade-apt:
+	touch ./apt/*-lock.txt
+	$(MAKE) $(APT_LOCK_FILES)
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
@@ -878,9 +893,11 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 	    "./.pre-commit-config.yaml" "./package-lock.json" "./.vale.ini"
 	git add "./styles/"
 # Commit the upgrade changes
-	echo ":Upgrade: Upgrade all requirements to the most recent versions as of" \
-	    >"./newsfragments/+upgrade-requirements.bugfix.rst"
-	echo "          $${now}." >>"./newsfragments/+upgrade-requirements.bugfix.rst"
+	echo ":Upgrade:" >"./newsfragments/+upgrade-requirements.bugfix.rst"
+	echo >>"./newsfragments/+upgrade-requirements.bugfix.rst"
+	echo "    Upgrade all requirements to the most recent versions as of" \
+	    >>"./newsfragments/+upgrade-requirements.bugfix.rst"
+	echo "    $${now}." >>"./newsfragments/+upgrade-requirements.bugfix.rst"
 	git add "./newsfragments/+upgrade-requirements.bugfix.rst"
 	git commit --all --gpg-sign -m \
 	    "fix(deps): Upgrade to most recent versions"
@@ -1153,6 +1170,12 @@ endif
 # Update style rule definitions from the remotes:
 ./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
 		./styles/code.ini
+	sed -nE 's|^ *Packages *= *(.+) *|\1|p' "./.vale.ini" "./styles/code.ini" |
+	    tr -s "," "\n" | sed -nE 's| *([^ ]+.+[^ ]+) *|\1|p' | sort | uniq |
+	    while read "package"
+	    do
+	        rm -r "./styles/$${package}/"
+	    done
 	$(DOCKER_COMPOSE_RUN_CMD) vale sync
 	$(DOCKER_COMPOSE_RUN_CMD) vale sync --config="./styles/code.ini"
 
