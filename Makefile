@@ -419,7 +419,7 @@ ifeq ($(DOCKER_BUILD_PULL),true)
 	docker image pull --quiet "$(DOCKER_IMAGE):$${pull_target}-$${tag_suffix}"
 	docker image ls --digests "$(
 	    docker compose config --images $(PROJECT_NAME)-devel | head -n 1
-	)" | tee -a "$(@)"
+	)"
 	exit
 endif
 # Workaround broken interactive session detection:
