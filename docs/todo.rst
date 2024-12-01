@@ -21,7 +21,12 @@ Required
 
 #. :Upgrade:
 
-    The ``devel-upgrade`` target doesn't add new Vale styles.
+    The ``devel-upgrade-docker`` target causes ``./.env`` changes warning when an image
+    digest is updated.
+
+#. :Upgrade:
+
+    The ``devel-upgrade-vale`` target doesn't add new Vale styles.
 
 #. :Docs:
 
