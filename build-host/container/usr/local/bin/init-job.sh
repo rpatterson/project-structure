@@ -93,9 +93,9 @@ main() {
     fi
 
     # Update some targets for each job run:
-    mkdir -pv "./var/log/"
-    date | tee -a "./var/log/job-date.log"
-    chown ${CHOWN_ARGS} -R "${PUID}:${PGID}" "./var/"
+    mkdir -pv "./build/log/"
+    date | tee -a "./build/log/job-date.log"
+    chown ${CHOWN_ARGS} -R "${PUID}:${PGID}" "./build/"
 
     # Delegate to the rest of `argv`:
     exec "$@"

@@ -233,8 +233,8 @@ all: build
 .PHONY: build
 ## Perform any necessary local setup common to most operations.
 # <!--alex disable hooks-->
-build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./var/log/npm-install.log
+build: ./.git/hooks/pre-commit ./build/log/docker-compose-network.log \
+		./.tox/build/.tox-info.json ./build/log/npm-install.log
 # <!--alex enable hooks-->
 
 .PHONY: build-docs
@@ -285,7 +285,7 @@ test: test-lint test-code
 
 .PHONY: test-code
 ## Run the full suite of tests and coverage checks.
-test-code: ./var/log/build-pkgs.log
+test-code: ./build/log/build-pkgs.log
 	true "TEMPLATE: Always specific to the project type"
 
 .PHONY: test-debug
@@ -300,7 +300,7 @@ test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
 
 .PHONY: test-lint-licenses
 ## Lint copyright and license annotations for all files tracked in VCS.
-test-lint-licenses: ./var/log/docker-compose-network.log
+test-lint-licenses: ./build/log/docker-compose-network.log
 	docker compose run --rm -T "reuse"
 
 .PHONY: test-lint-code
@@ -308,7 +308,7 @@ test-lint-licenses: ./var/log/docker-compose-network.log
 test-lint-code: test-lint-code-prettier
 .PHONY: test-lint-code-prettier
 ## Lint source code for formatting with Prettier.
-test-lint-code-prettier: ./var/log/npm-install.log ./var/log/build-pkgs.log
+test-lint-code-prettier: ./build/log/npm-install.log ./build/log/build-pkgs.log
 	~/.nvm/nvm-exec npm run lint:prettier
 
 .PHONY: test-lint-docs
@@ -344,20 +344,20 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 		test-lint-prose-write-good test-lint-prose-alex
 .PHONY: test-lint-prose-vale-markup
 ## Lint prose in all markup files tracked in VCS with Vale.
-test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
+test-lint-prose-vale-markup: ./build/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z ':!docs/news*.rst' ':!LICENSES' \
 	    ':!styles/**' ':!requirements/**' |
 	    xargs -r -0 -t -- docker compose run --rm -T vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
-test-lint-prose-vale-code: ./var/log/docker-compose-network.log
+test-lint-prose-vale-code: ./build/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z ':!styles/**' |
 	    xargs -r -0 -t -- \
 	    docker compose run --rm -T vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
 ## Lint source code files tracked in VCS but without extensions with Vale.
-test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
+test-lint-prose-vale-misc: ./build/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -376,22 +376,22 @@ test-lint-prose-proselint: ./.tox/build/.tox-info.json
 	    --config "./.proselintrc.json"
 .PHONY: test-lint-prose-write-good
 ## Lint prose in all files tracked in VCS with write-good.
-test-lint-prose-write-good: ./var/log/npm-install.log
+test-lint-prose-write-good: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:write-good"
 .PHONY: test-lint-prose-alex
 ## Lint prose in all files tracked in VCS with alex.
-test-lint-prose-alex: ./var/log/npm-install.log
+test-lint-prose-alex: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: ./var/log/docker-compose-network.log
+test-lint-docker: ./build/log/docker-compose-network.log
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- docker compose run --rm -T hadolint hadolint
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: ./var/log/git-fetch.log ./.tox/build/.tox-info.json
+test-push: ./build/log/git-fetch.log ./.tox/build/.tox-info.json
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -458,7 +458,7 @@ test-worktree-add-%:
 
 .PHONY: release
 ## Publish installable packages if conventional commits require a release.
-release: ./var/log/build-pkgs.log
+release: ./build/log/build-pkgs.log
 	$(MAKE) test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
@@ -467,8 +467,8 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
-		./var/log/npm-install.log
+release-bump: ./build/log/git-fetch.log ./.tox/build/.tox-info.json \
+		./build/log/npm-install.log
 # Fail if there are existing uncommitted changes:
 	if ! git diff --cached --exit-code
 	then
@@ -534,7 +534,7 @@ endif
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
-release-all: ./var/log/git-fetch.log
+release-all: ./build/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
 	$(MAKE) test-push test
@@ -548,7 +548,7 @@ release-all: ./var/log/git-fetch.log
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
+devel-format: ./build/log/docker-compose-network.log ./build/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
@@ -587,10 +587,10 @@ devel-upgrade-pre-commit: devel-upgrade-py
 ## Update the container images of development tools.
 devel-upgrade-vale: devel-upgrade-py
 	touch "./.vale.ini" ./styles/*.ini
-	$(MAKE) "./var/log/vale-rule-levels.log"
+	$(MAKE) "./build/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-js
 ## Update tools implemented in JavaScript.
-devel-upgrade-js: ./var/log/npm-install.log
+devel-upgrade-js: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm update
 	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-docker
@@ -601,7 +601,7 @@ devel-upgrade-docker: $(HOST_TARGET_DOCKER)
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/log/git-fetch.log test-clean
+devel-upgrade-branch: ./build/log/git-fetch.log test-clean
 	now=$$(date -u)
 	$(MAKE) TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
 	if $(MAKE) "test-clean"
@@ -629,7 +629,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 
 .PHONY: devel-merge
 ## Merge this branch with a suffix back into its un-suffixed upstream.
-devel-merge: ./var/log/git-fetch.log
+devel-merge: ./build/log/git-fetch.log
 	merge_rev="$$(git rev-parse HEAD)"
 	git fetch "$(VCS_REMOTE)" "$(VCS_MERGE_BRANCH)"
 	git switch -C "$(VCS_MERGE_BRANCH)" --track "$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)"
@@ -650,8 +650,8 @@ clean:
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
 	tox exec -e "build" -- pre-commit clean || true
-	git clean -dfx -e "/var" -e "/.env" -e "*~"
-	git clean -dfx './var/log/*'
+	git clean -dfx -e "/build" -e "/.env" -e "*~"
+	git clean -dfx './build/log/*'
 
 
 ### Real Targets:
@@ -660,12 +660,12 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
+./build/log/build-pkgs.log: ./build/log/host/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
 
 # Create the Docker compose network a single time under parallel make:
-./var/log/docker-compose-network.log:
+./build/log/docker-compose-network.log:
 	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
@@ -737,7 +737,7 @@ endif
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
+./build/log/git-fetch.log: ./build/log/host/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -763,7 +763,7 @@ endif
 endif
 	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
-./var/log/git-ls-files.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
+./build/log/git-ls-files.log: ./build/log/host/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git ls-files >"$(@).~new~"
 	if diff --color -u "$(@)" "$(@).~new~"
@@ -780,20 +780,20 @@ endif
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
-./var/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
-		./var/log/git-ls-files.log
+./build/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
+		./build/log/git-ls-files.log
 	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
-./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
+./build/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
 	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
+./styles/RedHat/meta.json: ./build/log/docker-compose-network.log ./.vale.ini \
 		./styles/code.ini
 	sed -nE 's|^ *Packages *= *(.+) *|\1|p' "./.vale.ini" "./styles/code.ini" |
 	    tr -s "," "\n" | sed -nE 's| *([^ ]+.+[^ ]+) *|\1|p' | sort | uniq |
@@ -809,14 +809,14 @@ endif
 	$(call expand_template,$(<),$(@))
 
 # Manage JavaScript tools:
-./var/log/npm-install.log: ./package.json ./var/log/nvm-install.log
+./build/log/npm-install.log: ./package.json ./build/log/nvm-install.log
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npm install | tee -a "$(@)"
 ./package.json:
-	$(MAKE) "./var/log/nvm-install.log"
+	$(MAKE) "./build/log/nvm-install.log"
 # https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
 	~/.nvm/nvm-exec npm init --yes --scope="@$(NPM_SCOPE)"
-./var/log/nvm-install.log: ./.nvmrc
+./build/log/nvm-install.log: ./.nvmrc
 	$(MAKE) "$(HOME)/.nvm/nvm.sh"
 	mkdir -pv "$(dir $(@))"
 	set +x
@@ -890,7 +890,7 @@ $(STATE_DIR)/log/host-update.log:
 	$(HOST_PKG_CMD) update | tee -a "$(@)"
 
 # Useful to update targets only one time per run including sub-makes:
-./var-host/log/make-runs/$(MAKE_RUN_UUID).log:
+./build/log/host/make-runs/$(MAKE_RUN_UUID).log:
 	mkdir -pv "$(dir $(@))"
 	rm -rf $(dir $(@))*.log
 	date | tee -a "$(@)"
@@ -983,13 +983,13 @@ endef
 # none of the modification times of produced artifacts reflect when any downstream
 # targets need updating:
 #
-#     ./var/log/some-work.log:
+#     ./build/log/some-work.log:
 #         mkdir -pv "$(dir $(@))"
 #         echo "Do some work here" | tee -a "$(@)"
 #
 # If the recipe produces no output, the recipe can create arbitrary output:
 #
-#     ./var/log/bar.log:
+#     ./build/log/bar.log:
 #         echo "Do some work here"
 #         mkdir -pv "$(dir $(@))"
 #         date | tee -a "$(@)"
@@ -998,8 +998,8 @@ endef
 # mean that this target's recipe needs to re-run, such as one-time system install tasks,
 # use that target in a sub-make instead of a prerequisite:
 #
-#     ./var/log/bar.log:
-#         $(MAKE) "./var/log/qux.log"
+#     ./build/log/bar.log:
+#         $(MAKE) "./build/log/qux.log"
 #
 # This project uses some more Make features than these core features and welcome further
 # use of such features:
