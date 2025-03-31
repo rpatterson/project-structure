@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 # Common configuration shared between services:
+---
 
 x-volume-checkout-service: &volume-checkout-service
   type: "volume"
