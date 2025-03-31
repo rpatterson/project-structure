@@ -125,7 +125,7 @@ have or better yet submit a PR with corrections.
 
    .. code:: console
 
-     $ git ls-files | grep -iE 'project.?structure'
+     $ git ls-files '**pathmigrator*' '**path?migrator*'
 
 #. Rename project name and template creator identity strings:
 
