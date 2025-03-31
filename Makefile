@@ -214,7 +214,7 @@ export DOCKER_IMAGE=$(DOCKER_IMAGE_$(DOCKER_REGISTRY))
 export DOCKER_PASS?=
 DOCKER_COMPOSE_RUN_CMD=docker compose run --rm -T --quiet-pull
 DOCKER_COMPOSE_UPGRADE=false
-TEST_CODE_PREREQS=./var/log/build-pkgs.log
+TEST_CODE_PREREQS=./build/log/build-pkgs.log
 
 APT_LOCK_INS=$(wildcard ./apt/*/*-lock.txt.in)
 
@@ -267,13 +267,13 @@ all: build
 .PHONY: start
 ## Run the local development end-to-end stack services in the background as daemons.
 start: $(HOST_TARGET_DOCKER) \
-		./var-docker/$(DOCKER_DEFAULT)/log/build-user.log ./.env.~out~
+		./build-docker/$(DOCKER_DEFAULT)/log/build-user.log ./.env.~out~
 	docker compose down
 	docker compose up -d
 
 .PHONY: run
 ## Run the local development end-to-end stack services in the foreground for debugging.
-run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_DEFAULT)/log/build-user.log \
+run: $(HOST_TARGET_DOCKER) ./build-docker/$(DOCKER_DEFAULT)/log/build-user.log \
 		./.env.~out~
 	docker compose down
 	docker compose up
@@ -286,8 +286,8 @@ run: $(HOST_TARGET_DOCKER) ./var-docker/$(DOCKER_DEFAULT)/log/build-user.log \
 .PHONY: build
 ## Set up everything for development from a checkout, local and in containers.
 # <!--alex disable hooks-->
-build: ./.git/hooks/pre-commit ./var/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./var/log/npm-install.log build-docker
+build: ./.git/hooks/pre-commit ./build/log/docker-compose-network.log \
+		./.tox/build/.tox-info.json ./build/log/npm-install.log build-docker
 # <!--alex enable hooks-->
 
 .PHONY: build-docs
@@ -343,8 +343,8 @@ build-docker: $(DOCKER_VARIANTS:%=build-docker-%)
 # Need to use `$(eval $(call))` to reference the variant in the target *and*
 # prerequisite:
 define build_docker_template=
-build-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
-		./var-docker/$(1)/log/build-user.log
+build-docker-$(1): ./build-docker/$(1)/log/build-devel.log \
+		./build-docker/$(1)/log/build-user.log
 endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call build_docker_template,$(variant))))
 
@@ -357,7 +357,7 @@ build-docker-tags: ./.tox/build/.tox-info.json
 .PHONY: $(DOCKER_REGISTRIES:%=build-docker-tags-%)
 ## Print the list of image tags for the current registry and variant.
 $(DOCKER_REGISTRIES:%=build-docker-tags-%): ./.tox/build/.tox-info.json
-	test -e "./var/log/git-fetch.log"
+	test -e "./build/log/git-fetch.log"
 	docker_image="$(DOCKER_IMAGE_$(@:build-docker-tags-%=%))"
 	target_variant="$(DOCKER_BUILD_TARGET)-$(DOCKER_VARIANT)"
 # Print only the branch tag if this image variant is the default variant:
@@ -405,8 +405,8 @@ endif
 ## Run the actual commands used to build the Docker container image.
 build-docker-build: ./Dockerfile $(HOST_TARGET_DOCKER) ./.tox/build/.tox-info.json \
 		$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/git-fetch.log \
-		./var/log/docker-login-DOCKER.log
+		./build/log/git-fetch.log \
+		./build/log/docker-login-DOCKER.log
 	pull_target="devel"
 ifneq ($(DOCKER_BUILD_TARGET),base)
 ifneq ($(DOCKER_BUILD_TARGET),bootstrap)
@@ -425,7 +425,7 @@ endif
 # Workaround broken interactive session detection:
 	docker pull "buildpack-deps"
 # Assemble the tags for all the variant permutations:
-	$(MAKE) "./var/log/git-fetch.log"
+	$(MAKE) "./build/log/git-fetch.log"
 ifeq ($(DOCKER_BUILD_TARGET),base)
 	build_target="$(DOCKER_BUILD_TARGET)"
 else
@@ -482,14 +482,14 @@ test-docker: $(DOCKER_VARIANTS:%=test-docker-devel-%) \
 		$(DOCKER_VARIANTS:%=test-docker-user-%)
 define test_docker_template=
 # Run code tests inside the development Docker container for consistency:
-test-docker-devel-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/$(1)/log/build-devel.log ./var/log/build-pkgs.log
+test-docker-devel-$(1): ./build/log/docker-compose-network.log \
+		./build-docker/$(1)/log/build-devel.log ./build/log/build-pkgs.log
 	export DOCKER_VARIANT="$(1)"
 	$(DOCKER_COMPOSE_RUN_CMD) $$(PROJECT_NAME)-devel \
 	    make TEST_CODE_PREREQS= test-code
 # Test that the end-user image can run commands:
-test-docker-user-$(1): ./var/log/docker-compose-network.log \
-		./var-docker/$(1)/log/build-user.log
+test-docker-user-$(1): ./build/log/docker-compose-network.log \
+		./build-docker/$(1)/log/build-user.log
 	export DOCKER_VARIANT="$(1)"
 # TEMPLATE: Change the command to confirm the user image has a working installation of
 # the package:
@@ -504,7 +504,7 @@ test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
 
 .PHONY: test-lint-licenses
 ## Lint copyright and license annotations for all files tracked in VCS.
-test-lint-licenses: ./var/log/docker-compose-network.log
+test-lint-licenses: ./build/log/docker-compose-network.log
 	$(DOCKER_COMPOSE_RUN_CMD) "reuse"
 
 .PHONY: test-lint-code
@@ -512,7 +512,7 @@ test-lint-licenses: ./var/log/docker-compose-network.log
 test-lint-code: test-lint-code-prettier
 .PHONY: test-lint-code-prettier
 ## Lint source code for formatting with Prettier.
-test-lint-code-prettier: ./var/log/npm-install.log ./var/log/build-pkgs.log
+test-lint-code-prettier: ./build/log/npm-install.log ./build/log/build-pkgs.log
 	~/.nvm/nvm-exec npm run lint:prettier
 
 .PHONY: test-lint-docs
@@ -548,20 +548,20 @@ test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
 		test-lint-prose-write-good test-lint-prose-alex
 .PHONY: test-lint-prose-vale-markup
 ## Lint prose in all markup files tracked in VCS with Vale.
-test-lint-prose-vale-markup: ./var/log/docker-compose-network.log
+test-lint-prose-vale-markup: ./build/log/docker-compose-network.log
 # https://vale.sh/docs/topics/scoping/#formats
 	git ls-files -co --exclude-standard -z ':!docs/news*.rst' ':!LICENSES' \
 	    ':!styles/**' ':!requirements/**' ':!apt/*-lock.txt' |
 	    xargs -r -0 -t -- $(DOCKER_COMPOSE_RUN_CMD) vale
 .PHONY: test-lint-prose-vale-code
 ## Lint comment prose in all source code files tracked in VCS with Vale.
-test-lint-prose-vale-code: ./var/log/docker-compose-network.log
+test-lint-prose-vale-code: ./build/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z ':!styles/**' |
 	    xargs -r -0 -t -- \
 	    $(DOCKER_COMPOSE_RUN_CMD) vale --config="./styles/code.ini"
 .PHONY: test-lint-prose-vale-misc
 ## Lint source code files tracked in VCS but without extensions with Vale.
-test-lint-prose-vale-misc: ./var/log/docker-compose-network.log
+test-lint-prose-vale-misc: ./build/log/docker-compose-network.log
 	git ls-files -co --exclude-standard -z | grep -Ez '^[^.]+$$' |
 	    while read -d $$'\0'
 	    do
@@ -581,17 +581,17 @@ test-lint-prose-proselint: ./.tox/build/.tox-info.json
 	    --config "./.proselintrc.json"
 .PHONY: test-lint-prose-write-good
 ## Lint prose in all files tracked in VCS with write-good.
-test-lint-prose-write-good: ./var/log/npm-install.log
+test-lint-prose-write-good: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:write-good"
 .PHONY: test-lint-prose-alex
 ## Lint prose in all files tracked in VCS with alex.
-test-lint-prose-alex: ./var/log/npm-install.log
+test-lint-prose-alex: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm run "lint:alex"
 
 .PHONY: test-lint-docker
 ## Check the style and content of the `./Dockerfile*` files
-test-lint-docker: ./var/log/docker-compose-network.log \
-		./var/log/docker-login-DOCKER.log \
+test-lint-docker: ./build/log/docker-compose-network.log \
+		./build/log/docker-login-DOCKER.log \
 		$(DOCKER_VARIANTS:%=test-lint-docker-volumes-%)
 	git ls-files -z '*Dockerfile*' |
 	    xargs -0 -- $(DOCKER_COMPOSE_RUN_CMD) hadolint hadolint
@@ -620,7 +620,7 @@ test-lint-docker-volumes:
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: ./var/log/git-fetch.log ./.tox/build/.tox-info.json
+test-push: ./build/log/git-fetch.log ./.tox/build/.tox-info.json
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -691,7 +691,7 @@ release: release-pkgs release-docker
 
 .PHONY: release-pkgs
 ## Publish installable packages if conventional commits require a release.
-release-pkgs: ./var/log/build-pkgs.log
+release-pkgs: ./build/log/build-pkgs.log
 	$(MAKE) test-clean
 # Don't release unless from the `main` or `develop` branches:
 ifeq ($(RELEASE_PUBLISH),true)
@@ -704,9 +704,9 @@ release-docker: $(DOCKER_VARIANTS:%=release-docker-%) release-docker-readme
 	$(MAKE) test-clean
 .PHONY: $(DOCKER_VARIANTS:%=release-docker-%)
 define release_docker_template=
-release-docker-$(1): ./var-docker/$(1)/log/build-devel.log \
-		./var-docker/$(1)/log/build-user.log \
-		$$(DOCKER_REGISTRIES:%=./var/log/docker-login-%.log) \
+release-docker-$(1): ./build-docker/$(1)/log/build-devel.log \
+		./build-docker/$(1)/log/build-user.log \
+		$$(DOCKER_REGISTRIES:%=./build/log/docker-login-%.log) \
 		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log
 	export DOCKER_VARIANT="$$(@:release-docker-%=%)"
@@ -726,19 +726,19 @@ endef
 $(foreach variant,$(DOCKER_VARIANTS),$(eval $(call release_docker_template,$(variant))))
 .PHONY: release-docker-readme
 ## Update Docker Hub `README.md` by using the `./README.rst` reStructuredText version.
-release-docker-readme: ./var/log/docker-compose-network.log
+release-docker-readme: ./build/log/docker-compose-network.log
 # Only for final releases:
 ifeq ($(VCS_BRANCH),main)
 ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
-	$(MAKE) "./var/log/docker-login-DOCKER.log"
+	$(MAKE) "./build/log/docker-login-DOCKER.log"
 	docker compose up docker-pushrm
 endif
 endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./var/log/git-fetch.log ./.tox/build/.tox-info.json \
-		./var/log/npm-install.log
+release-bump: ./build/log/git-fetch.log ./.tox/build/.tox-info.json \
+		./build/log/npm-install.log
 # Fail if there are existing uncommitted changes:
 	if ! git diff --cached --exit-code
 	then
@@ -804,7 +804,7 @@ endif
 
 .PHONY: release-all
 ## Run the whole release process, end to end.
-release-all: ./var/log/git-fetch.log
+release-all: ./build/log/git-fetch.log
 # Done as separate sub-makes in the recipe, as opposed to prerequisites, to support
 # running as much of the process as possible with `$ make -j`:
 ifeq ($(DOCKER_VARIANT),$(DOCKER_DEFAULT))
@@ -822,7 +822,7 @@ endif
 
 .PHONY: devel-format
 ## Automatically correct code in this checkout according to linters and style checkers.
-devel-format: ./var/log/docker-compose-network.log ./var/log/npm-install.log
+devel-format: ./build/log/docker-compose-network.log ./build/log/npm-install.log
 	true "TEMPLATE: Always specific to the project type"
 # Add license and copyright header to files missing them:
 	git ls-files -co --exclude-standard -z ':!*.license' ':!.reuse' ':!LICENSES' \
@@ -861,10 +861,10 @@ devel-upgrade-pre-commit: devel-upgrade-py
 ## Update the container images of development tools.
 devel-upgrade-vale: devel-upgrade-py
 	touch "./.vale.ini" ./styles/*.ini
-	$(MAKE) "./var/log/vale-rule-levels.log"
+	$(MAKE) "./build/log/vale-rule-levels.log"
 .PHONY: devel-upgrade-js
 ## Update tools implemented in JavaScript.
-devel-upgrade-js: ./var/log/npm-install.log
+devel-upgrade-js: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm update
 	~/.nvm/nvm-exec npm outdated
 .PHONY: devel-upgrade-compose
@@ -880,7 +880,7 @@ devel-upgrade-apt:
 
 .PHONY: devel-upgrade-branch
 ## Reset an upgrade branch, commit upgraded dependencies on it, and push for review.
-devel-upgrade-branch: ./var/log/git-fetch.log test-clean
+devel-upgrade-branch: ./build/log/git-fetch.log test-clean
 	now=$$(date -u)
 	$(MAKE) DOCKER_BUILD_PULL="true" TEMPLATE_IGNORE_EXISTING="true" devel-upgrade
 	if $(MAKE) "test-clean"
@@ -908,7 +908,7 @@ devel-upgrade-branch: ./var/log/git-fetch.log test-clean
 
 .PHONY: devel-merge
 ## Merge this branch with a suffix back into its un-suffixed upstream.
-devel-merge: ./var/log/git-fetch.log
+devel-merge: ./build/log/git-fetch.log
 	merge_rev="$$(git rev-parse HEAD)"
 	git fetch "$(VCS_REMOTE)" "$(VCS_MERGE_BRANCH)"
 	git switch -C "$(VCS_MERGE_BRANCH)" --track "$(VCS_REMOTE)/$(VCS_MERGE_BRANCH)"
@@ -929,9 +929,9 @@ clean:
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push" \
 	    || true
 	tox exec -e "build" -- pre-commit clean || true
-	git clean -dfx -e "/var" -e "/.env" -e "*~" -e "/var-docker"
-	git clean -dfx './var/log/*' './var-docker/*/log/*' "./var-docker/*/.tox/*" \
-	    "./var-docker/*/project_structure.egg-info/*"
+	git clean -dfx -e "/build" -e "/.env" -e "*~" -e "/build-docker"
+	git clean -dfx './build/log/*' './build-docker/*/log/*' "./build-docker/*/.tox/*" \
+	    "./build-docker/*/project_structure.egg-info/*"
 
 
 ### Real Targets:
@@ -940,9 +940,9 @@ clean:
 
 # TEMPLATE: Add any other prerequisites that are likely to require updating the build
 # package.
-./var/log/build-pkgs.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log \
-		 ./var/log/docker-compose-network.log \
-		./var-docker/$(DOCKER_VARIANT)/log/build-devel.log
+./build/log/build-pkgs.log: ./build/log/host/make-runs/$(MAKE_RUN_UUID).log \
+		 ./build/log/docker-compose-network.log \
+		./build-docker/$(DOCKER_VARIANT)/log/build-devel.log
 	mkdir -pv "$(dir $(@))"
 	$(DOCKER_COMPOSE_RUN_CMD) $(PROJECT_NAME)-devel \
 	    echo "TEMPLATE: Always specific to the project type" | tee -a "$(@)"
@@ -965,11 +965,11 @@ $(foreach lock_in,$(APT_LOCK_INS),\
 # Build Docker container images:
 # Build the base layer common to both published images:
 define build_docker_base_template=
-./var-docker/$(1)/log/build-base.log: \
+./build-docker/$(1)/log/build-base.log: \
 		./Dockerfile ./apt/base-lock.txt \
 		./container/usr/local/bin/entrypoint.sh ./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/docker-login-DOCKER.log
+		./build/log/docker-login-DOCKER.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="base" \
@@ -979,11 +979,11 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_base_template,$(variant))))
 # Build the development image:
 define build_docker_devel_template=
-./var-docker/$(1)/log/build-devel.log:
-		./Dockerfile ./var-docker/$(1)/log/build-base.log \
+./build-docker/$(1)/log/build-devel.log:
+		./Dockerfile ./build-docker/$(1)/log/build-base.log \
 		./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/docker-login-DOCKER.log
+		./build/log/docker-login-DOCKER.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="devel" \
@@ -993,10 +993,10 @@ $(foreach variant,$(DOCKER_VARIANTS),\
     $(eval $(call build_docker_devel_template,$(variant))))
 # Build the user image:
 define build_docker_user_template=
-./var-docker/$(1)/log/build-user.log: ./Dockerfile \
-		./var-docker/$(1)/log/build-base.log ./.tox/build/.tox-info.json \
+./build-docker/$(1)/log/build-user.log: ./Dockerfile \
+		./build-docker/$(1)/log/build-base.log ./.tox/build/.tox-info.json \
 		$$(HOME)/.local/state/docker-multi-platform/log/host-install.log \
-		./var/log/docker-login-DOCKER.log ./var/log/build-pkgs.log
+		./build/log/docker-login-DOCKER.log ./build/log/build-pkgs.log
 	true DEBUG Updated prereqs: $$(?)
 	mkdir -pv "$$(dir $$(@))"
 	$$(MAKE) DOCKER_VARIANT="$(1)" DOCKER_BUILD_TARGET="user" \
@@ -1020,7 +1020,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 	        2>"/dev/null" || true
 	    ) | tee -a "$(@)"
 	fi
-./var/log/docker-login-DOCKER.log: ./.env.~out~
+./build/log/docker-login-DOCKER.log: ./.env.~out~
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	mkdir -pv "$(dir $(@))"
 	if test -n "$${DOCKER_PASS}"
@@ -1035,7 +1035,7 @@ $(HOME)/.local/state/docker-multi-platform/log/host-install.log:
 
 # Perform any initial setup needed by more than one container, such as the network and
 # shared volumes:
-./var/log/docker-compose-network.log: ./home/.bash_history
+./build/log/docker-compose-network.log: ./home/.bash_history
 	$(MAKE) "$(HOST_TARGET_DOCKER)" "./.env.~out~"
 	mkdir -pv "$(dir $(@))"
 # Workaround broken interactive session detection:
@@ -1106,7 +1106,7 @@ endif
 ./.env.~out~: ./.env.in
 	$(call expand_template,$(<),$(@))
 
-./README.md: README.rst ./var/log/docker-compose-network.log
+./README.md: README.rst ./build/log/docker-compose-network.log
 	$(MAKE) "$(HOST_TARGET_DOCKER)"
 	$(DOCKER_COMPOSE_RUN_CMD) "pandoc"
 
@@ -1116,7 +1116,7 @@ endif
 # VCS configuration and integration:
 # Retrieve VCS data needed for versioning, tags, and releases, release notes. Done in
 # it's own target to avoid redundant fetches during release tasks:
-./var/log/git-fetch.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
+./build/log/git-fetch.log: ./build/log/host/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git_fetch_args="--tags --prune --prune-tags --force"
 	if test "$$(git rev-parse --is-shallow-repository)" = "true"
@@ -1142,7 +1142,7 @@ endif
 endif
 	touch "$(@)"
 # A target whose `mtime` reflects files added to or removed from VCS:
-./var/log/git-ls-files.log: ./var-host/log/make-runs/$(MAKE_RUN_UUID).log
+./build/log/git-ls-files.log: ./build/log/host/make-runs/$(MAKE_RUN_UUID).log
 	mkdir -pv "$(dir $(@))"
 	git ls-files >"$(@).~new~"
 	if diff --color -u "$(@)" "$(@).~new~"
@@ -1159,20 +1159,20 @@ endif
 
 # Prose linting:
 # Map formats unknown by Vale to a common default format:
-./var/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
-		./var/log/git-ls-files.log
+./build/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
+		./build/log/git-ls-files.log
 	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
-./var/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
+./build/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
 	$(MAKE) "./.tox/build/.tox-info.json"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
 # Update style rule definitions from the remotes:
-./styles/RedHat/meta.json: ./var/log/docker-compose-network.log ./.vale.ini \
+./styles/RedHat/meta.json: ./build/log/docker-compose-network.log ./.vale.ini \
 		./styles/code.ini
 	sed -nE 's|^ *Packages *= *(.+) *|\1|p' "./.vale.ini" "./styles/code.ini" |
 	    tr -s "," "\n" | sed -nE 's| *([^ ]+.+[^ ]+) *|\1|p' | sort | uniq |
@@ -1188,14 +1188,14 @@ endif
 	$(call expand_template,$(<),$(@))
 
 # Manage JavaScript tools:
-./var/log/npm-install.log: ./package.json ./var/log/nvm-install.log
+./build/log/npm-install.log: ./package.json ./build/log/nvm-install.log
 	mkdir -pv "$(dir $(@))"
 	~/.nvm/nvm-exec npm install | tee -a "$(@)"
 ./package.json:
-	$(MAKE) "./var/log/nvm-install.log"
+	$(MAKE) "./build/log/nvm-install.log"
 # https://docs.npmjs.com/creating-a-package-json-file#creating-a-default-packagejson-file
 	~/.nvm/nvm-exec npm init --yes --scope="@$(NPM_SCOPE)"
-./var/log/nvm-install.log: ./.nvmrc
+./build/log/nvm-install.log: ./.nvmrc
 	$(MAKE) "$(HOME)/.nvm/nvm.sh"
 	mkdir -pv "$(dir $(@))"
 	set +x
@@ -1269,7 +1269,7 @@ $(STATE_DIR)/log/host-update.log:
 	$(HOST_PKG_CMD) update | tee -a "$(@)"
 
 # Useful to update targets only one time per run including sub-makes:
-./var-host/log/make-runs/$(MAKE_RUN_UUID).log:
+./build/log/host/make-runs/$(MAKE_RUN_UUID).log:
 	mkdir -pv "$(dir $(@))"
 	rm -rf $(dir $(@))*.log
 	date | tee -a "$(@)"
@@ -1362,13 +1362,13 @@ endef
 # none of the modification times of produced artifacts reflect when any downstream
 # targets need updating:
 #
-#     ./var/log/some-work.log:
+#     ./build/log/some-work.log:
 #         mkdir -pv "$(dir $(@))"
 #         echo "Do some work here" | tee -a "$(@)"
 #
 # If the recipe produces no output, the recipe can create arbitrary output:
 #
-#     ./var/log/bar.log:
+#     ./build/log/bar.log:
 #         echo "Do some work here"
 #         mkdir -pv "$(dir $(@))"
 #         date | tee -a "$(@)"
@@ -1377,8 +1377,8 @@ endef
 # mean that this target's recipe needs to re-run, such as one-time system install tasks,
 # use that target in a sub-make instead of a prerequisite:
 #
-#     ./var/log/bar.log:
-#         $(MAKE) "./var/log/qux.log"
+#     ./build/log/bar.log:
+#         $(MAKE) "./build/log/qux.log"
 #
 # This project uses some more Make features than these core features and welcome further
 # use of such features:
@@ -1408,9 +1408,9 @@ endef
 # TEMPLATE: Only necessary if you customize the `./build-host/` image.  Different
 # projects can use the same image, even across individuals and organizations.  If you do
 # need to customize the image, then run this every time the image changes. See the
-# `./var/log/docker-login*.log` targets for the authentication environment variables to
+# `./build/log/docker-login*.log` targets for the authentication environment variables to
 # set or login to those container registries manually and `$ touch` these targets.
 .PHONY: bootstrap-project
-bootstrap-project: ./var/log/docker-login-DOCKER.log
+bootstrap-project: ./build/log/docker-login-DOCKER.log
 # Initially seed the build host Docker image to bootstrap CI/CD environments
 	$(MAKE) -C "./build-host/" release

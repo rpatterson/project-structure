@@ -82,8 +82,8 @@ services:
       - <<: *volume-checkout-service
       # Avoid any clashes between image variants and the local host at both build and
       # runtime.
-      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/var-docker/${DOCKER_VARIANT:-debian}/\
-        :/usr/local/src/project-structure${WORKTREE_REL:-}/var/"
+      - "${CHECKOUT_DIR:-.}${WORKTREE_REL:-}/build-docker/${DOCKER_VARIANT:-debian}/\
+        :/usr/local/src/project-structure${WORKTREE_REL:-}/build/"
     working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
 
   base:
@@ -137,7 +137,7 @@ services:
       DOCKER_USER: "${DOCKER_USER:-}"
       DOCKER_PASS: "${DOCKER_PASS:-}"
     command: >-
-      --file "./var/README.md"
+      --file "./build/README.md"
       --short "Project structure foundation or template"
       --debug "${DOCKER_USER:-}/project-structure"
 
