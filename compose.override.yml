@@ -11,8 +11,8 @@ x-volume-checkout-service: &volume-checkout-service
 
 x-service: &service
   user: "${PUID:-1000}:${PGID:-${PUID:-1000}}"
-  environment:
-    TZ: "${TZ:-Etc/UTC}"
+  env_file:
+    - "./.env"
   volumes:
     - <<: *volume-checkout-service
   working_dir: "/usr/local/src/project-structure${WORKTREE_REL:-}"
@@ -82,15 +82,11 @@ services:
       - "/run/user/${PUID:-1000}/gnupg/S.gpg-agent:/home/runner/.gnupg/S.gpg-agent"
     env_file: "./.env"
     environment:
-      PUID: "${PUID:-1000}"
       PGID: "${DOCKER_GID:-${PGID:-${PUID:-1000}}}"
       SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/run/user/${PUID:-1000}/ssh/agent.socket}"
       # Pass the bind volume source paths along as seen from the host `# dockerd`:
       CHECKOUT_DIR: "${CHECKOUT_DIR:-.}"
       WORKTREE_REL: "${WORKTREE_REL:-}"
-      # Pass in from the environment or set to `true` here to get more verbose `DEBUG`
-      # logging:
-      DEBUG: "${DEBUG:-}"
     user: "0:0"
     command: >-
       make -j -O release-all
