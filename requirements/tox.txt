@@ -1,0 +1,3 @@
+# Compiling requirements requires multiple additive CLI overrides:
+# https://tox.wiki/en/latest/changelog.html#v4-15-0-2024-04-26
+tox>=4.15.0

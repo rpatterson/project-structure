@@ -81,6 +81,11 @@ Nice to have
     Add `a badge <https://repology.org/project/python:project-structure/badges>`_ for
     projects that publish packages to more than one repository.
 
+#. :Lint:
+
+   Evaluate `npm concurrently <https://www.npmjs.com/package/concurrently>`_ to move
+   parallel npm execution out of ``./Makefile``.
+
 #. :TODO:
 
     The list items in this document are the most important improvements that this

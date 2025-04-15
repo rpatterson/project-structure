@@ -96,6 +96,8 @@ HOST_TARGET_DOCKER:=$(shell which docker)
 ifeq ($(HOST_TARGET_DOCKER),)
 HOST_TARGET_DOCKER=$(HOST_PREFIX)/bin/docker
 endif
+
+# Values used for Python tools:
 PYTHON_SUPPORTED_ENV=py$(subst .,,$(PYTHON_SUPPORTED_MINOR))
 PYTHON_HOST_MINOR=$(PYTHON_SUPPORTED_MINOR)
 # Try to be usable for as wide an audience of contributors as possible.  Fallback to the
@@ -106,6 +108,9 @@ PYTHON_HOST_MINOR:=$(shell python3 -c \
     'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 endif
 export PYTHON_HOST_ENV=py$(subst .,,$(PYTHON_HOST_MINOR))
+PYTHON_ENVS=py312 py311 py310 py39 py38
+PYTHON_OTHER_ENVS=$(filter-out $(PYTHON_SUPPORTED_ENV),$(PYTHON_ENVS))
+PYTHON_REQUREMENTS_INS=$(wildcard ./requirements/*.txt.in)
 PIP_COMPILE_ARGS=
 
 # Values derived from the environment:
@@ -235,7 +240,7 @@ all: build
 ## Perform any necessary local setup common to most operations.
 # <!--alex disable hooks-->
 build: ./.git/hooks/pre-commit ./build/log/docker-compose-network.log \
-		./.tox/build/.tox-info.json ./build/log/npm-install.log
+		./build/log/tox.log ./build/log/npm-install.log
 # <!--alex enable hooks-->
 
 .PHONY: build-docs
@@ -244,7 +249,7 @@ build-docs: $(DOCS_SPHINX_ALL_FORMATS:%=build-docs-%)
 
 .PHONY: build-docs-watch
 ## Serve the Sphinx documentation with live updates
-build-docs-watch: ./.tox/build/.tox-info.json
+build-docs-watch: ./build/log/tox.log
 	mkdir -pv "./build/docs/html/"
 	tox exec -e "build" -- sphinx-autobuild -b "html" "./docs/" "./build/docs/html/"
 
@@ -253,13 +258,13 @@ build-docs-watch: ./.tox/build/.tox-info.json
 # https://github.com/sphinx-doc/sphinx/issues/11759
 .PHONY: build-docs-devhelp
 ## Render the documentation into the GNOME Devhelp format.
-build-docs-devhelp: ./.tox/build/.tox-info.json
+build-docs-devhelp: ./build/log/tox.log
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn -E \
 	    -j "auto" $(DOCS_SPHINX_BUILD_OPTS) "./docs/" \
 	    "./build/docs/$(@:build-docs-%=%)/"
 .PHONY: $(DOCS_SPHINX_BUILDERS:%=build-docs-%)
 ## Render the documentation into a specific format.
-$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./.tox/build/.tox-info.json \
+$(DOCS_SPHINX_BUILDERS:%=build-docs-%): ./build/log/tox.log \
 		build-docs-devhelp $(HOST_PREFIX)/bin/convert
 	"$(<:%/.tox-info.json=%/bin/sphinx-build)" -b "$(@:build-docs-%=%)" -Wn \
 	    -j "auto" -D autosummary_generate="0" "./docs/" \
@@ -296,7 +301,7 @@ test-debug:
 
 .PHONY: test-lint
 ## Perform any linter or style checks, including non-code checks.
-test-lint: test-lint-code test-lint-docker test-lint-docs test-lint-prose \
+test-lint: test-lint-code test-lint-docker test-lint-tox test-lint-prose \
 		test-lint-licenses
 
 .PHONY: test-lint-licenses
@@ -312,37 +317,16 @@ test-lint-code: test-lint-code-prettier
 test-lint-code-prettier: ./build/log/npm-install.log ./build/log/build-pkgs.log
 	~/.nvm/nvm-exec npm run lint:prettier
 
-.PHONY: test-lint-docs
-## Lint documentation for errors, broken links, and other issues.
-test-lint-docs: test-lint-docs-rstcheck build-docs test-lint-docs-sphinx-lint \
-		test-lint-docs-doc8
-# TODO: Audit what checks all tools perform and remove redundant tools.
-.PHONY: test-lint-docs-rstcheck
-## Lint documentation for formatting errors and other issues with rstcheck.
-test-lint-docs-rstcheck: ./.tox/build/.tox-info.json
-# Verify reStructuredText syntax. Exclude `./docs/index.rst` because its use of the
-# `.. include:: ../README.rst` directive breaks `$ rstcheck`:
-#     CRITICAL:rstcheck_core.checker:An `AttributeError` error occured.
-# Also exclude `./docs/news*.rst` because it's duplicate headings cause:
-#     INFO docs/news.rst:317 Duplicate implicit target name: "bugfixes".
-	git ls-files -z '*.rst' ':!docs/index.rst' ':!docs/news*.rst' |
-	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/rstcheck)"
-.PHONY: test-lint-docs-sphinx-lint
-## Test the documentation for formatting errors with sphinx-lint.
-test-lint-docs-sphinx-lint: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' | xargs -r -0 -- \
-	    "$(<:%/.tox-info.json=%/bin/sphinx-lint)" -e "all" -d "line-too-long"
-.PHONY: test-lint-docs-doc8
-## Test the documentation for formatting errors with doc8.
-test-lint-docs-doc8: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' ':!docs/news*.rst' |
-	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/doc8)"
+.PHONY: test-lint-tox
+## Run all project checks implemented in Python tools.
+test-lint-tox: ./build/log/tox.log
+	tox run-parallel -o
 
 .PHONY: test-lint-prose
 ## Lint prose text for spelling, grammar, and style.
 test-lint-prose: test-lint-prose-vale-markup test-lint-prose-vale-code \
-		test-lint-prose-vale-misc test-lint-prose-proselint \
-		test-lint-prose-write-good test-lint-prose-alex
+		test-lint-prose-vale-misc test-lint-prose-write-good \
+		test-lint-prose-alex
 .PHONY: test-lint-prose-vale-markup
 ## Lint prose in all markup files tracked in VCS with Vale.
 test-lint-prose-vale-markup: ./build/log/docker-compose-network.log
@@ -369,12 +353,6 @@ test-lint-prose-vale-misc: ./build/log/docker-compose-network.log
 	                    --ext=".pl"
 	        fi
 	    done
-.PHONY: test-lint-prose-proselint
-## Lint prose in all markup files tracked in VCS with proselint.
-test-lint-prose-proselint: ./.tox/build/.tox-info.json
-	git ls-files -z '*.rst' |
-	    xargs -r -0 -- "$(<:%/.tox-info.json=%/bin/proselint)" \
-	    --config "./.proselintrc.json"
 .PHONY: test-lint-prose-write-good
 ## Lint prose in all files tracked in VCS with write-good.
 test-lint-prose-write-good: ./build/log/npm-install.log
@@ -392,7 +370,7 @@ test-lint-docker: ./build/log/docker-compose-network.log
 
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
-test-push: ./build/log/git-fetch.log ./.tox/build/.tox-info.json
+test-push: ./build/log/git-fetch.log ./build/log/tox.log
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
 	then
@@ -468,7 +446,7 @@ endif
 
 .PHONY: release-bump
 ## Bump the package version if conventional commits require a release.
-release-bump: ./build/log/git-fetch.log ./.tox/build/.tox-info.json \
+release-bump: ./build/log/git-fetch.log ./build/log/tox.log \
 		./build/log/npm-install.log
 # Fail if there are existing uncommitted changes:
 	if ! git diff --cached --exit-code
@@ -579,7 +557,7 @@ devel-upgrade: \
 ## Update tools implemented in Python.
 devel-upgrade-py:
 	touch ./requirements/*.txt.in
-	$(MAKE) PIP_COMPILE_ARGS="--upgrade" "./.tox/build/.tox-info.json"
+	$(MAKE) PIP_COMPILE_ARGS="--upgrade" "./build/log/tox.log"
 .PHONY: devel-upgrade-pre-commit
 ## Update VCS integration from remotes to the most recent tag.
 devel-upgrade-pre-commit: devel-upgrade-py
@@ -775,7 +753,7 @@ endif
 # <!--alex disable hooks-->
 ./.git/hooks/pre-commit:
 # <!--alex enable hooks-->
-	$(MAKE) "./.tox/build/.tox-info.json"
+	$(MAKE) "./build/log/tox.log"
 	tox exec -e "build" -- pre-commit install \
 	    --hook-type "pre-commit" --hook-type "commit-msg" --hook-type "pre-push"
 
@@ -783,13 +761,13 @@ endif
 # Map formats unknown by Vale to a common default format:
 ./build/log/vale-map-formats.log: ./bin/vale-map-formats.py ./.vale.ini \
 		./build/log/git-ls-files.log
-	$(MAKE) "./.tox/build/.tox-info.json"
+	$(MAKE) "./build/log/tox.log"
 	tox exec -e "build" -- python "$(<)" "./styles/code.ini" "./.vale.ini"
 # Set Vale levels for added style rules:
 # Must be it's own target because Vale sync takes the sets of styles from the
 # configuration and the configuration needs the styles to set rule levels:
-./build/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./.tox/build/.tox-info.json
-	$(MAKE) "./.tox/build/.tox-info.json"
+./build/log/vale-rule-levels.log: ./styles/RedHat/meta.json ./build/log/tox.log
+	$(MAKE) "./build/log/tox.log"
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py
 	tox exec -e "build" -- python ./bin/vale-set-rule-levels.py \
 	    --input="./styles/code.ini"
@@ -830,28 +808,37 @@ $(HOME)/.nvm/nvm.sh:
 	    | bash
 
 # Manage Python tools:
-./.tox/build/.tox-info.json: $(HOME)/.local/bin/tox ./tox.ini \
-		./requirements/$(PYTHON_HOST_ENV)/build.txt
-	tox run -e "$(@:.tox/%/.tox-info.json=%)" --notest
-	touch "$(@)"
-./requirements/$(PYTHON_SUPPORTED_ENV)/build.txt: ./requirements/build.txt.in \
-		$(HOME)/.local/bin/tox
-	mkdir -pv "$(dir $(@))"
-	tox exec -e "build" -x testenv:build.deps="-r$(<)" -- pip-compile --strip-extras \
-	    --generate-hashes --reuse-hashes --allow-unsafe --quiet \
-	    $(PIP_COMPILE_ARGS) --output-file "$(@)" "$(<)"
+./build/log/tox.log: $(HOME)/.local/bin/tox ./tox.ini \
+		./requirements/$(PYTHON_HOST_ENV)/build/pip-tools.txt
+	tox run-parallel -o --notest | tee -a "$(@)"
 # Only compile versions that the `./build-host/` Docker image can compile but use tools
 # without pinned/frozen versions for contributors that don't have the canonical Python
 # version installed:
-ifneq ($(PYTHON_SUPPORTED_ENV),$(PYTHON_HOST_ENV))
-./requirements/$(PYTHON_HOST_ENV)/build.txt: ./requirements/build.txt.in
-	mkdir -pv "$(dir $(@))"
-	ln -sv --relative --backup="numbered" "$(<)" "$(@)"
-endif
-$(HOME)/.local/bin/tox:
+PIP_TOOLS_OVERRIDE=testenv:build-pip-tools.set_env
+define pip_compile_template=
+$(1:./requirements/%.in=./requirements/$$(PYTHON_SUPPORTED_ENV)/%): \
+		./$(1) \
+		$$(HOME)/.local/bin/tox
+	mkdir -pv "$$(dir $$(@))"
+	tox run -e "build-pip-tools" \
+	    -x $$(PIP_TOOLS_OVERRIDE)+="pip_compile_args=$$(PIP_COMPILE_ARGS)" \
+	    -x $$(PIP_TOOLS_OVERRIDE)+="requirements_stem=$$(<:requirements/%.txt.in=%)"
+endef
+$(foreach python_requirement_in,$(PYTHON_REQUREMENTS_INS),\
+    $(eval $(call pip_compile_template,$(python_requirement_in))))
+define requirements_link_template=
+$(1:./requirements/%.in=./requirements/$(2)/%): ./$(1)
+	mkdir -pv "$$(dir $$(@))"
+	ln -sv --relative --backup="numbered" "$$(<)" "$$(@)"
+endef
+$(foreach python_env,$(PYTHON_OTHER_ENVS),\
+    $(foreach requirements_link_in,$(PYTHON_REQUREMENTS_INS),\
+        $(eval $(call pip_compile_template,$(requirements_link_in),$(python_env)))))
+$(HOME)/.local/bin/tox: ./requirements/tox.txt
 	$(MAKE) "$(HOST_PREFIX)/bin/pipx"
 # https://tox.wiki/en/latest/installation.html#via-pipx
-	pipx install --python "python$(PYTHON_HOST_MINOR)" "tox"
+	pipx install --force --python="python$(PYTHON_HOST_MINOR)" \
+	    --pip-args="-r $(<)" "tox"
 	touch "$(@)"
 $(HOST_PREFIX)/bin/pipx:
 	$(MAKE) "$(STATE_DIR)/log/host-update.log"

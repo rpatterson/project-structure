@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# Version Control System (VCS) integration to enforce passing tests, test coverage,
+# style, and linting:
+pre-commit

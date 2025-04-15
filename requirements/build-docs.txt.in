@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# Rich, full documentation site:
+sphinx
+sphinx-autobuild
+# https://pradyunsg.me/furo/recommendations/
+sphinx-copybutton
+sphinxext-opengraph
+matplotlib
+# https://sphinx-extensions.readthedocs.io/en/latest/
+sphinx-notfound-page

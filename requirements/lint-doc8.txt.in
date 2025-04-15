@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2023 Ross Patterson <me@rpatterson.net>
+#
+# SPDX-License-Identifier: MIT
+
+# https://docs.restructuredtext.net/articles/linter#supported-linters
+doc8
