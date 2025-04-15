@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 """
-Project structure foundation or template, top-level package.
+Project structure foundation or template, distribution/package metadata.
 """
 
 # TEMPLATE: Projects that use this template should remove the linter disable/ignore
