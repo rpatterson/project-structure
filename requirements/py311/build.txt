@@ -205,7 +205,7 @@ termcolor==2.3.0
     # via commitizen
 tomlkit==0.12.1
     # via commitizen
-tornado==6.3.3
+tornado==6.4.2
     # via livereload
 towncrier==23.10.0
     # via -r requirements/build.txt.in
