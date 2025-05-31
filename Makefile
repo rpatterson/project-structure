@@ -39,7 +39,7 @@ PYTHON_SUPPORTED_MINORS=3.11
 #     https://tech.davis-hansson.com/p/make/
 SHELL:=bash
 .ONESHELL:
-.SHELLFLAGS:=-eu -o pipefail -c
+.SHELLFLAGS:=-eu -o pipefail
 .SILENT:
 .DELETE_ON_ERROR:
 MAKEFLAGS+=--warn-undefined-variables
@@ -432,7 +432,7 @@ GH_TOKEN=
 include $(wildcard .env)
 
 # Finished with `$(shell)`, echo recipe commands going forward
-.SHELLFLAGS+= -x
+.SHELLFLAGS+= -x -c
 
 # <!--alex disable hooks-->
 
