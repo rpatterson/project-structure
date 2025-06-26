@@ -808,7 +808,6 @@ test-lint-docker-volumes: $(HOST_TARGET_DOCKER) ./.env.~out~
 .PHONY: test-push
 ## Verify commits before pushing to the remote.
 test-push: $(VCS_FETCH_TARGETS) $(HOME)/.local/bin/tox
-	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 ifeq ($(CI),true)
 ifneq ($(PYTHON_MINOR),$(PYTHON_HOST_MINOR))
 # Don't waste CI time, only continue for the canonical version:
@@ -817,6 +816,8 @@ endif
 ifeq ($(VCS_COMPARE_BRANCH),main)
 # On `main`, compare with the preceding commit on `main`:
 	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)^"
+else
+	vcs_compare_rev="$(VCS_COMPARE_REMOTE)/$(VCS_COMPARE_BRANCH)"
 endif
 endif
 	if ! git fetch "$(VCS_COMPARE_REMOTE)" "$(VCS_COMPARE_BRANCH)"
