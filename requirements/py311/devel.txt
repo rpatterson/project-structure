@@ -174,7 +174,7 @@ trove-classifiers==2023.10.18
     # via pyroma
 typing-extensions==4.8.0
     # via mypy
-urllib3==2.0.7
+urllib3==2.6.0
     # via requests
 vulture==2.10
     # via prospector
