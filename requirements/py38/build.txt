@@ -213,7 +213,7 @@ tomli==2.0.1
     #   towncrier
 tomlkit==0.12.1
     # via commitizen
-tornado==6.3.3
+tornado==6.5.1
     # via livereload
 towncrier==23.10.0
     # via -r requirements/build.txt.in
